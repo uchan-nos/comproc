@@ -1,2 +1,6 @@
-# comproc
-ComProc project home
+# ComProc project home
+
+## ディレクトリ構成
+
+- src: コンパイラと CPU のソースコード
+- workshop: ワークショップのサンプルコード
