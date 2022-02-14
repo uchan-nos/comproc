@@ -20,7 +20,7 @@ always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
 
-always @(posedge sys_clk or negedge rst_n) begin
+always @(posedge sys_clk) begin
   if (!rst_n)
     led_col <= 8'b00000000;
   else
