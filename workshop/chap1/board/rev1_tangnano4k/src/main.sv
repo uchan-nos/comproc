@@ -13,7 +13,7 @@ logic rst_n;
 // 別名定義
 alias sys_clk = ext_clk;
 
-// 静的代入
+// 継続代入
 assign led_row = 9'b000000001;
 
 always @(posedge sys_clk) begin
