@@ -1,5 +1,5 @@
 module main(
-  input ext_clk,
+  input sys_clk,
   input rst_n_raw,
   input uart_rx,
   output uart_tx,
@@ -9,9 +9,6 @@ module main(
 
 // logic 定義
 logic rst_n;
-
-// 別名定義
-alias sys_clk = ext_clk;
 
 // 継続代入
 assign led_row = 9'b000000001;
