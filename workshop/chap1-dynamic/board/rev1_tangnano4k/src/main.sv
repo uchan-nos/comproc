@@ -3,7 +3,7 @@ module main(
   input rst_n_raw,
   input uart_rx,
   output uart_tx,
-  output logic [7:0] led_col,
+  output [7:0] led_col,
   output [8:0] led_row
 );
 
@@ -17,20 +17,19 @@ logic [2:0] row_index;
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
+assign led_col = led_pattern(row_index);
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
 
 // row_index == 0 のときだけ点灯させる
-always @(posedge sys_clk) begin
-  if (!rst_n)
-    led_col <= 8'b00000000;
-  else if (row_index == 0)
-    led_col <= 8'b10101010;
-  else
-    led_col <= 8'b00000000;
-end
+function [7:0] led_pattern(input [2:0] row_index);
+  case (row_index)
+    3'd0:    led_pattern = 8'b10101010;
+    default: led_pattern = 8'b00000000;
+  endcase
+endfunction
 
 // counter を 1ms で 1 周させる
 always @(posedge sys_clk) begin
