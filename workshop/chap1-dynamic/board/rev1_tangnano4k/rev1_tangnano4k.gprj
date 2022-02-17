@@ -7,5 +7,6 @@
     <FileList>
         <File path="src/main.sv" type="file.verilog" enable="1"/>
         <File path="src/port.cst" type="file.cst" enable="1"/>
+        <File path="src/rev1_tangnano4k.rao" type="file.gao" enable="0"/>
     </FileList>
 </Project>
