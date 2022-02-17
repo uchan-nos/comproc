@@ -32,7 +32,7 @@ function [7:0] led_pattern(input [2:0] row_index);
 endfunction
 
 // counter を 1ms で 1 周させる
-always @(posedge sys_clk) begin
+always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     counter <= 16'd0;
   else if (counter >= PERIOD - 1)
@@ -42,7 +42,7 @@ always @(posedge sys_clk) begin
 end
 
 // counter が 1 周したら row_index を更新する
-always @(posedge sys_clk) begin
+always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     row_index <= 3'd0;
   else if (counter == 0)
