@@ -14,7 +14,7 @@ parameter GAP = 16'd500;
 logic rst_n;
 logic [15:0] counter;
 logic [2:0] row_index;
-logic [7:0] uart_last_byte;
+logic [7:0] uart_rx_data;
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
@@ -28,7 +28,7 @@ end
 function [7:0] led_pattern(input [2:0] row_index);
   case (row_index)
     3'd0:    led_pattern = 8'b10101010;
-    3'd1:    led_pattern = uart_last_byte;
+    3'd1:    led_pattern = uart_rx_data;
     default: led_pattern = 8'b00000000;
   endcase
 endfunction
@@ -58,7 +58,7 @@ endfunction
 
 uart uart(
   .*,
-  .last_byte(uart_last_byte)
+  .rx_data(uart_rx_data)
 );
 
 endmodule

@@ -3,7 +3,7 @@ module uart(
   input rst_n,
   input uart_rx,
   output uart_tx,
-  output logic [7:0] last_byte
+  output logic [7:0] rx_data
 );
 
 // 定数
@@ -35,9 +35,9 @@ end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    last_byte <= 8'd0;
+    rx_data <= 8'd0;
   else if (rx_v & rx_en)
-    last_byte <= rdata;
+    rx_data <= rdata;
 end
 
 UART_MASTER_Top uart_master(
