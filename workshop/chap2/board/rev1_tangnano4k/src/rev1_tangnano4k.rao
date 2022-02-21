@@ -11,11 +11,6 @@
                 <Signal>uart/uart_master/I_RADDR[1]</Signal>
                 <Signal>uart/uart_master/I_RADDR[0]</Signal>
             </Bus>
-            <Bus name="uart/raddr_cur[2:0]">
-                <Signal>uart/raddr_cur[2]</Signal>
-                <Signal>uart/raddr_cur[1]</Signal>
-                <Signal>uart/raddr_cur[0]</Signal>
-            </Bus>
             <Bus name="uart/uart_master/O_RDATA[7:0]">
                 <Signal>uart/uart_master/O_RDATA[7]</Signal>
                 <Signal>uart/uart_master/O_RDATA[6]</Signal>
@@ -73,5 +68,5 @@
             <Expression>M0</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>0110110010100001</GAO_ID>
+    <GAO_ID>0100110000000101</GAO_ID>
 </GAO_CONFIG>

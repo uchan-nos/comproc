@@ -12,13 +12,12 @@ localparam REG_LSR = 3'd5;
 
 // logic 定義
 logic [7:0] rdata;
-logic [2:0] raddr, raddr_cur;
+logic [2:0] raddr;
 logic rx_en, rx_rdy, rx_v;
 
 // 継続代入
 assign raddr = rx_rdy ? REG_RBR : REG_LSR;
-assign rx_rdy = raddr_cur == REG_LSR && rdata[0];
-assign rx_v = raddr_cur == REG_RBR;
+assign rx_rdy = ~rx_v & rdata[0];
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
@@ -29,9 +28,9 @@ end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    raddr_cur <= 3'd0;
+    rx_v <= 1'd0;
   else if (~rx_en)
-    raddr_cur <= raddr;
+    rx_v <= rx_rdy;
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
