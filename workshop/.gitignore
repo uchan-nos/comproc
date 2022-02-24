@@ -2,3 +2,5 @@
 /chap*/board/*tangnano*/impl/pnr
 /chap*/board/*tangnano*/impl/temp
 /chap*/board/*tangnano*/*.gprj.user
+/chap*/compiler/a.out
+/chap*/cpu/sim.exe
