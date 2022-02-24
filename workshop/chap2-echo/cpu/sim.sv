@@ -1,9 +1,5 @@
 module Simulation;
 
-/*******************
-* 回路への信号入力 *
-*******************/
-
 localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
 
