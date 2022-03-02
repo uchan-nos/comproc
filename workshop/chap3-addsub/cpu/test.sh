@@ -9,7 +9,7 @@ function test_value() {
 
   case $target in
     sim)
-      got=$(echo $input | ./sim.exe)
+      got=$(echo $input | ./sim.exe 2>&1 1>/dev/null)
       ;;
     uart)
       got=$(echo $(sudo ../../../tool/uart.py --dev "$uart_dev" $input))
@@ -28,4 +28,4 @@ function test_value() {
   fi
 }
 
-test_value 1f 1f
+test_value 1f "011f 0200 ffff"
