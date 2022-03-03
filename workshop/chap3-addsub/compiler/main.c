@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 
 int scan_int() {
@@ -19,8 +20,13 @@ int scan_char() {
 
 int main(void) {
   printf("01%02x\n", scan_int());
-  while (scan_char() == '+') {
-    printf("03%02x\n", scan_int());
+  switch (scan_char()) {
+  case '+':
+    printf("03%02x\n", (uint8_t)scan_int());
+    break;
+  case '-':
+    printf("03%02x\n", (uint8_t)-scan_int());
+    break;
   }
   printf("0200\n");
 }
