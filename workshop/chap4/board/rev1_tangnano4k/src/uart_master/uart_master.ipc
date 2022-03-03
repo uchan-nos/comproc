@@ -1,0 +1,15 @@
+[General]
+ipc_version=4
+file=uart_master
+module=UART_MASTER_Top
+target_device=gw1nsr4c-009
+type=uart_master
+version=1.0
+
+[Config]
+DISABLE_IO_INSERTION=true
+FIFO_IMPLEMENTATION=BSRAM
+LANG=0
+STD_UART_BAUD_RATE=9600
+Synthesis_tool=GowinSynthesis
+UART_MASTER_SYSCLK=27
