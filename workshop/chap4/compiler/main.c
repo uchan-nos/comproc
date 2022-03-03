@@ -58,7 +58,6 @@ void Primary() {
 }
 
 int main(void) {
-  char c;
   Additive();
   printf("0200\n");
 }
