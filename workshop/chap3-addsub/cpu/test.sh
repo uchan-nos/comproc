@@ -29,3 +29,4 @@ function test_value() {
 }
 
 test_value 1f "011f 0200 ffff"
+test_value 09 "0104 0305 0200 ffff"

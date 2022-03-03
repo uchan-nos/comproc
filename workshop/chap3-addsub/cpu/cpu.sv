@@ -11,6 +11,8 @@ always @(posedge clk, posedge rst) begin
     reg0 <= 8'd0;
   else if (insn[15:8] == 8'h01)
     reg0 <= insn[7:0];
+  else if (insn[15:8] == 8'h03)
+    reg0 <= reg0 + insn[7:0];
 end
 
 always @(posedge clk, posedge rst) begin
