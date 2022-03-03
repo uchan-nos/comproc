@@ -19,14 +19,14 @@ int scan_char() {
 }
 
 int main(void) {
+  char c;
   printf("01%02x\n", scan_int());
-  switch (scan_char()) {
-  case '+':
-    printf("03%02x\n", (uint8_t)scan_int());
-    break;
-  case '-':
-    printf("03%02x\n", (uint8_t)-scan_int());
-    break;
+  while ((c = scan_char()) != '\0') {
+    if (c == '+') {
+      printf("03%02x\n", (uint8_t)scan_int());
+    } else if (c == '-') {
+      printf("03%02x\n", (uint8_t)-scan_int());
+    }
   }
   printf("0200\n");
 }
