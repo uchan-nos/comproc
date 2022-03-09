@@ -28,6 +28,9 @@ logic cpu_reg0_wr;
 assign led_row = led_on(counter) << row_index;
 assign led_col = led_pattern(row_index);
 
+// FF FF を受け取ったら機械語の受信完了と判断
+assign recv_compl = recv_data == 16'hffff;
+
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
@@ -137,16 +140,10 @@ end
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     recv_addr <= 10'd0;
-  else if (recv_data_v && ~recv_compl)
+  else if (recv_data_v & ~recv_compl)
     recv_addr <= recv_addr + 10'd1;
-end
-
-// FF FF を受け取ったら受信終了と判断
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_compl <= 1'b0;
-  else if (recv_data_v && recv_data == 16'hffff)
-    recv_compl <= 1'b1;
+  else if (uart_rx_data_wr && recv_compl)
+    recv_addr <= 10'd0;
 end
 
 // プログラムを格納する BRAM
@@ -175,9 +172,9 @@ cpu cpu(
 
 // recv_compl が 1 になったらプログラムの実行を進める
 always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
+  if (!rst_n | ~recv_compl)
     pc <= 10'd0;
-  else if (recv_compl && pc < recv_addr)
+  else if (pc < recv_addr)
     pc <= pc + 10'd1;
 end
 
