@@ -1,4 +1,5 @@
-OBJS = main.o
+OBJS   = main.o token.o
+CFLAGS = -Wall -Wextra -O2
 
 .PHONY: all
 all: ucc

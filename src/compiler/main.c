@@ -1,31 +1,9 @@
-#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-int scan_int() {
-  int x = 0;
-  scanf("%d", &x);
-  return x;
-}
+#include "token.h"
 
-int scan_char() {
-  char c = '\0';
-  while (scanf("%c", &c) == 1) {
-    if (!isspace(c)) {
-      break;
-    }
-  }
-  return c;
-}
-
-int consume_char(int c) {
-  int scanned = scan_char();
-  if (scanned == c) {
-    return c;
-  }
-  ungetc(scanned, stdin);
-  return 0;
-}
 
 void Additive();
 void Multiplicative();
@@ -34,10 +12,10 @@ void Primary();
 void Additive() {
   Multiplicative();
 
-  if (consume_char('+')) {
+  if (Consume('+')) {
     Additive();
     printf("0300\n");
-  } else if (consume_char('-')) {
+  } else if (Consume('-')) {
     Additive();
     printf("0400\n");
   }
@@ -46,18 +24,23 @@ void Additive() {
 void Multiplicative() {
   Primary();
 
-  if (consume_char('*')) {
+  if (Consume('*')) {
     Multiplicative();
     printf("0500\n");
   }
 }
 
 void Primary() {
-  int v = scan_int();
-  printf("01%02x\n", (uint8_t)v);
+  struct Token *tk = Expect(kTokenInt);
+  printf("01%02x\n", (uint8_t)tk->value.as_int);
 }
 
 int main(void) {
+  char *src = malloc(1024);
+  size_t src_len = fread(src, 1, 1023, stdin);
+  src[src_len] = '\0';
+
+  Tokenize(src);
   Additive();
   printf("0200\n");
 }
