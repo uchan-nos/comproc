@@ -3,4 +3,6 @@
 **/board/*tangnano*/impl/temp
 **/board/*tangnano*/*.gprj.user
 **/compiler/a.out
+**/compiler/ucc
+**/compiler/*.o
 **/cpu/sim.exe
