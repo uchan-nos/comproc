@@ -1,0 +1,6 @@
+**/board/*tangnano*/impl/gwsynthesis
+**/board/*tangnano*/impl/pnr
+**/board/*tangnano*/impl/temp
+**/board/*tangnano*/*.gprj.user
+**/compiler/a.out
+**/cpu/sim.exe
