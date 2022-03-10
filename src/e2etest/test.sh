@@ -33,6 +33,6 @@ function test_value() {
   fi
 }
 
-test_value 1f "31"
-test_value fe "1 - 3"
-test_value 07 "1+2*3"
+test_value 1f "return 31;"
+test_value fe "return 1 - 3;"
+test_value 07 "return 1+2*3;"

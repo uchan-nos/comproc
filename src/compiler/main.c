@@ -41,6 +41,9 @@ int main(void) {
   src[src_len] = '\0';
 
   Tokenize(src);
+  Expect(kTokenReturn);
   Additive();
+  Expect(';');
+  Expect(kTokenEOF);
   printf("0200\n");
 }

@@ -3,6 +3,7 @@
 enum TokenKind {
   // 0 - 127 は 1 文字演算子用に予約
   kTokenInt = 128,
+  kTokenReturn,
   kTokenEOF,
 };
 

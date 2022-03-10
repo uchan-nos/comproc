@@ -6,6 +6,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct ReservedMapItem {
+  char *name;
+  int len;
+  enum TokenKind kind;
+};
+
+#define ITEM(name, kind) { #name, sizeof(#name)-1, (kind) }
+static struct ReservedMapItem reserved_map[] = {
+  ITEM(return, kTokenReturn),
+  {NULL, 0, 0},
+};
+#undef ITEM
+
 static struct Token *NewToken(int kind, char *raw, size_t len) {
   struct Token *tk = calloc(1, sizeof(struct Token));
   tk->kind = kind;
@@ -30,11 +43,21 @@ static struct Token *NextToken(char *src) {
     return tk;
   }
 
-  if (strchr("+-*/()", *p) != NULL) {
+  if (strchr("+-*/();", *p) != NULL) {
     return NewToken(*p, p, 1);
   }
 
-  return NULL;
+  struct ReservedMapItem *it = reserved_map;
+  for (; it->name; it++) {
+    if (strncmp(it->name, p, it->len) == 0) {
+      return NewToken(it->kind, p, it->len);
+    }
+  }
+
+  int lf_len = strchr(src, '\n') - src;
+  fprintf(stderr, "failed to tokenize: '%.*s'\n",
+          lf_len < 20 ? lf_len : 20, src);
+  exit(1);
 }
 
 struct Token *cur_token;
@@ -52,7 +75,7 @@ struct Token *Consume(int kind) {
   if (tk->kind != kind) {
     return NULL;
   }
-  cur_token = tk->next;
+  cur_token = tk->next ? tk->next : tk;
   return tk;
 }
 
@@ -60,9 +83,8 @@ struct Token *Expect(int kind) {
   struct Token *tk = Consume(kind);
   if (tk == NULL) {
     fprintf(stderr, "Token(%d) is expected, but '%.*s'(%d)\n",
-            tk->kind, tk->len, tk->raw, tk->kind);
+            kind, cur_token->len, cur_token->raw, cur_token->kind);
     exit(1);
   }
   return tk;
 }
-
