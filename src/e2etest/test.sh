@@ -36,3 +36,4 @@ function test_value() {
 test_value 1f "return 31;"
 test_value fe "return 1 - 3;"
 test_value 07 "return 1+2*3;"
+test_value 02 "int a=3; return a-1;"

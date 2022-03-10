@@ -31,7 +31,7 @@ void Multiplicative() {
 }
 
 void Primary() {
-  struct Token *tk = Expect(kTokenInt);
+  struct Token *tk = Expect(kTokenInteger);
   printf("01%02x\n", (uint8_t)tk->value.as_int);
 }
 

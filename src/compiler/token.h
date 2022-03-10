@@ -2,8 +2,10 @@
 
 enum TokenKind {
   // 0 - 127 は 1 文字演算子用に予約
-  kTokenInt = 128,
+  kTokenInteger = 128,
   kTokenReturn,
+  kTokenInt,
+  kTokenId,
   kTokenEOF,
 };
 
@@ -14,7 +16,7 @@ struct Token {
   struct Token *next;
 
   union {
-    int as_int;        // kTokenInt
+    int as_int;        // kTokenInteger
   } value;             // トークンの値
 };
 
