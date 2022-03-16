@@ -16,7 +16,10 @@
                 <Signal>pc[1]</Signal>
                 <Signal>pc[0]</Signal>
             </Bus>
-            <Signal>cpu/phase</Signal>
+            <Bus name="cpu/phase[1:0]">
+                <Signal>cpu/phase[1]</Signal>
+                <Signal>cpu/phase[0]</Signal>
+            </Bus>
             <Bus name="insn[15:0]">
                 <Signal>insn[15]</Signal>
                 <Signal>insn[14]</Signal>
@@ -138,5 +141,5 @@
             <Expression>M3</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>0110000101010111</GAO_ID>
+    <GAO_ID>1011100011000000</GAO_ID>
 </GAO_CONFIG>

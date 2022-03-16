@@ -25,7 +25,10 @@ function test_value() {
       ;;
   esac
 
-  if [ $((0x$want)) = $((0x$got)) ]
+  if [ "$got" = "xx" ]
+  then
+    echo "[FAILED]: $input -> '$got', want '$want'"
+  elif [ $((0x$want)) = $((0x$got)) ]
   then
     echo "[  OK  ]: $input -> '$got'"
   else

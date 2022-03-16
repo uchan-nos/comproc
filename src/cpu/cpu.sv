@@ -12,21 +12,21 @@ module cpu(
 );
 
 logic [7:0] stack[0:15];
-logic phase; // 0=命令実行 1=メモリアクセス
+logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
 
 assign mem_addr = insn[7:0];
 
 always @(posedge clk, posedge rst) begin
   if (rst)
     reg0 <= 8'd0;
-  else if (~phase && insn[15:8] == 8'h02)
+  else if (phase == 2'd0 && insn[15:8] == 8'h02)
     reg0 <= stack[0];
 end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
     reg0_wr <= 1'b0;
-  else if (~phase && insn[15:8] == 8'h02)
+  else if (phase == 2'd0 && insn[15:8] == 8'h02)
     reg0_wr <= 1'b1;
   else
     reg0_wr <= 1'b0;
@@ -38,7 +38,7 @@ integer i;
 always @(posedge clk, posedge rst) begin
   if (rst)
     ;
-  else if (phase)
+  else if (phase != 2'd2)
     ;
   else if (insn[15:8] == 8'h01) begin
     stack[0] <= insn[7:0];
@@ -69,7 +69,7 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     mem_wr <= 1'b0;
-  else if (~phase && insn[15:8] == 8'h06)
+  else if (phase == 2'd1 && insn[15:8] == 8'h06)
     mem_wr <= 1'b1;
   else
     mem_wr <= 1'b0;
@@ -79,16 +79,16 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 8'd0;
-  else if (phase)
+  else if (phase == 2'd1)
     wr_data <= stack[0];
 end
 
 // 命令実行フェーズを更新
 always @(posedge clk, posedge rst) begin
   if (rst)
-    phase <= 1'b0;
+    phase <= 2'd0;
   else
-    phase <= ~phase;
+    phase <= phase + 2'd1;
 end
 
 // 命令実行が完了したらプログラムカウンタを進める
@@ -97,7 +97,7 @@ always @(posedge clk, posedge rst) begin
     pc <= 10'd0;
   else if (insn == 16'hffff)
     ;
-  else if (phase)
+  else if (phase == 2'd2)
     pc <= pc + 10'd1;
 end
 
