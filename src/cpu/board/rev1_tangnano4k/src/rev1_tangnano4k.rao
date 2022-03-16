@@ -4,38 +4,6 @@
     <Mode>Standard</Mode>
     <AoCore index="0" sample_clock="sys_clk" trig_type="0" storage_depth="1024" window_num="1" capture_amount="1024" trigger_pos="20" module_name="main" force_trigger_by_falling_edge="false">
         <SignalList>
-            <Signal>recv_data_v</Signal>
-            <Bus name="recv_data[15:0]">
-                <Signal>recv_data[15]</Signal>
-                <Signal>recv_data[14]</Signal>
-                <Signal>recv_data[13]</Signal>
-                <Signal>recv_data[12]</Signal>
-                <Signal>recv_data[11]</Signal>
-                <Signal>recv_data[10]</Signal>
-                <Signal>recv_data[9]</Signal>
-                <Signal>recv_data[8]</Signal>
-                <Signal>recv_data[7]</Signal>
-                <Signal>recv_data[6]</Signal>
-                <Signal>recv_data[5]</Signal>
-                <Signal>recv_data[4]</Signal>
-                <Signal>recv_data[3]</Signal>
-                <Signal>recv_data[2]</Signal>
-                <Signal>recv_data[1]</Signal>
-                <Signal>recv_data[0]</Signal>
-            </Bus>
-            <Signal>recv_compl</Signal>
-            <Bus name="recv_addr[9:0]">
-                <Signal>recv_addr[9]</Signal>
-                <Signal>recv_addr[8]</Signal>
-                <Signal>recv_addr[7]</Signal>
-                <Signal>recv_addr[6]</Signal>
-                <Signal>recv_addr[5]</Signal>
-                <Signal>recv_addr[4]</Signal>
-                <Signal>recv_addr[3]</Signal>
-                <Signal>recv_addr[2]</Signal>
-                <Signal>recv_addr[1]</Signal>
-                <Signal>recv_addr[0]</Signal>
-            </Bus>
             <Bus name="pc[9:0]">
                 <Signal>pc[9]</Signal>
                 <Signal>pc[8]</Signal>
@@ -48,6 +16,7 @@
                 <Signal>pc[1]</Signal>
                 <Signal>pc[0]</Signal>
             </Bus>
+            <Signal>cpu/phase</Signal>
             <Bus name="insn[15:0]">
                 <Signal>insn[15]</Signal>
                 <Signal>insn[14]</Signal>
@@ -66,7 +35,48 @@
                 <Signal>insn[1]</Signal>
                 <Signal>insn[0]</Signal>
             </Bus>
+            <Bus name="cpu_reg0[7:0]">
+                <Signal>cpu_reg0[7]</Signal>
+                <Signal>cpu_reg0[6]</Signal>
+                <Signal>cpu_reg0[5]</Signal>
+                <Signal>cpu_reg0[4]</Signal>
+                <Signal>cpu_reg0[3]</Signal>
+                <Signal>cpu_reg0[2]</Signal>
+                <Signal>cpu_reg0[1]</Signal>
+                <Signal>cpu_reg0[0]</Signal>
+            </Bus>
             <Signal>cpu_reg0_wr</Signal>
+            <Bus name="cpu_mem_addr[7:0]">
+                <Signal>cpu_mem_addr[7]</Signal>
+                <Signal>cpu_mem_addr[6]</Signal>
+                <Signal>cpu_mem_addr[5]</Signal>
+                <Signal>cpu_mem_addr[4]</Signal>
+                <Signal>cpu_mem_addr[3]</Signal>
+                <Signal>cpu_mem_addr[2]</Signal>
+                <Signal>cpu_mem_addr[1]</Signal>
+                <Signal>cpu_mem_addr[0]</Signal>
+            </Bus>
+            <Signal>cpu_mem_wr</Signal>
+            <Bus name="cpu_rd_data[7:0]">
+                <Signal>cpu_rd_data[7]</Signal>
+                <Signal>cpu_rd_data[6]</Signal>
+                <Signal>cpu_rd_data[5]</Signal>
+                <Signal>cpu_rd_data[4]</Signal>
+                <Signal>cpu_rd_data[3]</Signal>
+                <Signal>cpu_rd_data[2]</Signal>
+                <Signal>cpu_rd_data[1]</Signal>
+                <Signal>cpu_rd_data[0]</Signal>
+            </Bus>
+            <Bus name="cpu_wr_data[7:0]">
+                <Signal>cpu_wr_data[7]</Signal>
+                <Signal>cpu_wr_data[6]</Signal>
+                <Signal>cpu_wr_data[5]</Signal>
+                <Signal>cpu_wr_data[4]</Signal>
+                <Signal>cpu_wr_data[3]</Signal>
+                <Signal>cpu_wr_data[2]</Signal>
+                <Signal>cpu_wr_data[1]</Signal>
+                <Signal>cpu_wr_data[0]</Signal>
+            </Bus>
         </SignalList>
         <Triggers>
             <Trigger index="0">
@@ -125,8 +135,8 @@
             <MatchUnit index="15" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
         </MatchUnits>
         <Expressions type="Static">
-            <Expression>M3|M4</Expression>
+            <Expression>M3</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>1100010010011011</GAO_ID>
+    <GAO_ID>0110000101010111</GAO_ID>
 </GAO_CONFIG>

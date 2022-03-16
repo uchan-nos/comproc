@@ -7,9 +7,13 @@ localparam TIMEOUT = 1000;
 logic [15:0] sim_input[0:1023];
 logic [15:0] insn;
 logic [9:0] pc;
+logic [7:0] mem_addr, rd_data, wr_data;
+logic mem_wr;
+
 integer num_insn = 0;
 
 assign insn = sim_input[pc];
+assign rd_data = data_mem[mem_addr];
 
 initial begin
   // stdin からテストデータを読む
@@ -17,11 +21,10 @@ initial begin
     num_insn++;
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x insn=%04x reg0_wr=%d reg0=%02x",
-           $time, rst, pc, insn, reg0_wr, reg0);
+  $monitor("%d: rst=%d pc=%02x insn=%04x reg0_wr=%d reg0=%02x mem[%02x]=%02x wr=%d stk0=%02x",
+           $time, rst, pc, insn, reg0_wr, reg0, mem_addr, rd_data, mem_wr, cpu.stack[0]);
 
   // 各信号の初期値
-  pc <= 0;
   rst <= 1;
   clk <= 1;
 
@@ -33,14 +36,6 @@ end
 // 5 単位時間ごとに clk を反転（クロック周期は 10 単位時間となる）
 always #5 begin
   clk <= ~clk;
-end
-
-// クロックの立ち上がりと同時に pc をインクリメント
-always @(posedge clk) begin
-  if (rst)
-    pc <= 0;
-  else if (pc < num_insn - 1)
-    pc <= pc + 1;
 end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
@@ -62,5 +57,12 @@ cpu cpu(
   .*,
   .insn(sim_input[pc])
 );
+
+logic [7:0] data_mem[0:255];
+
+always @(posedge clk) begin
+  if (mem_wr)
+    data_mem[mem_addr] <= wr_data;
+end
 
 endmodule

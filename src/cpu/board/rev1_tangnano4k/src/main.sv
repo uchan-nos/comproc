@@ -23,6 +23,8 @@ logic recv_phase, recv_data_v, recv_compl;
 
 logic [7:0] cpu_reg0;
 logic cpu_reg0_wr;
+logic [7:0] cpu_mem_addr, cpu_rd_data, cpu_wr_data;
+logic cpu_mem_wr;
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
@@ -147,7 +149,7 @@ always @(posedge sys_clk, negedge rst_n) begin
 end
 
 // プログラムを格納する BRAM
-Gowin_SDPB mem(
+Gowin_SDPB prog_mem(
   .clka(sys_clk),  //input clka
   .cea(~recv_compl),      //input cea
   .reseta(!rst_n), //input reseta
@@ -161,21 +163,33 @@ Gowin_SDPB mem(
   .dout(insn)      //output [15:0] dout
 );
 
+// データを格納する BRAM
+Gowin_SDPB_Data data_mem(
+  .clka(sys_clk),     //input clka
+  .cea(cpu_mem_wr),   //input cea
+  .reseta(!rst_n),    //input reseta
+  .clkb(sys_clk),     //input clkb
+  .ceb(1'b1),         //input ceb
+  .resetb(!rst_n),    //input resetb
+  .oce(1'b0),         //input oce
+  .ada(cpu_mem_addr), //input [9:0] ada
+  .din(cpu_wr_data),  //input [15:0] din
+  .adb(cpu_mem_addr), //input [9:0] adb
+  .dout(cpu_rd_data)  //output [15:0] dout
+);
+
 // 自作 CPU を接続する
 cpu cpu(
   .rst(~rst_n | ~recv_compl),
   .clk(sys_clk),
   .insn(insn),
   .reg0(cpu_reg0),
-  .reg0_wr(cpu_reg0_wr)
+  .reg0_wr(cpu_reg0_wr),
+  .pc(pc),
+  .mem_addr(cpu_mem_addr),
+  .mem_wr(cpu_mem_wr),
+  .rd_data(cpu_rd_data),
+  .wr_data(cpu_wr_data)
 );
-
-// recv_compl が 1 になったらプログラムの実行を進める
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n | ~recv_compl)
-    pc <= 10'd0;
-  else if (pc < recv_addr)
-    pc <= pc + 10'd1;
-end
 
 endmodule
