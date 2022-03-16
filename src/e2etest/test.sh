@@ -1,7 +1,7 @@
 #!/bin/bash -eu
 
 target=${TARGET:-sim}
-uart_dev="/dev/ttyUSB0"
+uart_dev="${UART_DEV:-/dev/ttyUSB0}"
 
 make -C ../compiler
 make -C ../cpu sim.exe
