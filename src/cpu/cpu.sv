@@ -95,6 +95,8 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     pc <= 10'd0;
+  else if (insn == 16'hffff)
+    ;
   else if (phase)
     pc <= pc + 10'd1;
 end

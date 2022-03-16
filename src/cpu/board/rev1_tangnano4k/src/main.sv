@@ -151,7 +151,7 @@ end
 // プログラムを格納する BRAM
 Gowin_SDPB prog_mem(
   .clka(sys_clk),  //input clka
-  .cea(~recv_compl),      //input cea
+  .cea(1'b1),      //input cea
   .reseta(!rst_n), //input reseta
   .clkb(sys_clk),  //input clkb
   .ceb(1'b1),      //input ceb
