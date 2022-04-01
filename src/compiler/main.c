@@ -2,68 +2,159 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ast.h"
 #include "token.h"
 
-void BlockItemList();
-void Additive();
-void Multiplicative();
-void Primary();
+struct Node *BlockItemList();
+struct Node *Expression();
+struct Node *Assignment();
+struct Node *Additive();
+struct Node *Multiplicative();
+struct Node *Primary();
 
-void BlockItemList() {
-  while (1) {
-    if (Consume(kTokenInt)) {
+struct Node *BlockItemList() {
+  struct Node *block = NewNode(kNodeBlock, NULL);
+  struct Token *token;
+
+  struct Node *node = block;
+  while (Consume(kTokenEOF) == NULL) {
+    if ((token = Consume(kTokenInt))) {
+      struct Node *def = NewNode(kNodeDefVar, token);
+
       struct Token *id = Expect(kTokenId);
       if (id->len != 1) {
         fprintf(stderr, "variable name must be one character: '%.*s'\n",
                 id->len, id->raw);
         exit(1);
       }
-      uint8_t addr = id->raw[0];
+      def->lhs = NewNode(kNodeId, id);
+
       if (Consume('=')) {
-        Additive();
-        printf("06%02x\n", addr);
+        def->rhs = Expression();
       }
       Expect(';');
-    } else if (Consume(kTokenReturn)) {
-      Additive();
+
+      node->next = def;
+    } else if ((token = Consume(kTokenReturn))) {
+      struct Node *ret = NewNode(kNodeReturn, token);
+      ret->lhs = Expression();
       Expect(';');
-      printf("0200\n");
+
+      node->next = ret;
     } else {
-      break;
+      node->next = Expression();
+      Expect(';');
     }
+
+    node = node->next;
   }
+
+  return block;
 }
 
-void Additive() {
-  Multiplicative();
-
-  if (Consume('+')) {
-    Additive();
-    printf("0300\n");
-  } else if (Consume('-')) {
-    Additive();
-    printf("0400\n");
-  }
+struct Node *Expression() {
+  return Assignment();
 }
 
-void Multiplicative() {
-  Primary();
+struct Node *Assignment() {
+  struct Node *node = Additive();
 
-  if (Consume('*')) {
-    Multiplicative();
-    printf("0500\n");
+  struct Token *op;
+  if ((op = Consume('='))) {
+    node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
   }
+
+  return node;
 }
 
-void Primary() {
+struct Node *Additive() {
+  struct Node *node = Multiplicative();
+
+  struct Token *op;
+  if ((op = Consume('+'))) {
+    node = NewNodeBinOp(kNodeAdd, op, node, Additive());
+  } else if ((op = Consume('-'))) {
+    node = NewNodeBinOp(kNodeSub, op, node, Additive());
+  }
+
+  return node;
+}
+
+struct Node *Multiplicative() {
+  struct Node *node = Primary();
+
+  struct Token *op;
+  if ((op = Consume('*'))) {
+    node = NewNodeBinOp(kNodeMul, op, node, Multiplicative());
+  }
+
+  return node;
+}
+
+struct Node *Primary() {
+  struct Node *node;
   struct Token *tk;
   if ((tk = Consume('('))) {
-    Additive();
+    node = Expression();
     Expect(')');
   } else if ((tk = Consume(kTokenInteger))) {
-    printf("01%02x\n", (uint8_t)tk->value.as_int);
+    node = NewNode(kNodeInteger, tk);
   } else if ((tk = Consume(kTokenId))) {
-    printf("07%02x\n", tk->raw[0]);
+    node = NewNode(kNodeId, tk);
+  }
+
+  return node;
+}
+
+void Generate(struct Node *node, int lval) {
+  switch (node->kind) {
+  case kNodeBlock:
+    for (struct Node *n = node->next; n; n = n->next) {
+      Generate(n, 0);
+    }
+    break;
+  case kNodeInteger:
+    printf("01%02x\n", (uint8_t)node->token->value.as_int);
+    break;
+  case kNodeId:
+    printf("%02x%02x\n", lval ? 1 : 7, node->token->raw[0]);
+    break;
+  case kNodeAdd:
+    Generate(node->lhs, 0);
+    Generate(node->rhs, 0);
+    printf("0300\n");
+    break;
+  case kNodeSub:
+    Generate(node->lhs, 0);
+    Generate(node->rhs, 0);
+    printf("0400\n");
+    break;
+  case kNodeMul:
+    Generate(node->lhs, 0);
+    Generate(node->rhs, 0);
+    printf("0500\n");
+    break;
+  case kNodeAssign:
+    Generate(node->lhs, 1);
+    Generate(node->rhs, 0);
+    if (lval) {
+      printf("0601\n");
+    } else {
+      printf("0600\n");
+    }
+    break;
+  case kNodeReturn:
+    if (node->lhs) {
+      Generate(node->lhs, 0);
+      printf("0200\n");
+    }
+    break;
+  case kNodeDefVar:
+    if (node->rhs) {
+      Generate(node->rhs, 0);
+      printf("06%02x\n", (uint8_t)node->lhs->token->raw[0]);
+    }
+    break;
   }
 }
 
@@ -73,6 +164,9 @@ int main(void) {
   src[src_len] = '\0';
 
   Tokenize(src);
-  BlockItemList();
+  struct Node *ast = BlockItemList();
   Expect(kTokenEOF);
+  Generate(ast, 0);
+
+  return 0;
 }

@@ -18,8 +18,8 @@ initial begin
     num_insn++;
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x insn=%04x reg0_wr=%d reg0=%02x mem[%02x]=%02x wr=%d stk0=%02x phase=%d",
-           $time, rst, pc, insn, reg0_wr, reg0, mem_addr, rd_data, mem_wr, cpu.stack[0], cpu.phase);
+  $monitor("%d: rst=%d pc=%02x insn=%04x reg0_wr=%d reg0=%02x mem[%02x]=%02x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
+           $time, rst, pc, insn, reg0_wr, reg0, mem_addr, rd_data, mem_wr, cpu.phase, cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
 
   // 各信号の初期値
   rst <= 1;

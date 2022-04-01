@@ -14,7 +14,7 @@ module cpu(
 logic [7:0] stack[0:15];
 logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
 
-assign mem_addr = insn[7:0];
+assign mem_addr = insn[7:1] != 7'd0 ? insn[7:0] : insn[15:8] == 8'd6 ? stack[1] : stack[0];
 
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -55,6 +55,12 @@ always @(posedge clk, posedge rst) begin
   else if (insn[15:8] == 8'h05) begin
     stack[0] <= stack[1] * stack[0];
     for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
+  end
+  else if (insn[15:0] == 16'h0600) begin
+    for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
+  end
+  else if (insn[15:0] == 16'h0601) begin
+    for (i = 0; i < 7; i = i+1) stack[i] <= stack[i + 1];
   end
   else if (insn[15:8] == 8'h06) begin
     for (i = 0; i < 7; i = i+1) stack[i] <= stack[i + 1];
