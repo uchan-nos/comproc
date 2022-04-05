@@ -28,6 +28,6 @@ function test_value() {
   fi
 }
 
-test_value 1f "911f 8601 ffff"
-test_value fe "9103 9101 1203 8601 ffff"
-test_value 07 "9101 9102 9103 1204 1202 8601 ffff"
+test_value 1f "a11f 9601 ffff"
+test_value fe "a103 a101 2203 9601 ffff"
+test_value 07 "a101 a102 a103 2204 2202 9601 ffff"

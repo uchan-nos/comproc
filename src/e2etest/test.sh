@@ -4,13 +4,14 @@ target=${TARGET:-sim}
 uart_dev="${UART_DEV:-/dev/ttyUSB0}"
 
 make -C ../compiler
+make -C ../assembler
 make -C ../cpu sim.exe
 
 function test_value() {
   want="$1"
   input="$2"
 
-  bin="$(echo $input | ../compiler/ucc) ffff"
+  bin="$(echo $input | ../compiler/ucc | ../assembler/uasm) ffff"
 
   case $target in
     sim)

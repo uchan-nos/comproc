@@ -17,8 +17,8 @@ bit   名前  説明
 15    imm   0: insn[7:0] は ALU 機能選択
             1: insn[7:0] は即値
 14          予約 0
-13          予約 0
-12    load  演算用スタックの先頭に ALU 出力または即値をロード
+13:12 load  演算用スタックの先頭にロードする値の選択
+            0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
 11    rd    メモリ読み込み
 10    wr    メモリ書き込み
 9     pop   演算用スタックから値をポップ
@@ -51,11 +51,12 @@ logic [7:0] stack[0:15];
 logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
 logic [7:0] alu_out;
 
-logic imm, load, rd, wr, pop, push;
+logic imm, rd, wr, pop, push;
+logic [1:0] load;
 logic [7:0] imm8;
 
 assign imm = insn[15];
-assign load = insn[12];
+assign load = insn[13:12];
 assign rd = insn[11];
 assign wr = insn[10];
 assign pop = insn[9];
@@ -72,10 +73,18 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
   else if (phase == 2'd3) begin
+    /*
     if (load)
       stack[0] <= rd ? rd_data : alu_out;
     else
       stack[0] <= stack[1];
+    */
+    case (load)
+      2'd0: stack[0] <= stack[0];
+      2'd1: stack[0] <= stack[1];
+      2'd2: stack[0] <= alu_out;
+      2'd3: stack[0] <= rd_data;
+    endcase
 
     if (~pop & push)
       for (i = 1; i < 8; i = i+1) stack[i] <= stack[i - 1];
