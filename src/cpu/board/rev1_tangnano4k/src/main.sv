@@ -21,8 +21,7 @@ logic [15:0] recv_data, insn;
 logic [9:0] recv_addr, pc;
 logic recv_phase, recv_data_v, recv_compl;
 
-logic [7:0] cpu_reg0;
-logic cpu_reg0_wr;
+logic [7:0] cpu_out;
 logic [7:0] cpu_mem_addr, cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
 
@@ -41,7 +40,7 @@ end
 function [7:0] led_pattern(input [2:0] row_index);
   case (row_index)
     3'd0:    led_pattern = 8'b10101010;
-    3'd1:    led_pattern = cpu_reg0;
+    3'd1:    led_pattern = cpu_out;
     3'd2:    led_pattern = recv_data[15:8];
     3'd3:    led_pattern = recv_data[7:0];
     default: led_pattern = 8'b00000000;
@@ -74,14 +73,14 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_reg0_wr)
-    uart_tx_data <= cpu_reg0;
+  else if (cpu_mem_wr && cpu_mem_addr == 8'd1)
+    uart_tx_data <= cpu_wr_data;
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_reg0_wr)
+  else if (cpu_mem_wr && cpu_mem_addr == 8'd1)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;
@@ -183,8 +182,6 @@ cpu cpu(
   .rst(~rst_n | ~recv_compl),
   .clk(sys_clk),
   .insn(insn),
-  .reg0(cpu_reg0),
-  .reg0_wr(cpu_reg0_wr),
   .pc(pc),
   .mem_addr(cpu_mem_addr),
   .mem_wr(cpu_mem_wr),

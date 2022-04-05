@@ -2,8 +2,6 @@ module cpu(
   input rst,
   input clk,
   input [15:0] insn,
-  output logic [7:0] reg0,
-  output logic reg0_wr,
   output logic [9:0] pc,
   output [7:0] mem_addr,
   output logic mem_wr,
@@ -11,63 +9,78 @@ module cpu(
   output logic [7:0] wr_data
 );
 
+/*
+オペコードの構成
+
+bit   名前  説明
+------------------------------
+15    imm   0: insn[7:0] は ALU 機能選択
+            1: insn[7:0] は即値
+14          予約 0
+13          予約 0
+12    load  演算用スタックの先頭に ALU 出力または即値をロード
+11    rd    メモリ読み込み
+10    wr    メモリ書き込み
+9     pop   演算用スタックから値をポップ
+8     push  演算用スタックに値をプッシュ
+7:0   imm8  即値、ALU 機能選択
+
+
+ALU 機能
+
+番号  説明
+----------------
+00h   stack[0]
+01h   stack[1]
+02h   stack[0] + stack[1]
+03h   stack[0] - stack[1]
+04h   stack[0] * stack[1]
+
+
+メモリマップ
+
+addr    説明
+---------------
+00h     無効
+01h     UART 入出力
+02h-1fh 予約
+20h-ffh 一般メモリ
+*/
+
 logic [7:0] stack[0:15];
 logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
+logic [7:0] alu_out;
 
-assign mem_addr = insn[7:1] != 7'd0 ? insn[7:0] : insn[15:8] == 8'd6 ? stack[1] : stack[0];
+logic imm, load, rd, wr, pop, push;
+logic [7:0] imm8;
 
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    reg0 <= 8'd0;
-  else if (phase == 2'd0 && insn[15:8] == 8'h02)
-    reg0 <= stack[0];
-end
+assign imm = insn[15];
+assign load = insn[12];
+assign rd = insn[11];
+assign wr = insn[10];
+assign pop = insn[9];
+assign push = insn[8];
+assign imm8 = insn[7:0];
 
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    reg0_wr <= 1'b0;
-  else if (phase == 2'd0 && insn[15:8] == 8'h02)
-    reg0_wr <= 1'b1;
-  else
-    reg0_wr <= 1'b0;
-end
+assign alu_out = alu(imm, imm8, stack[0], stack[1]);
+assign mem_addr = alu_out;
 
 integer i;
 
 // 演算用スタックを更新
 always @(posedge clk, posedge rst) begin
   if (rst)
-    ;
-  else if (phase != 2'd2)
-    ;
-  else if (insn[15:8] == 8'h01) begin
-    stack[0] <= insn[7:0];
-    for (i = 1; i < 8; i = i+1) stack[i] <= stack[i - 1];
-  end
-  else if (insn[15:8] == 8'h03) begin
-    stack[0] <= stack[1] + stack[0];
-    for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:8] == 8'h04) begin
-    stack[0] <= stack[1] - stack[0];
-    for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:8] == 8'h05) begin
-    stack[0] <= stack[1] * stack[0];
-    for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:0] == 16'h0600) begin
-    for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:0] == 16'h0601) begin
-    for (i = 0; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:8] == 8'h06) begin
-    for (i = 0; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-  else if (insn[15:8] == 8'h07) begin
-    stack[0] <= rd_data;
-    for (i = 1; i < 8; i = i+1) stack[i] <= stack[i - 1];
+    for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
+  else if (phase == 2'd3) begin
+    if (load)
+      stack[0] <= rd ? rd_data : alu_out;
+    else
+      stack[0] <= stack[1];
+
+    if (~pop & push)
+      for (i = 1; i < 8; i = i+1) stack[i] <= stack[i - 1];
+    if (pop & ~push)
+      for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
   end
 end
 
@@ -75,7 +88,7 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     mem_wr <= 1'b0;
-  else if (phase == 2'd1 && insn[15:8] == 8'h06)
+  else if (phase == 2'd1 && wr)
     mem_wr <= 1'b1;
   else
     mem_wr <= 1'b0;
@@ -86,7 +99,7 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 8'd0;
   else if (phase == 2'd1)
-    wr_data <= stack[0];
+    wr_data <= imm ? stack[0] : stack[1];
 end
 
 // 命令実行フェーズを更新
@@ -106,5 +119,25 @@ always @(posedge clk, posedge rst) begin
   else if (phase == 2'd2)
     pc <= pc + 10'd1;
 end
+
+// ALU 本体
+function [7:0] alu(
+  input imm,
+  input [7:0] imm8,
+  input [7:0] stack0,
+  input [7:0] stack1);
+begin
+  if (imm)
+    alu = imm8;
+  else
+    case (imm8)
+      8'h00: alu = stack0;
+      8'h01: alu = stack1;
+      8'h02: alu = stack0 + stack1;
+      8'h03: alu = stack0 - stack1;
+      8'h04: alu = stack0 * stack1;
+    endcase
+end
+endfunction
 
 endmodule

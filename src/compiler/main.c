@@ -114,31 +114,31 @@ void Generate(struct Node *node, int lval) {
     }
     break;
   case kNodeInteger:
-    printf("01%02x\n", (uint8_t)node->token->value.as_int);
+    printf("91%02x\n", (uint8_t)node->token->value.as_int);
     break;
   case kNodeId:
-    printf("%02x%02x\n", lval ? 1 : 7, node->token->raw[0]);
+    printf("%02x%02x\n", lval ? 0x91 : 0x99, node->token->raw[0]);
     break;
   case kNodeAdd:
-    Generate(node->lhs, 0);
     Generate(node->rhs, 0);
-    printf("0300\n");
+    Generate(node->lhs, 0);
+    printf("1202\n");
     break;
   case kNodeSub:
-    Generate(node->lhs, 0);
     Generate(node->rhs, 0);
-    printf("0400\n");
+    Generate(node->lhs, 0);
+    printf("1203\n");
     break;
   case kNodeMul:
-    Generate(node->lhs, 0);
     Generate(node->rhs, 0);
-    printf("0500\n");
+    Generate(node->lhs, 0);
+    printf("1204\n");
     break;
   case kNodeAssign:
-    Generate(node->lhs, 1);
     Generate(node->rhs, 0);
+    Generate(node->lhs, 1);
     if (lval) {
-      printf("0601\n");
+      printf("1600\n");
     } else {
       printf("0600\n");
     }
@@ -146,13 +146,13 @@ void Generate(struct Node *node, int lval) {
   case kNodeReturn:
     if (node->lhs) {
       Generate(node->lhs, 0);
-      printf("0200\n");
+      printf("8601\n");
     }
     break;
   case kNodeDefVar:
     if (node->rhs) {
       Generate(node->rhs, 0);
-      printf("06%02x\n", (uint8_t)node->lhs->token->raw[0]);
+      printf("86%02x\n", (uint8_t)node->lhs->token->raw[0]);
     }
     break;
   }
