@@ -12,6 +12,7 @@ enum NodeKind {
   kNodeAssign,
   kNodeReturn,
   kNodeDefVar,
+  kNodeLT, // <
 };
 
 struct Node {
@@ -30,3 +31,4 @@ struct Node {
 struct Node *NewNode(enum NodeKind kind, struct Token *token);
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
                           struct Node *lhs, struct Node *rhs);
+struct Node *BlockItemList();

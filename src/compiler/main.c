@@ -21,107 +21,6 @@ void Locate(char *p) {
   fprintf(stderr, "%*s\n", (int)(p - start + 1), "^");
 }
 
-struct Node *BlockItemList();
-struct Node *Expression();
-struct Node *Assignment();
-struct Node *Additive();
-struct Node *Multiplicative();
-struct Node *Primary();
-
-struct Node *BlockItemList() {
-  struct Node *block = NewNode(kNodeBlock, NULL);
-  struct Token *token;
-
-  struct Node *node = block;
-  while (Consume(kTokenEOF) == NULL) {
-    if ((token = Consume(kTokenInt))) {
-      struct Node *def = NewNode(kNodeDefVar, token);
-
-      struct Token *id = Expect(kTokenId);
-      if (id->len != 1) {
-        fprintf(stderr, "variable name must be one character\n");
-        Locate(id->raw);
-        exit(1);
-      }
-      def->lhs = NewNode(kNodeId, id);
-
-      if (Consume('=')) {
-        def->rhs = Expression();
-      }
-      Expect(';');
-
-      node->next = def;
-    } else if ((token = Consume(kTokenReturn))) {
-      struct Node *ret = NewNode(kNodeReturn, token);
-      ret->lhs = Expression();
-      Expect(';');
-
-      node->next = ret;
-    } else {
-      node->next = Expression();
-      Expect(';');
-    }
-
-    node = node->next;
-  }
-
-  return block;
-}
-
-struct Node *Expression() {
-  return Assignment();
-}
-
-struct Node *Assignment() {
-  struct Node *node = Additive();
-
-  struct Token *op;
-  if ((op = Consume('='))) {
-    node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
-  }
-
-  return node;
-}
-
-struct Node *Additive() {
-  struct Node *node = Multiplicative();
-
-  struct Token *op;
-  if ((op = Consume('+'))) {
-    node = NewNodeBinOp(kNodeAdd, op, node, Additive());
-  } else if ((op = Consume('-'))) {
-    node = NewNodeBinOp(kNodeSub, op, node, Additive());
-  }
-
-  return node;
-}
-
-struct Node *Multiplicative() {
-  struct Node *node = Primary();
-
-  struct Token *op;
-  if ((op = Consume('*'))) {
-    node = NewNodeBinOp(kNodeMul, op, node, Multiplicative());
-  }
-
-  return node;
-}
-
-struct Node *Primary() {
-  struct Node *node;
-  struct Token *tk;
-  if ((tk = Consume('('))) {
-    node = Expression();
-    Expect(')');
-  } else if ((tk = Consume(kTokenInteger))) {
-    node = NewNode(kNodeInteger, tk);
-  } else if ((tk = Consume(kTokenId))) {
-    node = NewNode(kNodeId, tk);
-  }
-
-  return node;
-}
-
 void Generate(struct Node *node, int lval) {
   switch (node->kind) {
   case kNodeBlock:
@@ -170,6 +69,11 @@ void Generate(struct Node *node, int lval) {
       Generate(node->rhs, 0);
       printf("st 0x%x\n", (uint8_t)node->lhs->token->raw[0]);
     }
+    break;
+  case kNodeLT:
+    Generate(node->rhs, 0);
+    Generate(node->lhs, 0);
+    printf("lt\n");
     break;
   }
 }

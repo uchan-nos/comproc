@@ -35,6 +35,7 @@ ALU 機能
 02h   stack[0] + stack[1]
 03h   stack[0] - stack[1]
 04h   stack[0] * stack[1]
+08h   stack[0] < stack[1]
 
 
 メモリマップ
@@ -145,6 +146,7 @@ begin
       8'h02: alu = stack0 + stack1;
       8'h03: alu = stack0 - stack1;
       8'h04: alu = stack0 * stack1;
+      8'h08: alu = stack0 < stack1;
     endcase
 end
 endfunction
