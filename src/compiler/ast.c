@@ -70,28 +70,28 @@ struct Node *BlockItemList() {
 }
 
 struct Node *Expression() {
-  return Relational();
+  return Assignment();
+}
+
+struct Node *Assignment() {
+  struct Node *node = Relational();
+
+  struct Token *op;
+  if ((op = Consume('='))) {
+    node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
+  }
+
+  return node;
 }
 
 struct Node *Relational() {
-  struct Node *node = Assignment();
+  struct Node *node = Additive();
 
   struct Token *op;
   if ((op = Consume('<'))) {
     node = NewNodeBinOp(kNodeLT, op, node, Relational());
   } else if ((op = Consume('>'))) {
     node = NewNodeBinOp(kNodeLT, op, Relational(), node);
-  }
-
-  return node;
-}
-
-struct Node *Assignment() {
-  struct Node *node = Additive();
-
-  struct Token *op;
-  if ((op = Consume('='))) {
-    node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
   }
 
   return node;
