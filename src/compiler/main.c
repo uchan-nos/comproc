@@ -5,6 +5,22 @@
 #include "ast.h"
 #include "token.h"
 
+char *src;
+void Locate(char *p) {
+  char *start = p, *end = p;
+
+  while (src < start && *(start - 1) != '\n') {
+    start--;
+  }
+
+  while (*end && *end != '\n') {
+    end++;
+  }
+
+  fprintf(stderr, "%.*s\n", (int)(end - start), start);
+  fprintf(stderr, "%*s\n", (int)(p - start + 1), "^");
+}
+
 struct Node *BlockItemList();
 struct Node *Expression();
 struct Node *Assignment();
@@ -23,8 +39,8 @@ struct Node *BlockItemList() {
 
       struct Token *id = Expect(kTokenId);
       if (id->len != 1) {
-        fprintf(stderr, "variable name must be one character: '%.*s'\n",
-                id->len, id->raw);
+        fprintf(stderr, "variable name must be one character\n");
+        Locate(id->raw);
         exit(1);
       }
       def->lhs = NewNode(kNodeId, id);
@@ -159,7 +175,7 @@ void Generate(struct Node *node, int lval) {
 }
 
 int main(void) {
-  char *src = malloc(1024);
+  src = malloc(1024);
   size_t src_len = fread(src, 1, 1023, stdin);
   src[src_len] = '\0';
 

@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+void Locate(char *p);
+
 static int IsIdHead(int c) {
   return isalpha(c) || c == '_';
 }
@@ -85,9 +87,8 @@ static struct Token *NextToken(char *src) {
     return NewToken(kTokenId, src, p - src);
   }
 
-  int lf_len = strchr(src, '\n') - src;
-  fprintf(stderr, "failed to tokenize: '%.*s'\n",
-          lf_len < 20 ? lf_len : 20, src);
+  fprintf(stderr, "failed to tokenize\n");
+  Locate(src);
   exit(1);
 }
 
@@ -123,6 +124,7 @@ struct Token *Expect(int kind) {
     }
     fprintf(stderr, " is expected, but '%.*s'(%d)\n",
             cur_token->len, cur_token->raw, cur_token->kind);
+    Locate(cur_token->raw);
     exit(1);
   }
   return tk;
