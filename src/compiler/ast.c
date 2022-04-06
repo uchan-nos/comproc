@@ -9,7 +9,7 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token) {
   struct Node *n = malloc(sizeof(struct Node));
   n->kind = kind;
   n->token = token;
-  n->next = n->lhs = n->rhs = NULL;
+  n->next = n->lhs = n->rhs = n->cond = NULL;
   return n;
 }
 
@@ -21,20 +21,17 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   return n;
 }
 
-struct Node *BlockItemList();
-struct Node *Expression();
-struct Node *Assignment();
-struct Node *Relational();
-struct Node *Additive();
-struct Node *Multiplicative();
-struct Node *Primary();
+struct Node *Block() {
+  struct Token *brace = Consume('{');
+  if (brace == NULL) {
+    return NULL;
+  }
 
-struct Node *BlockItemList() {
-  struct Node *block = NewNode(kNodeBlock, NULL);
+  struct Node *block = NewNode(kNodeBlock, brace);
   struct Token *token;
 
   struct Node *node = block;
-  while (Consume(kTokenEOF) == NULL) {
+  while (Consume('}') == NULL) {
     if ((token = Consume(kTokenInt))) {
       struct Node *def = NewNode(kNodeDefVar, token);
 
@@ -58,6 +55,14 @@ struct Node *BlockItemList() {
       Expect(';');
 
       node->next = ret;
+    } else if ((token = Consume(kTokenIf))) {
+      struct Node *if_ = NewNode(kNodeIf, token);
+      Expect('(');
+      if_->cond = Expression();
+      Expect(')');
+      if_->lhs = Block();
+
+      node->next = if_;
     } else {
       node->next = Expression();
       Expect(';');

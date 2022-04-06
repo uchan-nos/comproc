@@ -26,6 +26,7 @@ struct ReservedMapItem {
 static struct ReservedMapItem reserved_map[] = {
   ITEM(return, kTokenReturn),
   ITEM(int,    kTokenInt),
+  ITEM(if,     kTokenIf),
   {NULL, 0, 0},
 };
 #undef ITEM
@@ -74,7 +75,7 @@ static struct Token *NextToken(char *src) {
     return tk;
   }
 
-  if (strchr("+-*/();=<>", *p) != NULL) {
+  if (strchr("+-*/();=<>{}", *p) != NULL) {
     return NewToken(*p, p, 1);
   }
 

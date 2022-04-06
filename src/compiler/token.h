@@ -6,6 +6,7 @@ enum TokenKind {
   kTokenReturn,
   kTokenInt,
   kTokenId,
+  kTokenIf,
   kTokenEOF,
 };
 

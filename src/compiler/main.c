@@ -75,6 +75,15 @@ void Generate(struct Node *node, int lval) {
     Generate(node->lhs, 0);
     printf("lt\n");
     break;
+  case kNodeIf:
+    Generate(node->cond, 0);
+    printf("jz label_else\n");
+    Generate(node->lhs, 0);
+    printf("jmp label_fi\n");
+    printf("label_else:\n");
+    Generate(node->rhs, 0);
+    printf("label_fi:\n");
+    break;
   }
 }
 
@@ -84,7 +93,7 @@ int main(void) {
   src[src_len] = '\0';
 
   Tokenize(src);
-  struct Node *ast = BlockItemList();
+  struct Node *ast = Block();
   Expect(kTokenEOF);
   Generate(ast, 0);
 
