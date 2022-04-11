@@ -77,11 +77,13 @@ void Generate(struct Node *node, int lval) {
     break;
   case kNodeIf:
     Generate(node->cond, 0);
-    printf("jz label_else\n");
+    printf("jz %s\n", node->rhs ? "label_else" : "label_fi");
     Generate(node->lhs, 0);
-    printf("jmp label_fi\n");
-    printf("label_else:\n");
-    Generate(node->rhs, 0);
+    if (node->rhs) {
+      printf("jmp label_fi\n");
+      printf("label_else:\n");
+      Generate(node->rhs, 0);
+    }
     printf("label_fi:\n");
     break;
   }
