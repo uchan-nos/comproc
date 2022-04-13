@@ -128,15 +128,11 @@ always @(posedge clk, posedge rst) begin
   else if (insn == 16'hffff)
     ;
   else if (phase == 2'd2)
-    pc <= pc + 10'd1;
-end
-
-// jz ビットが 1 なら条件ジャンプ
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    ;
-  else if (phase == 2'd0 && jz && stack[0] == 8'd0)
-    pc <= imm;
+    if (jz && stack[0] == 8'd0)
+      // jz ビットが 1 なら条件ジャンプ
+      pc <= imm8;
+    else
+      pc <= pc + 10'd1;
 end
 
 // ALU 本体
