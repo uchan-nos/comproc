@@ -62,7 +62,7 @@ long GetOperandLong(char *mnemonic, char **operands, int n, int i) {
 
 struct LabelAddr {
   const char *label;
-  uint8_t pc;
+  int pc;
 };
 
 int main(void) {
@@ -71,8 +71,8 @@ int main(void) {
   char *mnemonic;
   char *operands[3];
 
-  uint16_t insn[256];
-  uint8_t pc = 0;
+  uint16_t insn[1024];
+  int pc = 0;
 
   struct LabelAddr backpatches[128];
   int num_backpatches = 0;
@@ -112,11 +112,16 @@ int main(void) {
       insn[pc] = 0x2004;
     } else if (strcmp(mnemonic, "lt") == 0) {
       insn[pc] = 0x2008;
-    } else if (strcmp(mnemonic, "jz") == 0) {
+    } else if (strcmp(mnemonic, "jmp") == 0) {
       backpatches[num_backpatches].label = strdup(GET_STR(0));
       backpatches[num_backpatches].pc = pc;
       num_backpatches++;
       insn[pc] = 0x1000;
+    } else if (strcmp(mnemonic, "jz") == 0) {
+      backpatches[num_backpatches].label = strdup(GET_STR(0));
+      backpatches[num_backpatches].pc = pc;
+      num_backpatches++;
+      insn[pc] = 0x1100;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
@@ -129,7 +134,7 @@ int main(void) {
     int l = 0;
     for (; l < num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label) == 0) {
-        insn[backpatches[i].pc] |= labels[l].pc;
+        insn[backpatches[i].pc] |= labels[l].pc - backpatches[i].pc;
         break;
       }
     }

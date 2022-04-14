@@ -32,7 +32,8 @@ ST imm8     0ch   stack からポップした値を mem[imm8] に書く
 STA         0dh   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
                   stack[0] = addr, stack[1] = data
 STD         0eh   stack からアドレスと値をポップしメモリに書き、値をプッシュ
-JZ imm8     10h   stack から値をポップし、0 なら imm8 にジャンプ
+JMP imm8    10h   pc+imm8 にジャンプ
+JZ imm8     11h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 
 
 命令リスト（算術論理演算）
@@ -51,13 +52,14 @@ LT    2008h   stack[0] < stack[1]
 -----------------------
 imm   0: insn[7:0] は ALU 機能選択
       1: insn[7:0] は即値
-jmp   1 ならジャンプ
 load  演算用スタックの先頭にロードする値の選択
       0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
 rd    メモリ読み込み
 wr    メモリ書き込み
 pop   演算用スタックから値をポップ
 push  演算用スタックに値をプッシュ
+jmp   ジャンプ条件
+      0: ジャンプしない, 1: 無条件, 2: stack[0] == 0
 
 imm8=insn[7:0] 即値、ALU 機能選択
 
@@ -88,11 +90,11 @@ logic [7:0] stack[0:15];
 logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
 logic [7:0] alu_out;
 
-logic imm, jmp, rd, wr, pop, push;
-logic [1:0] load;
+logic imm, rd, wr, pop, push;
+logic [1:0] load, jmp;
 logic [7:0] imm8;
 
-assign {imm, jmp, load, rd, wr, pop, push} = decode(insn);
+assign {imm, load, rd, wr, pop, push, jmp} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, imm8, stack[0], stack[1]);
@@ -158,9 +160,9 @@ always @(posedge clk, posedge rst) begin
   else if (insn == 16'hffff)
     ;
   else if (phase == 2'd2)
-    if (jmp && stack[0] == 8'd0)
-      // jmp ビットが 1 なら条件ジャンプ
-      pc <= imm8;
+    if (jmp == 2'd1 ||
+        jmp == 2'd2 && stack[0] == 8'd0)
+      pc <= pc + imm8;
     else
       pc <= pc + 10'd1;
 end
@@ -186,21 +188,22 @@ begin
 end
 endfunction
 
-function [7:0] decode(input [15:0] insn);
+function [8:0] decode(input [15:0] insn);
 begin
   case (insn[15:8])
-    //                 i j l  rw pp
-    //                 m m o  dr ou
-    //                 m p a     ps
-    //                     d      h
-    8'h00: decode = 8'b1_0_10_00_01;
-    8'h08: decode = 8'b1_0_11_10_01;
-    8'h0c: decode = 8'b1_0_01_01_10;
-    8'h0d: decode = 8'b0_0_00_01_10;
-    8'h0e: decode = 8'b0_0_01_01_10;
-    8'h10: decode = 8'b1_1_01_00_10;
-    8'h20: decode = 8'b0_0_10_00_10;
-    default: decode = 8'd0;
+    //                 i l  rw pp j
+    //                 m o  dr ou m
+    //                 m a     ps p
+    //                   d      h
+    8'h00: decode = 9'b1_10_00_01_00;
+    8'h08: decode = 9'b1_11_10_01_00;
+    8'h0c: decode = 9'b1_01_01_10_00;
+    8'h0d: decode = 9'b0_00_01_10_00;
+    8'h0e: decode = 9'b0_01_01_10_00;
+    8'h10: decode = 9'b1_00_00_00_01;
+    8'h11: decode = 9'b1_01_00_10_10;
+    8'h20: decode = 9'b0_10_00_10_00;
+    default: decode = 9'd0;
   endcase
 end
 endfunction

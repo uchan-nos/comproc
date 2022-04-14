@@ -27,6 +27,7 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(return, kTokenReturn),
   ITEM(int,    kTokenInt),
   ITEM(if,     kTokenIf),
+  ITEM(else,   kTokenElse),
   {NULL, 0, 0},
 };
 #undef ITEM

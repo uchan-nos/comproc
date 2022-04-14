@@ -62,6 +62,10 @@ struct Node *Block() {
       Expect(')');
       if_->lhs = Block();
 
+      if ((token = Consume(kTokenElse))) {
+        if_->rhs = Block();
+      }
+
       node->next = if_;
     } else {
       node->next = Expression();
