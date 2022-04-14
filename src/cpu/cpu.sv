@@ -36,16 +36,6 @@ JMP imm8    10h   pc+imm8 にジャンプ
 JZ imm8     11h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 
 
-命令リスト（算術論理演算）
-
-op    code    演算
------------------------------------
-ADD   2002h   stack[0] + stack[1]
-SUB   2003h   stack[0] - stack[1]
-MUL   2004h   stack[0] * stack[1]
-LT    2008h   stack[0] < stack[1]
-
-
 制御線の構成
 
 名前  説明

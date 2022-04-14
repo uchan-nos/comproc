@@ -65,6 +65,11 @@ struct LabelAddr {
   int pc;
 };
 
+void InitBackpatch(struct LabelAddr *bp, const char *label, int pc) {
+  bp->label = label;
+  bp->pc = pc;
+}
+
 int main(void) {
   char line[256];
   char *label;
@@ -113,14 +118,10 @@ int main(void) {
     } else if (strcmp(mnemonic, "lt") == 0) {
       insn[pc] = 0x2008;
     } else if (strcmp(mnemonic, "jmp") == 0) {
-      backpatches[num_backpatches].label = strdup(GET_STR(0));
-      backpatches[num_backpatches].pc = pc;
-      num_backpatches++;
+      InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
       insn[pc] = 0x1000;
     } else if (strcmp(mnemonic, "jz") == 0) {
-      backpatches[num_backpatches].label = strdup(GET_STR(0));
-      backpatches[num_backpatches].pc = pc;
-      num_backpatches++;
+      InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
       insn[pc] = 0x1100;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
