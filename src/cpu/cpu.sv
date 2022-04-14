@@ -12,18 +12,54 @@ module cpu(
 /*
 オペコードの構成
 
-bit   名前  説明
-------------------------------
-15    imm   0: insn[7:0] は ALU 機能選択
-            1: insn[7:0] は即値
-14          jz
-13:12 load  演算用スタックの先頭にロードする値の選択
-            0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
-11    rd    メモリ読み込み
-10    wr    メモリ書き込み
-9     pop   演算用スタックから値をポップ
-8     push  演算用スタックに値をプッシュ
-7:0   imm8  即値、ALU 機能選択
+値の範囲    役割
+-----------------------
+00h - 07h   PUSH/POP 系命令
+08h - 0fh   メモリアクセス命令
+10h - 1fh   ジャンプ命令
+20h - 20h   2 項算術論理演算
+21h - 21h   単項算術論理演算
+ffh         無効命令
+
+
+命令リスト（算術論理演算以外）
+
+mnemonic    code  説明
+------------------------------------
+PUSH imm8   00h   imm8 を stack にプッシュ
+LD imm8     08h   mem[imm8] から読んだ値を stack にプッシュ
+ST imm8     0ch   stack からポップした値を mem[imm8] に書く
+STA         0dh   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
+                  stack[0] = addr, stack[1] = data
+STD         0eh   stack からアドレスと値をポップしメモリに書き、値をプッシュ
+JZ imm8     10h   stack から値をポップし、0 なら imm8 にジャンプ
+
+
+命令リスト（算術論理演算）
+
+op    code    演算
+-----------------------------------
+ADD   2002h   stack[0] + stack[1]
+SUB   2003h   stack[0] - stack[1]
+MUL   2004h   stack[0] * stack[1]
+LT    2008h   stack[0] < stack[1]
+
+
+制御線の構成
+
+名前  説明
+-----------------------
+imm   0: insn[7:0] は ALU 機能選択
+      1: insn[7:0] は即値
+jmp   1 ならジャンプ
+load  演算用スタックの先頭にロードする値の選択
+      0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
+rd    メモリ読み込み
+wr    メモリ書き込み
+pop   演算用スタックから値をポップ
+push  演算用スタックに値をプッシュ
+
+imm8=insn[7:0] 即値、ALU 機能選択
 
 
 ALU 機能
@@ -52,17 +88,11 @@ logic [7:0] stack[0:15];
 logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
 logic [7:0] alu_out;
 
-logic imm, jz, rd, wr, pop, push;
+logic imm, jmp, rd, wr, pop, push;
 logic [1:0] load;
 logic [7:0] imm8;
 
-assign imm = insn[15];
-assign jz = insn[14];
-assign load = insn[13:12];
-assign rd = insn[11];
-assign wr = insn[10];
-assign pop = insn[9];
-assign push = insn[8];
+assign {imm, jmp, load, rd, wr, pop, push} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, imm8, stack[0], stack[1]);
@@ -128,8 +158,8 @@ always @(posedge clk, posedge rst) begin
   else if (insn == 16'hffff)
     ;
   else if (phase == 2'd2)
-    if (jz && stack[0] == 8'd0)
-      // jz ビットが 1 なら条件ジャンプ
+    if (jmp && stack[0] == 8'd0)
+      // jmp ビットが 1 なら条件ジャンプ
       pc <= imm8;
     else
       pc <= pc + 10'd1;
@@ -153,6 +183,25 @@ begin
       8'h04: alu = stack0 * stack1;
       8'h08: alu = stack0 < stack1;
     endcase
+end
+endfunction
+
+function [7:0] decode(input [15:0] insn);
+begin
+  case (insn[15:8])
+    //                 i j l  rw pp
+    //                 m m o  dr ou
+    //                 m p a     ps
+    //                     d      h
+    8'h00: decode = 8'b1_0_10_00_01;
+    8'h08: decode = 8'b1_0_11_10_01;
+    8'h0c: decode = 8'b1_0_01_01_10;
+    8'h0d: decode = 8'b0_0_00_01_10;
+    8'h0e: decode = 8'b0_0_01_01_10;
+    8'h10: decode = 8'b1_1_01_00_10;
+    8'h20: decode = 8'b0_0_10_00_10;
+    default: decode = 8'd0;
+  endcase
 end
 endfunction
 

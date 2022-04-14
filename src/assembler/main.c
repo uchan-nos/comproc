@@ -95,28 +95,28 @@ int main(void) {
     ToLower(mnemonic);
 
     if (strcmp(mnemonic, "push") == 0) {
-      insn[pc] = 0xa100 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x0000 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "ld") == 0) {
-      insn[pc] = 0xb900 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x0800 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "st") == 0) {
-      insn[pc] = 0x9600 | (uint8_t)GET_LONG(0);
-    } else if (strcmp(mnemonic, "sta") == 0) {
-      insn[pc] = 0x0600;
-    } else if (strcmp(mnemonic, "std") == 0) {
-      insn[pc] = 0x1600;
+      insn[pc] = 0x0c00 | (uint8_t)GET_LONG(0);
+    } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
+      insn[pc] = 0x0d00;
+    } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
+      insn[pc] = 0x0e00;
     } else if (strcmp(mnemonic, "add") == 0) {
-      insn[pc] = 0x2202;
+      insn[pc] = 0x2002;
     } else if (strcmp(mnemonic, "sub") == 0) {
-      insn[pc] = 0x2203;
+      insn[pc] = 0x2003;
     } else if (strcmp(mnemonic, "mul") == 0) {
-      insn[pc] = 0x2204;
+      insn[pc] = 0x2004;
     } else if (strcmp(mnemonic, "lt") == 0) {
-      insn[pc] = 0x2208;
+      insn[pc] = 0x2008;
     } else if (strcmp(mnemonic, "jz") == 0) {
       backpatches[num_backpatches].label = strdup(GET_STR(0));
       backpatches[num_backpatches].pc = pc;
       num_backpatches++;
-      insn[pc] = 0xd200;
+      insn[pc] = 0x1000;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
