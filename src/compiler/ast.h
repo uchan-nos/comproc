@@ -14,6 +14,8 @@ enum NodeKind {
   kNodeDefVar,
   kNodeLT, // <
   kNodeIf,
+  kNodeInc,
+  kNodeDec,
 };
 
 struct Node {
@@ -39,4 +41,6 @@ struct Node *Assignment();
 struct Node *Relational();
 struct Node *Additive();
 struct Node *Multiplicative();
+struct Node *Unary();
+struct Node *Postfix();
 struct Node *Primary();

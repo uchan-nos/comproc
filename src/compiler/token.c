@@ -76,6 +76,17 @@ static struct Token *NextToken(char *src) {
     return tk;
   }
 
+  if (strchr("+-", p[0]) != NULL && p[1] == '=') {
+    return NewToken(kTokenCompAssign + p[0], p, 2);
+  }
+
+  if (p[0] == '+' && p[1] == '+') {
+    return NewToken(kTokenInc, p, 2);
+  }
+  if (p[0] == '-' && p[1] == '-') {
+    return NewToken(kTokenDec, p, 2);
+  }
+
   if (strchr("+-*/();=<>{}", *p) != NULL) {
     return NewToken(*p, p, 1);
   }

@@ -86,6 +86,24 @@ void Generate(struct Node *node, int lval) {
     }
     printf("label_fi:\n");
     break;
+  case kNodeInc:
+  case kNodeDec:
+    if (node->lhs) { // 後置インクリメント 'exp ++'
+      Generate(node->lhs, 0);
+      printf("push 1\n");
+      printf("dup 1\n");
+      printf(node->kind == kNodeInc ? "add\n" : "sub\n");
+      Generate(node->lhs, 1);
+      printf("sta\n");
+      printf("pop\n");
+    } else { // 前置インクリメント '++ exp'
+      printf("push 1\n");
+      Generate(node->rhs, 0);
+      printf(node->kind == kNodeInc ? "add\n" : "sub\n");
+      Generate(node->rhs, 1);
+      printf("std\n");
+    }
+    break;
   }
 }
 

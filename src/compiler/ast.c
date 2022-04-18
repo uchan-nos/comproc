@@ -88,6 +88,12 @@ struct Node *Assignment() {
   struct Token *op;
   if ((op = Consume('='))) {
     node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
+  } else if ((op = Consume(kTokenCompAssign + '+'))) {
+    node = NewNodeBinOp(kNodeAssign, op, node,
+                        NewNodeBinOp(kNodeAdd, op, node, Assignment()));
+  } else if ((op = Consume(kTokenCompAssign + '-'))) {
+    node = NewNodeBinOp(kNodeAssign, op, node,
+                        NewNodeBinOp(kNodeSub, op, node, Assignment()));
   }
 
   return node;
@@ -120,7 +126,7 @@ struct Node *Additive() {
 }
 
 struct Node *Multiplicative() {
-  struct Node *node = Primary();
+  struct Node *node = Unary();
 
   struct Token *op;
   if ((op = Consume('*'))) {
@@ -130,8 +136,36 @@ struct Node *Multiplicative() {
   return node;
 }
 
-struct Node *Primary() {
+struct Node *Unary() {
   struct Node *node;
+
+  struct Token *op;
+  if ((op = Consume(kTokenInc))) {
+    node = NewNodeBinOp(kNodeInc, op, NULL, Unary());
+  } else if ((op = Consume(kTokenDec))) {
+    node = NewNodeBinOp(kNodeDec, op, NULL, Unary());
+  } else {
+    node = Postfix();
+  }
+
+  return node;
+}
+
+struct Node *Postfix() {
+  struct Node *node = Primary();
+
+  struct Token *op;
+  if ((op = Consume(kTokenInc))) {
+    node = NewNodeBinOp(kNodeInc, op, node, NULL);
+  } else if ((op = Consume(kTokenDec))) {
+    node = NewNodeBinOp(kNodeDec, op, node, NULL);
+  }
+
+  return node;
+}
+
+struct Node *Primary() {
+  struct Node *node = NULL;
   struct Token *tk;
   if ((tk = Consume('('))) {
     node = Expression();
@@ -140,6 +174,12 @@ struct Node *Primary() {
     node = NewNode(kNodeInteger, tk);
   } else if ((tk = Consume(kTokenId))) {
     node = NewNode(kNodeId, tk);
+  }
+
+  if (!node) {
+    fprintf(stderr, "a primary expression is expected.\n");
+    Locate(cur_token->raw);
+    exit(1);
   }
 
   return node;

@@ -101,6 +101,15 @@ int main(void) {
 
     if (strcmp(mnemonic, "push") == 0) {
       insn[pc] = 0x0000 | (uint8_t)GET_LONG(0);
+    } else if (strcmp(mnemonic, "pop") == 0) {
+      insn[pc] = 0x0100;
+    } else if (strcmp(mnemonic, "dup") == 0) {
+      long n = GET_LONG(0);
+      if (n != 0 && n != 1) {
+        fprintf(stderr, "DUP takes 0 or 1: %ld\n", n);
+        exit(1);
+      }
+      insn[pc] = 0x0200 | n;
     } else if (strcmp(mnemonic, "ld") == 0) {
       insn[pc] = 0x0800 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "st") == 0) {
