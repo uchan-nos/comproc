@@ -144,7 +144,7 @@ int main(void) {
     int l = 0;
     for (; l < num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label) == 0) {
-        insn[backpatches[i].pc] |= labels[l].pc - backpatches[i].pc;
+        insn[backpatches[i].pc] |= (uint8_t)(labels[l].pc - backpatches[i].pc);
         break;
       }
     }

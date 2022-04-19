@@ -104,6 +104,16 @@ void Generate(struct Node *node, int lval) {
       printf("std\n");
     }
     break;
+  case kNodeFor:
+    Generate(node->lhs, 0);
+    printf("label_for_cond:\n");
+    Generate(node->cond, 0);
+    printf("jz label_for_end\n");
+    Generate(node->rhs, 0);
+    Generate(node->lhs->next, 0);
+    printf("jmp label_for_cond\n");
+    printf("label_for_end:\n");
+    break;
   }
 }
 

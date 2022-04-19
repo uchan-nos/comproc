@@ -11,6 +11,7 @@ enum TokenKind {
   kTokenCompAssign,
   kTokenInc = kTokenCompAssign + 128,
   kTokenDec,
+  kTokenFor,
   kTokenEOF,
 };
 

@@ -152,9 +152,9 @@ always @(posedge clk, posedge rst) begin
   else if (insn == 16'hffff)
     ;
   else if (phase == 2'd2)
-    if (jmp == 2'd1 ||
-        jmp == 2'd2 && stack[0] == 8'd0)
-      pc <= pc + imm8;
+    if ((jmp == 2'd1) ||
+        (jmp == 2'd2 && stack[0] == 8'd0))
+      pc <= pc + { {2{imm8[7]}}, imm8};
     else
       pc <= pc + 10'd1;
 end

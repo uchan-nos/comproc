@@ -2,7 +2,7 @@ module Simulation;
 
 localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
-localparam TIMEOUT = 1000;
+localparam TIMEOUT = 10000;
 
 logic [15:0] sim_input[0:1023];
 logic [15:0] insn;

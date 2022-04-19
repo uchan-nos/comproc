@@ -67,6 +67,18 @@ struct Node *Block() {
       }
 
       node->next = if_;
+    } else if ((token = Consume(kTokenFor))) {
+      struct Node *for_ = NewNode(kNodeFor, token);
+      Expect('(');
+      for_->lhs = Expression();
+      Expect(';');
+      for_->cond = Expression();
+      Expect(';');
+      for_->lhs->next = Expression();
+      Expect(')');
+      for_->rhs = Block();
+
+      node->next = for_;
     } else {
       node->next = Expression();
       Expect(';');

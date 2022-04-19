@@ -16,6 +16,7 @@ enum NodeKind {
   kNodeIf,
   kNodeInc,
   kNodeDec,
+  kNodeFor,
 };
 
 struct Node {
