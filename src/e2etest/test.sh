@@ -18,7 +18,7 @@ function test_value() {
       got=$(echo $bin | ../cpu/sim.exe 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin --timeout 30))
       ;;
     *)
       echo "unknown target: $target"

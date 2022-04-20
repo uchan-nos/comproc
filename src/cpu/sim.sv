@@ -9,6 +9,7 @@ logic [15:0] insn;
 logic [9:0] pc;
 logic [7:0] mem_addr, rd_data, wr_data;
 logic mem_wr;
+logic [7:0] stack[0:15];
 
 integer num_insn = 0;
 

@@ -13,7 +13,7 @@ parameter GAP = 16'd500;
 // logic 定義
 logic rst_n;
 logic [15:0] counter;
-logic [2:0] row_index;
+logic [3:0] row_index;
 logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_tx_en, uart_rx_data_wr;
 
@@ -24,6 +24,7 @@ logic recv_phase, recv_data_v, recv_compl;
 logic [7:0] cpu_out;
 logic [7:0] cpu_mem_addr, cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
+logic [7:0] cpu_stack[0:15];
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
@@ -36,13 +37,18 @@ always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
 
-// row_index == 0 のときだけ点灯させる
-function [7:0] led_pattern(input [2:0] row_index);
+// LED の各行に情報を表示
+function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    3'd0:    led_pattern = 8'b10101010;
-    3'd1:    led_pattern = cpu_out;
-    3'd2:    led_pattern = recv_data[15:8];
-    3'd3:    led_pattern = recv_data[7:0];
+    4'd0:    led_pattern = insn[15:8];
+    4'd1:    led_pattern = insn[7:0];
+    4'd2:    led_pattern = cpu_stack[0];
+    4'd3:    led_pattern = cpu_stack[1];
+    4'd4:    led_pattern = cpu_stack[2];
+    4'd5:    led_pattern = cpu_stack[3];
+    4'd6:    led_pattern = cpu_stack[4];
+    4'd7:    led_pattern = cpu_stack[5];
+    4'd8:    led_pattern = encode_7seg(pc[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
 endfunction
@@ -60,9 +66,12 @@ end
 // counter が 1 周したら row_index を更新する
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    row_index <= 3'd0;
+    row_index <= 4'd0;
   else if (counter == 0)
-    row_index <= row_index + 3'd1;
+    if (row_index < 4'd8)
+      row_index <= row_index + 4'd1;
+    else
+      row_index <= 4'd0;
 end
 
 // 隣接する行が光らないように制御する
@@ -186,7 +195,38 @@ cpu cpu(
   .mem_addr(cpu_mem_addr),
   .mem_wr(cpu_mem_wr),
   .rd_data(cpu_rd_data),
-  .wr_data(cpu_wr_data)
+  .wr_data(cpu_wr_data),
+  .stack(cpu_stack)
 );
+
+function [7:0] encode_7seg(input [4:0] n);
+begin
+  case (n[3:0])
+    /* 7 segment LED
+    *    7
+    * 2|~~~|6
+    *  |-1-|
+    * 3|___|5  .0
+    *    4
+    */
+    4'h0: encode_7seg = {7'b1111110, n[4]};
+    4'h1: encode_7seg = {7'b0110000, n[4]};
+    4'h2: encode_7seg = {7'b1101101, n[4]};
+    4'h3: encode_7seg = {7'b1111001, n[4]};
+    4'h4: encode_7seg = {7'b0110011, n[4]};
+    4'h5: encode_7seg = {7'b1011011, n[4]};
+    4'h6: encode_7seg = {7'b1011111, n[4]};
+    4'h7: encode_7seg = {7'b1110010, n[4]};
+    4'h8: encode_7seg = {7'b1111111, n[4]};
+    4'h9: encode_7seg = {7'b1111011, n[4]};
+    4'ha: encode_7seg = {7'b1110111, n[4]};
+    4'hb: encode_7seg = {7'b0011111, n[4]};
+    4'hc: encode_7seg = {7'b1001110, n[4]};
+    4'hd: encode_7seg = {7'b0111101, n[4]};
+    4'he: encode_7seg = {7'b1001111, n[4]};
+    4'hf: encode_7seg = {7'b1000111, n[4]};
+  endcase
+end
+endfunction
 
 endmodule

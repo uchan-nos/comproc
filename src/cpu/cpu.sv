@@ -6,7 +6,8 @@ module cpu(
   output [7:0] mem_addr,
   output logic mem_wr,
   input        [7:0] rd_data,
-  output logic [7:0] wr_data
+  output logic [7:0] wr_data,
+  output logic [7:0] stack[0:15]
 );
 
 /*
@@ -78,13 +79,16 @@ addr    説明
 20h-ffh 一般メモリ
 */
 
-logic [7:0] stack[0:15];
-logic [1:0] phase; // 0=命令実行 1=メモリアドレス 2=メモリアクセス 3=PC更新
+logic [1:0] phase; // 0=命令実行 1=メモリアクセス 2=PC更新 3=時間待ち
 logic [7:0] alu_out;
 
 logic imm, rd, wr, pop, push;
 logic [1:0] load, jmp;
 logic [7:0] imm8;
+
+//localparam CLK_DIVIDER=32'd2_000_000;
+localparam CLK_DIVIDER=32'd1;
+logic [31:0] clk_div;
 
 assign {imm, load, rd, wr, pop, push, jmp} = decode(insn);
 assign imm8 = insn[7:0];
@@ -98,7 +102,7 @@ integer i;
 always @(posedge clk, posedge rst) begin
   if (rst)
     for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
-  else if (phase == 2'd3) begin
+  else if (phase == 2'd2) begin
     /*
     if (load)
       stack[0] <= rd ? rd_data : alu_out;
@@ -141,8 +145,10 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     phase <= 2'd0;
-  else
+  else if (phase != 2'd3)
     phase <= phase + 2'd1;
+  else if (clk_div == CLK_DIVIDER - 1)
+    phase <= 2'd0;
 end
 
 // 命令実行が完了したらプログラムカウンタを進める
@@ -157,6 +163,15 @@ always @(posedge clk, posedge rst) begin
       pc <= pc + { {2{imm8[7]}}, imm8};
     else
       pc <= pc + 10'd1;
+end
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    clk_div <= 32'd0;
+  else if (phase == 2'd3)
+    clk_div <= clk_div + 32'd1;
+  else
+    clk_div <= 32'd0;
 end
 
 // ALU 本体
