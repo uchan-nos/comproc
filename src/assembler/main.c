@@ -124,6 +124,8 @@ int main(void) {
       insn[pc] = 0x2003;
     } else if (strcmp(mnemonic, "mul") == 0) {
       insn[pc] = 0x2004;
+    } else if (strcmp(mnemonic, "join") == 0) {
+      insn[pc] = 0x2005;
     } else if (strcmp(mnemonic, "lt") == 0) {
       insn[pc] = 0x2008;
     } else if (strcmp(mnemonic, "jmp") == 0) {

@@ -5,9 +5,9 @@ module cpu(
   output logic [9:0] pc,
   output [7:0] mem_addr,
   output logic mem_wr,
-  input        [7:0] rd_data,
-  output logic [7:0] wr_data,
-  output logic [7:0] stack[0:15]
+  input        [15:0] rd_data,
+  output logic [15:0] wr_data,
+  output logic [15:0] stack[0:15]
 );
 
 /*
@@ -59,14 +59,15 @@ imm8=insn[7:0] 即値、ALU 機能選択
 
 ALU 機能
 
-番号  説明
+番号  名前  説明
 ----------------
-00h   stack[0]
-01h   stack[1]
-02h   stack[0] + stack[1]
-03h   stack[0] - stack[1]
-04h   stack[0] * stack[1]
-08h   stack[0] < stack[1]
+00h         stack[0]
+01h         stack[1]
+02h   ADD   stack[0] + stack[1]
+03h   SUB   stack[0] - stack[1]
+04h   MUL   stack[0] * stack[1]
+05h   JOIN  stack[0] | (stack[1] << 8)
+08h   LT    stack[0] < stack[1]
 
 
 メモリマップ
@@ -80,7 +81,7 @@ addr    説明
 */
 
 logic [1:0] phase; // 0=命令実行 1=メモリアクセス 2=PC更新 3=時間待ち
-logic [7:0] alu_out;
+logic [15:0] alu_out;
 
 logic imm, rd, wr, pop, push;
 logic [1:0] load, jmp;
@@ -94,7 +95,7 @@ assign {imm, load, rd, wr, pop, push, jmp} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, imm8, stack[0], stack[1]);
-assign mem_addr = alu_out;
+assign mem_addr = alu_out[7:0];
 
 integer i;
 
@@ -175,14 +176,14 @@ always @(posedge clk, posedge rst) begin
 end
 
 // ALU 本体
-function [7:0] alu(
+function [15:0] alu(
   input imm,
   input [7:0] imm8,
-  input [7:0] stack0,
-  input [7:0] stack1);
+  input [15:0] stack0,
+  input [15:0] stack1);
 begin
   if (imm)
-    alu = imm8;
+    alu = {8'd0, imm8};
   else
     case (imm8)
       8'h00: alu = stack0;
@@ -190,6 +191,7 @@ begin
       8'h02: alu = stack0 + stack1;
       8'h03: alu = stack0 - stack1;
       8'h04: alu = stack0 * stack1;
+      8'h05: alu = stack0 | (stack1 << 8);
       8'h08: alu = stack0 < stack1;
     endcase
 end

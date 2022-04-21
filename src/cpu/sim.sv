@@ -7,9 +7,10 @@ localparam TIMEOUT = 10000;
 logic [15:0] sim_input[0:1023];
 logic [15:0] insn;
 logic [9:0] pc;
-logic [7:0] mem_addr, rd_data, wr_data;
+logic [7:0] mem_addr;
+logic [15:0] rd_data, wr_data;
 logic mem_wr;
-logic [7:0] stack[0:15];
+logic [15:0] stack[0:15];
 
 integer num_insn = 0;
 
@@ -19,7 +20,7 @@ initial begin
     num_insn++;
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x insn=%04x mem[%02x]=%02x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
+  $monitor("%d: rst=%d pc=%02x insn=%04x mem[%02x]=%04x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
            $time, rst, pc, insn, mem_addr, rd_data, mem_wr, cpu.phase, cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
 
   // 各信号の初期値
@@ -39,7 +40,7 @@ end
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
   if (mem_wr & mem_addr == 8'h01) begin
-    $fdisplay(STDERR, "%x", wr_data);
+    $fdisplay(STDERR, "%x", wr_data[7:0]);
     $finish;
   end
   else if ($time > TIMEOUT) begin
@@ -60,12 +61,14 @@ cpu cpu(.*);
 logic [7:0] data_mem[0:255];
 
 always @(posedge clk) begin
-  if (mem_wr)
-    data_mem[mem_addr] <= wr_data;
+  if (mem_wr) begin
+    data_mem[mem_addr] <= wr_data[7:0];
+    data_mem[mem_addr + 1] <= wr_data[15:8];
+  end
 end
 
 always @(posedge clk) begin
-  rd_data <= data_mem[mem_addr];
+  rd_data <= {data_mem[mem_addr + 1], data_mem[mem_addr]};
 end
 
 endmodule
