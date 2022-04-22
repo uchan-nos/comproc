@@ -126,8 +126,14 @@ int main(void) {
       insn[pc] = 0x2004;
     } else if (strcmp(mnemonic, "join") == 0) {
       insn[pc] = 0x2005;
+    } else if (strcmp(mnemonic, "and") == 0) {
+      insn[pc] = 0x2006;
     } else if (strcmp(mnemonic, "lt") == 0) {
       insn[pc] = 0x2008;
+    } else if (strcmp(mnemonic, "eq") == 0) {
+      insn[pc] = 0x2009;
+    } else if (strcmp(mnemonic, "neq") == 0) {
+      insn[pc] = 0x200a;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
       insn[pc] = 0x1000;

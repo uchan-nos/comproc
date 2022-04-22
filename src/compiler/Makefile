@@ -1,4 +1,4 @@
-OBJS   = main.o ast.o symbol.o token.o
+OBJS   = main.o ast.o symbol.o token.o type.o
 CFLAGS = -Wall -Wextra -O0 -g
 
 .PHONY: all
@@ -10,3 +10,16 @@ ucc: $(OBJS)
 .PHONY: clean
 clean:
 	rm -f $(OBJS)
+
+DEPENDS = $(join $(dir $(OBJS)),$(addprefix .,$(notdir $(OBJS:.o=.d))))
+
+.PHONY: depends
+depends:
+	$(MAKE) $(DEPENDS)
+
+.%.d: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MM $< > $@
+	$(eval OBJ = $(<:.c=.o))
+	sed --in-place 's|$(notdir $(OBJ))|$(OBJ)|' $@
+
+-include $(DEPENDS)

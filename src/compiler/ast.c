@@ -28,60 +28,15 @@ struct Node *Block() {
   }
 
   struct Node *block = NewNode(kNodeBlock, brace);
-  struct Token *token;
 
   struct Node *node = block;
   while (Consume('}') == NULL) {
-    if ((token = Consume(kTokenInt))) {
-      struct Node *def = NewNode(kNodeDefVar, token);
-
-      struct Token *id = Expect(kTokenId);
-      if (id->len != 1) {
-        fprintf(stderr, "variable name must be one character\n");
-        Locate(id->raw);
-        exit(1);
-      }
-      def->lhs = NewNode(kNodeId, id);
-
-      if (Consume('=')) {
-        def->rhs = Expression();
-      }
-      Expect(';');
-
-      node->next = def;
-    } else if ((token = Consume(kTokenReturn))) {
-      struct Node *ret = NewNode(kNodeReturn, token);
-      ret->lhs = Expression();
-      Expect(';');
-
-      node->next = ret;
-    } else if ((token = Consume(kTokenIf))) {
-      struct Node *if_ = NewNode(kNodeIf, token);
-      Expect('(');
-      if_->cond = Expression();
-      Expect(')');
-      if_->lhs = Block();
-
-      if ((token = Consume(kTokenElse))) {
-        if_->rhs = Block();
-      }
-
-      node->next = if_;
-    } else if ((token = Consume(kTokenFor))) {
-      struct Node *for_ = NewNode(kNodeFor, token);
-      Expect('(');
-      for_->lhs = Expression();
-      Expect(';');
-      for_->cond = Expression();
-      Expect(';');
-      for_->lhs->next = Expression();
-      Expect(')');
-      for_->rhs = Block();
-
-      node->next = for_;
+    if ((node->next = Declaration())) {
+    } else if ((node->next = Statement())) {
     } else {
-      node->next = Expression();
-      Expect(';');
+      fprintf(stderr, "either declaration or statement is expected\n");
+      Locate(cur_token->raw);
+      exit(1);
     }
 
     node = node->next;
@@ -90,12 +45,82 @@ struct Node *Block() {
   return block;
 }
 
+struct Node *Declaration() {
+  struct Token *token;
+
+  if ((token = Consume(kTokenInt)) ||
+      (token = Consume(kTokenChar))) {
+    struct Node *def = NewNode(kNodeDefVar, token);
+
+    struct Token *id = Expect(kTokenId);
+    if (id->len != 1) {
+      fprintf(stderr, "variable name must be one character\n");
+      Locate(id->raw);
+      exit(1);
+    }
+    def->lhs = NewNode(kNodeId, id);
+
+    if (Consume('=')) {
+      def->rhs = Expression();
+    }
+    Expect(';');
+
+    return def;
+  }
+
+  return NULL;
+}
+
+struct Node *Statement() {
+  struct Token *token;
+
+  if ((token = Consume(kTokenReturn))) {
+    struct Node *ret = NewNode(kNodeReturn, token);
+    ret->lhs = Expression();
+    Expect(';');
+    return ret;
+  }
+
+  if ((token = Consume(kTokenIf))) {
+    struct Node *if_ = NewNode(kNodeIf, token);
+    Expect('(');
+    if_->cond = Expression();
+    Expect(')');
+    if_->lhs = Block();
+
+    if ((token = Consume(kTokenElse))) {
+      if_->rhs = Block();
+    }
+
+    return if_;
+  }
+
+  if ((token = Consume(kTokenFor))) {
+    struct Node *for_ = NewNode(kNodeFor, token);
+    Expect('(');
+    for_->lhs = Expression();
+    Expect(';');
+    for_->cond = Expression();
+    Expect(';');
+    for_->lhs->next = Expression();
+    Expect(')');
+    for_->rhs = Block();
+
+    return for_;
+  }
+
+  struct Node *e = Expression();
+  Expect(';');
+
+  return e;
+}
+
 struct Node *Expression() {
   return Assignment();
 }
 
 struct Node *Assignment() {
-  struct Node *node = Relational();
+  struct Node *node = Equality();
 
   struct Token *op;
   if ((op = Consume('='))) {
@@ -106,6 +131,19 @@ struct Node *Assignment() {
   } else if ((op = Consume(kTokenCompAssign + '-'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
                         NewNodeBinOp(kNodeSub, op, node, Assignment()));
+  }
+
+  return node;
+}
+
+struct Node *Equality() {
+  struct Node *node = Relational();
+
+  struct Token *op;
+  if ((op = Consume(kTokenEq))) {
+    node = NewNodeBinOp(kNodeEq, op, node, Equality());
+  } else if ((op = Consume(kTokenNEq))) {
+    node = NewNodeBinOp(kNodeNEq, op, node, Equality());
   }
 
   return node;

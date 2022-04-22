@@ -17,6 +17,8 @@ enum NodeKind {
   kNodeInc,
   kNodeDec,
   kNodeFor,
+  kNodeEq,
+  kNodeNEq,
 };
 
 struct Node {
@@ -37,8 +39,11 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token);
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
                           struct Node *lhs, struct Node *rhs);
 struct Node *Block();
+struct Node *Declaration();
+struct Node *Statement();
 struct Node *Expression();
 struct Node *Assignment();
+struct Node *Equality();
 struct Node *Relational();
 struct Node *Additive();
 struct Node *Multiplicative();

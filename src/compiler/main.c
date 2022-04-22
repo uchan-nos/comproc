@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "symbol.h"
 #include "token.h"
+#include "type.h"
 
 char *src;
 void Locate(char *p) {
@@ -44,6 +45,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       struct Symbol *sym = FindSymbol(ctx->syms, node->token);
       if (sym) {
         printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
+        if (SizeofType(sym->type) == 1) {
+          printf("push 0xff\n");
+          printf("and\n");
+        }
       } else {
         fprintf(stderr, "unknown symbol\n");
         Locate(node->token->raw);
@@ -85,6 +90,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       struct Symbol *sym = NewSymbol(kSymLVar, node->lhs->token);
       sym->offset = ctx->lvar_offset;
+      switch (node->token->kind) {
+      case kTokenChar:
+        sym->type = NewType(kTypeChar);
+        break;
+      case kTokenInt:
+        sym->type = NewType(kTypeInt);
+        break;
+      }
       ctx->lvar_offset += 2;
       AppendSymbol(ctx->syms, sym);
 
@@ -137,6 +150,16 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->lhs->next, 0);
     printf("jmp label_for_cond\n");
     printf("label_for_end:\n");
+    break;
+  case kNodeEq:
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
+    printf("eq\n");
+    break;
+  case kNodeNEq:
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
+    printf("neq\n");
     break;
   }
 }

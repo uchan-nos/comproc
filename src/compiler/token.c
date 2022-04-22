@@ -29,12 +29,21 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(if,     kTokenIf),
   ITEM(else,   kTokenElse),
   ITEM(for,    kTokenFor),
+  ITEM(char,   kTokenChar),
+  {NULL, 0, 0},
+};
+static struct ReservedMapItem operator_map[] = {
+  ITEM(++, kTokenInc),
+  ITEM(--, kTokenDec),
+  ITEM(==, kTokenEq),
+  ITEM(!=, kTokenNEq),
   {NULL, 0, 0},
 };
 #undef ITEM
 
-static enum TokenKind FindReservedKind(char *name, int len) {
-  struct ReservedMapItem *it = reserved_map;
+static enum TokenKind FindReservedKind(struct ReservedMapItem *map,
+                                       char *name, int len) {
+  struct ReservedMapItem *it = map;
   for (; it->name; it++) {
     if (it->len == len && strncmp(it->name, name, len) == 0) {
       return it->kind;
@@ -43,8 +52,9 @@ static enum TokenKind FindReservedKind(char *name, int len) {
   return 0;
 }
 
-static char *FindReservedName(enum TokenKind kind) {
-  struct ReservedMapItem *it = reserved_map;
+static char *FindReservedName(struct ReservedMapItem *map,
+                              enum TokenKind kind) {
+  struct ReservedMapItem *it = map;
   for (; it->name; it++) {
     if (it->kind == kind) {
       return it->name;
@@ -81,11 +91,9 @@ static struct Token *NextToken(char *src) {
     return NewToken(kTokenCompAssign + p[0], p, 2);
   }
 
-  if (p[0] == '+' && p[1] == '+') {
-    return NewToken(kTokenInc, p, 2);
-  }
-  if (p[0] == '-' && p[1] == '-') {
-    return NewToken(kTokenDec, p, 2);
+  enum TokenKind op_kind = FindReservedKind(operator_map, src, 2);
+  if (op_kind) {
+    return NewToken(op_kind, src, 2);
   }
 
   if (strchr("+-*/();=<>{}", *p) != NULL) {
@@ -94,7 +102,7 @@ static struct Token *NextToken(char *src) {
 
   if (IsIdHead(*p)) {
     while (IsIdTail(*++p));
-    enum TokenKind resv_kind = FindReservedKind(src, p - src);
+    enum TokenKind resv_kind = FindReservedKind(reserved_map, src, p - src);
     if (resv_kind) {
       return NewToken(resv_kind, src, p - src);
     }
@@ -128,7 +136,7 @@ struct Token *Consume(int kind) {
 struct Token *Expect(int kind) {
   struct Token *tk = Consume(kind);
   if (tk == NULL) {
-    char *resv_name = FindReservedName(kind);
+    char *resv_name = FindReservedName(reserved_map, kind);
     if (resv_name) {
       fprintf(stderr, "'%s'(%d)", resv_name, kind);
     } else if (kind < 128) {

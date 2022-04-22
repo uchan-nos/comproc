@@ -9,12 +9,15 @@ enum SymbolKind {
   kSymLVar, // ローカル変数
 };
 
+struct Type;
+
 struct Symbol {
   enum SymbolKind kind;
   struct Token *name;
   struct Symbol *next;
 
   uint16_t offset;
+  struct Type *type;
 };
 
 struct Symbol *NewSymbol(enum SymbolKind kind, struct Token *name);

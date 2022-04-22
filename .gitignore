@@ -8,3 +8,5 @@
 **/assembler/uasm
 **/assembler/*.o
 **/cpu/sim.exe
+.*.swp
+.*.d

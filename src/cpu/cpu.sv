@@ -67,7 +67,10 @@ ALU 機能
 03h   SUB   stack[0] - stack[1]
 04h   MUL   stack[0] * stack[1]
 05h   JOIN  stack[0] | (stack[1] << 8)
+06h   AND   stack[0] & stack[1]
 08h   LT    stack[0] < stack[1]
+09h   EQ    stack[0] == stack[1]
+0ah   NEQ   stack[0] != stack[1]
 
 
 メモリマップ
@@ -192,7 +195,10 @@ begin
       8'h03: alu = stack0 - stack1;
       8'h04: alu = stack0 * stack1;
       8'h05: alu = stack0 | (stack1 << 8);
+      8'h06: alu = stack0 & stack1;
       8'h08: alu = stack0 < stack1;
+      8'h09: alu = stack0 == stack1;
+      8'h0a: alu = stack0 != stack1;
     endcase
 end
 endfunction
