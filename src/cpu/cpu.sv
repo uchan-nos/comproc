@@ -31,6 +31,7 @@ PUSH imm8   00h   imm8 を stack にプッシュ
 POP         01h   stack をポップ
 DUP 0/1     02h   stack[0/1] を stack にプッシュ
 LD imm8     08h   mem[imm8] から読んだ値を stack にプッシュ
+LDD         09h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
 ST imm8     0ch   stack からポップした値を mem[imm8] に書く
 STA         0dh   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
                   stack[0] = addr, stack[1] = data
@@ -214,6 +215,7 @@ begin
     8'h01: decode = 9'b0_01_00_10_00;
     8'h02: decode = 9'b0_00_00_01_00 | (insn[0] << 6);
     8'h08: decode = 9'b1_11_10_01_00;
+    8'h09: decode = 9'b0_11_10_11_00;
     8'h0c: decode = 9'b1_01_01_10_00;
     8'h0d: decode = 9'b0_00_01_10_00;
     8'h0e: decode = 9'b0_01_01_10_00;

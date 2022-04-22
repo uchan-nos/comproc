@@ -161,6 +161,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->lhs, 0);
     printf("neq\n");
     break;
+  case kNodeRef:
+    Generate(ctx, node->rhs, 1);
+    break;
+  case kNodeDeref:
+    if (lval) {
+      Generate(ctx, node->rhs, 0);
+    } else {
+      Generate(ctx, node->rhs, 0);
+      printf("ldd\n");
+    }
+    break;
   }
 }
 
@@ -173,7 +184,7 @@ int main(void) {
   struct Node *ast = Block();
   Expect(kTokenEOF);
 
-  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0 };
+  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20 };
   Generate(&gen_ctx, ast, 0);
 
   return 0;

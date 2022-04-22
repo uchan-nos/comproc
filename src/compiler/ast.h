@@ -1,6 +1,7 @@
 #pragma once
 
 #include "token.h"
+#include "type.h"
 
 enum NodeKind {
   kNodeBlock,
@@ -19,12 +20,15 @@ enum NodeKind {
   kNodeFor,
   kNodeEq,
   kNodeNEq,
+  kNodeRef,   // & exp
+  kNodeDeref, // * exp
 };
 
 struct Node {
   enum NodeKind kind;  // ノードの種類
   struct Token *token; // ノードを代表するトークン
   struct Node *next;   // 線形リスト
+  struct Type *type;   // ノードの型
 
   // 用途         lhs     rhs     cond
   // -----------------------------------
@@ -50,3 +54,5 @@ struct Node *Multiplicative();
 struct Node *Unary();
 struct Node *Postfix();
 struct Node *Primary();
+
+struct Node *TypeSpec();

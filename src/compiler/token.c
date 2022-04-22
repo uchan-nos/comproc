@@ -96,7 +96,7 @@ static struct Token *NextToken(char *src) {
     return NewToken(op_kind, src, 2);
   }
 
-  if (strchr("+-*/();=<>{}", *p) != NULL) {
+  if (strchr("+-*/();=<>{}&", *p) != NULL) {
     return NewToken(*p, p, 1);
   }
 

@@ -112,6 +112,8 @@ int main(void) {
       insn[pc] = 0x0200 | n;
     } else if (strcmp(mnemonic, "ld") == 0) {
       insn[pc] = 0x0800 | (uint8_t)GET_LONG(0);
+    } else if (strcmp(mnemonic, "ldd") == 0) {
+      insn[pc] = 0x0900;
     } else if (strcmp(mnemonic, "st") == 0) {
       insn[pc] = 0x0c00 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address

@@ -10,6 +10,7 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token) {
   n->kind = kind;
   n->token = token;
   n->next = n->lhs = n->rhs = n->cond = NULL;
+  n->type = NULL;
   return n;
 }
 
@@ -47,28 +48,41 @@ struct Node *Block() {
 
 struct Node *Declaration() {
   struct Token *token;
+  struct Type *type = NULL;
 
-  if ((token = Consume(kTokenInt)) ||
-      (token = Consume(kTokenChar))) {
-    struct Node *def = NewNode(kNodeDefVar, token);
-
-    struct Token *id = Expect(kTokenId);
-    if (id->len != 1) {
-      fprintf(stderr, "variable name must be one character\n");
-      Locate(id->raw);
-      exit(1);
-    }
-    def->lhs = NewNode(kNodeId, id);
-
-    if (Consume('=')) {
-      def->rhs = Expression();
-    }
-    Expect(';');
-
-    return def;
+  if ((token = Consume(kTokenInt))) {
+    type = NewType(kTypeInt);
+  } else if ((token = Consume(kTokenChar))) {
+    type = NewType(kTypeChar);
   }
 
-  return NULL;
+  if (!type) {
+    return NULL;
+  }
+
+  struct Node *def = NewNode(kNodeDefVar, token);
+
+  if (Consume('*')) {
+    struct Type *t = NewType(kTypePtr);
+    t->base = type;
+    type = t;
+  }
+
+  struct Token *id = Expect(kTokenId);
+  if (id->len != 1) {
+    fprintf(stderr, "variable name must be one character\n");
+    Locate(id->raw);
+    exit(1);
+  }
+  def->lhs = NewNode(kNodeId, id);
+  def->type = type;
+
+  if (Consume('=')) {
+    def->rhs = Expression();
+  }
+  Expect(';');
+
+  return def;
 }
 
 struct Node *Statement() {
@@ -194,6 +208,10 @@ struct Node *Unary() {
     node = NewNodeBinOp(kNodeInc, op, NULL, Unary());
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, NULL, Unary());
+  } else if ((op = Consume('&'))) {
+    node = NewNodeBinOp(kNodeRef, op, NULL, Unary());
+  } else if ((op = Consume('*'))) {
+    node = NewNodeBinOp(kNodeDeref, op, NULL, Unary());
   } else {
     node = Postfix();
   }

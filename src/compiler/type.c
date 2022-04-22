@@ -6,6 +6,7 @@
 struct Type *NewType(enum TypeKind kind) {
   struct Type *type = malloc(sizeof(struct Type));
   type->kind = kind;
+  type->base = NULL;
   return type;
 }
 
