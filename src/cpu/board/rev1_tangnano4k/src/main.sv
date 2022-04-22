@@ -22,9 +22,10 @@ logic [9:0] recv_addr, pc;
 logic recv_phase, recv_data_v, recv_compl;
 
 logic [7:0] cpu_out;
-logic [7:0] cpu_mem_addr, cpu_rd_data, cpu_wr_data;
+logic [7:0] cpu_mem_addr;
+logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
-logic [7:0] cpu_stack[0:15];
+logic [15:0] cpu_stack[0:15];
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
@@ -42,12 +43,12 @@ function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
     4'd0:    led_pattern = insn[15:8];
     4'd1:    led_pattern = insn[7:0];
-    4'd2:    led_pattern = cpu_stack[0];
-    4'd3:    led_pattern = cpu_stack[1];
-    4'd4:    led_pattern = cpu_stack[2];
-    4'd5:    led_pattern = cpu_stack[3];
-    4'd6:    led_pattern = cpu_stack[4];
-    4'd7:    led_pattern = cpu_stack[5];
+    4'd2:    led_pattern = cpu_stack[0][7:0];
+    4'd3:    led_pattern = cpu_stack[1][7:0];
+    4'd4:    led_pattern = cpu_stack[2][7:0];
+    4'd5:    led_pattern = cpu_stack[3][7:0];
+    4'd6:    led_pattern = cpu_stack[4][7:0];
+    4'd7:    led_pattern = cpu_stack[5][7:0];
     4'd8:    led_pattern = encode_7seg(pc[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
@@ -180,9 +181,9 @@ Gowin_SDPB_Data data_mem(
   .ceb(1'b1),         //input ceb
   .resetb(!rst_n),    //input resetb
   .oce(1'b0),         //input oce
-  .ada(cpu_mem_addr), //input [9:0] ada
+  .ada(cpu_mem_addr), //input [7:0] ada
   .din(cpu_wr_data),  //input [15:0] din
-  .adb(cpu_mem_addr), //input [9:0] adb
+  .adb(cpu_mem_addr), //input [7:0] adb
   .dout(cpu_rd_data)  //output [15:0] dout
 );
 
