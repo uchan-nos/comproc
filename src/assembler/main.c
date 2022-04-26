@@ -165,7 +165,7 @@ int main(void) {
   }
 
   for (int i = 0; i < pc; i++) {
-    printf("%04x\n", insn[i]);
+    printf("%04X\n", insn[i]);
   }
   return 0;
 }
