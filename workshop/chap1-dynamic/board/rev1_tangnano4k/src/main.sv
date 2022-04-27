@@ -27,6 +27,13 @@ end
 function [7:0] led_pattern(input [2:0] row_index);
   case (row_index)
     3'd0:    led_pattern = 8'b10101010;
+    3'd1:    led_pattern = 8'b01010101;
+    3'd2:    led_pattern = 8'b11110000;
+    3'd3:    led_pattern = 8'b00001111;
+    3'd4:    led_pattern = 8'b11001100;
+    3'd5:    led_pattern = 8'b00110011;
+    3'd6:    led_pattern = 8'b11100111;
+    3'd7:    led_pattern = 8'b00011000;
     default: led_pattern = 8'b00000000;
   endcase
 endfunction
