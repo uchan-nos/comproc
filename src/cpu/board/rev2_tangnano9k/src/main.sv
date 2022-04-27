@@ -8,7 +8,8 @@ module main(
 );
 
 parameter PERIOD = 16'd27000;
-parameter GAP = 16'd500;
+parameter GAP_ON = 16'd100;
+parameter GAP_OFF = 16'd2000;
 
 // logic 定義
 logic rst_n;
@@ -77,7 +78,7 @@ end
 
 // 隣接する行が光らないように制御する
 function led_on(input [15:0] counter);
-  led_on = (GAP <= counter) && (counter < PERIOD - GAP);
+  led_on = (GAP_ON <= counter) && (counter < PERIOD - GAP_OFF);
 endfunction
 
 always @(posedge sys_clk, negedge rst_n) begin
