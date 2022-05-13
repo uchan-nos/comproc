@@ -36,9 +36,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeInteger:
-    printf("push %d\n", node->token->value.as_int >> 8);
-    printf("push %d\n", node->token->value.as_int & 0xff);
-    printf("join\n");
+    if ((node->token->value.as_int >> 8) == 0) {
+      printf("push %d\n", node->token->value.as_int);
+    } else {
+      printf("push %d\n", node->token->value.as_int >> 8);
+      printf("push %d\n", node->token->value.as_int & 0xff);
+      printf("join\n");
+    }
     break;
   case kNodeId:
     {
