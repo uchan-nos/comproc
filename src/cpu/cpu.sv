@@ -38,6 +38,7 @@ STA         0dh   stack からアドレスと値をポップしメモリに書�
 STD         0eh   stack からアドレスと値をポップしメモリに書き、値をプッシュ
 JMP imm8    10h   pc+imm8 にジャンプ
 JZ imm8     11h   stack から値をポップし、0 なら pc+imm8 にジャンプ
+JNZ imm8    12h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
 
 
 制御線の構成
@@ -53,7 +54,7 @@ wr    メモリ書き込み
 pop   演算用スタックから値をポップ
 push  演算用スタックに値をプッシュ
 jmp   ジャンプ条件
-      0: ジャンプしない, 1: 無条件, 2: stack[0] == 0
+      0: ジャンプしない, 1: 無条件, 2: stack[0] == 0, 3: stack[0] != 0
 
 imm8=insn[7:0] 即値、ALU 機能選択
 
@@ -164,7 +165,8 @@ always @(posedge clk, posedge rst) begin
     ;
   else if (phase == 2'd2)
     if ((jmp == 2'd1) ||
-        (jmp == 2'd2 && stack[0] == 8'd0))
+        (jmp == 2'd2 && stack[0] == 16'd0) ||
+        (jmp == 2'd3 && stack[0] != 16'd0))
       pc <= pc + { {2{imm8[7]}}, imm8};
     else
       pc <= pc + 10'd1;
@@ -221,6 +223,7 @@ begin
     8'h0e: decode = 9'b0_01_01_10_00;
     8'h10: decode = 9'b1_00_00_00_01;
     8'h11: decode = 9'b1_01_00_10_10;
+    8'h12: decode = 9'b1_01_00_10_11;
     8'h20: decode = 9'b0_10_00_10_00;
     default: decode = 9'd0;
   endcase

@@ -22,6 +22,8 @@ enum NodeKind {
   kNodeNEq,
   kNodeRef,   // & exp
   kNodeDeref, // * exp
+  kNodeLAnd,  // &&
+  kNodeLOr,   // ||
 };
 
 struct Node {
@@ -47,6 +49,8 @@ struct Node *Declaration();
 struct Node *Statement();
 struct Node *Expression();
 struct Node *Assignment();
+struct Node *LogicalOr();
+struct Node *LogicalAnd();
 struct Node *Equality();
 struct Node *Relational();
 struct Node *Additive();

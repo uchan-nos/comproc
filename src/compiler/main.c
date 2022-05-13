@@ -26,7 +26,15 @@ void Locate(char *p) {
 struct GenContext {
   struct Symbol *syms;
   uint16_t lvar_offset;
+  int num_label;
 };
+
+char *GenLabel(struct GenContext *ctx) {
+  char *label = malloc(8);
+  sprintf(label, "l%d", ctx->num_label);
+  ctx->num_label++;
+  return label;
+}
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
@@ -176,6 +184,36 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf("ldd\n");
     }
     break;
+  case kNodeLAnd:
+    {
+      char *label_false = GenLabel(ctx);
+      char *label_end = GenLabel(ctx);
+      Generate(ctx, node->lhs, 0);
+      printf("jz %s\n", label_false);
+      Generate(ctx, node->rhs, 0);
+      printf("jz %s\n", label_false);
+      printf("push 1\n");
+      printf("jmp %s\n", label_end);
+      printf("%s:\n", label_false);
+      printf("push 0\n");
+      printf("%s:\n", label_end);
+    }
+    break;
+  case kNodeLOr:
+    {
+      char *label_true = GenLabel(ctx);
+      char *label_end = GenLabel(ctx);
+      Generate(ctx, node->lhs, 0);
+      printf("jnz %s\n", label_true);
+      Generate(ctx, node->rhs, 0);
+      printf("jnz %s\n", label_true);
+      printf("push 0\n");
+      printf("jmp %s\n", label_end);
+      printf("%s:\n", label_true);
+      printf("push 1\n");
+      printf("%s:\n", label_end);
+    }
+    break;
   }
 }
 
@@ -188,7 +226,7 @@ int main(void) {
   struct Node *ast = Block();
   Expect(kTokenEOF);
 
-  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20 };
+  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20, 0};
   Generate(&gen_ctx, ast, 0);
 
   return 0;

@@ -142,6 +142,9 @@ int main(void) {
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
       insn[pc] = 0x1100;
+    } else if (strcmp(mnemonic, "jnz") == 0) {
+      InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
+      insn[pc] = 0x1200;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);

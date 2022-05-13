@@ -134,7 +134,7 @@ struct Node *Expression() {
 }
 
 struct Node *Assignment() {
-  struct Node *node = Equality();
+  struct Node *node = LogicalOr();
 
   struct Token *op;
   if ((op = Consume('='))) {
@@ -145,6 +145,28 @@ struct Node *Assignment() {
   } else if ((op = Consume(kTokenCompAssign + '-'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
                         NewNodeBinOp(kNodeSub, op, node, Assignment()));
+  }
+
+  return node;
+}
+
+struct Node *LogicalOr() {
+  struct Node *node = LogicalAnd();
+
+  struct Token *op;
+  if ((op = Consume(kTokenOr))) {
+    node = NewNodeBinOp(kNodeLOr, op, node, LogicalOr());
+  }
+
+  return node;
+}
+
+struct Node *LogicalAnd() {
+  struct Node *node = Equality();
+
+  struct Token *op;
+  if ((op = Consume(kTokenAnd))) {
+    node = NewNodeBinOp(kNodeLAnd, op, node, LogicalAnd());
   }
 
   return node;
