@@ -15,11 +15,11 @@ module cpu(
 
 値の範囲    役割
 -----------------------
-00h - 07h   PUSH/POP 系命令
-08h - 0fh   メモリアクセス命令
-10h - 1fh   ジャンプ命令
-20h - 20h   2 項算術論理演算
-21h - 21h   単項算術論理演算
+00h - 0fh   PUSH/POP 系命令
+10h - 1fh   メモリアクセス命令
+20h - 2fh   ジャンプ命令
+30h - 30h   2 項算術論理演算
+31h - 31h   単項算術論理演算
 ffh         無効命令
 
 
@@ -30,15 +30,20 @@ mnemonic    code  説明
 PUSH imm8   00h   imm8 を stack にプッシュ
 POP         01h   stack をポップ
 DUP 0/1     02h   stack[0/1] を stack にプッシュ
-LD imm8     08h   mem[imm8] から読んだ値を stack にプッシュ
-LDD         09h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
-ST imm8     0ch   stack からポップした値を mem[imm8] に書く
-STA         0dh   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
+LD imm8     10h   mem[imm8] から読んだ値を stack にプッシュ
+LDD         11h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
+ST imm8     14h   stack からポップした値を mem[imm8] に書く
+STA         15h   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
                   stack[0] = addr, stack[1] = data
-STD         0eh   stack からアドレスと値をポップしメモリに書き、値をプッシュ
-JMP imm8    10h   pc+imm8 にジャンプ
-JZ imm8     11h   stack から値をポップし、0 なら pc+imm8 にジャンプ
-JNZ imm8    12h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
+STD         16h   stack からアドレスと値をポップしメモリに書き、値をプッシュ
+LD.B imm8   18h   byte version
+LDD.B       19h   byte version
+ST.B imm8   1ch   byte version
+STA.B       1dh   byte version
+STD.B       1eh   byte version
+JMP imm8    20h   pc+imm8 にジャンプ
+JZ imm8     21h   stack から値をポップし、0 なら pc+imm8 にジャンプ
+JNZ imm8    22h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
 
 
 制御線の構成
@@ -88,7 +93,7 @@ addr    説明
 logic [1:0] phase; // 0=命令実行 1=メモリアクセス 2=PC更新 3=時間待ち
 logic [15:0] alu_out;
 
-logic imm, rd, wr, pop, push;
+logic imm, rd, wr, pop, push, byt;
 logic [1:0] load, jmp;
 logic [7:0] imm8;
 
@@ -96,7 +101,7 @@ logic [7:0] imm8;
 localparam CLK_DIVIDER=32'd1;
 logic [31:0] clk_div;
 
-assign {imm, load, rd, wr, pop, push, jmp} = decode(insn);
+assign {imm, load, rd, wr, pop, push, jmp, byt} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, imm8, stack[0], stack[1]);
@@ -144,7 +149,10 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 8'd0;
   else if (phase == 2'd1)
-    wr_data <= imm ? stack[0] : stack[1];
+    if (byt)
+      wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
+    else
+      wr_data <= imm ? stack[0] : stack[1];
 end
 
 // 命令実行フェーズを更新
@@ -206,26 +214,31 @@ begin
 end
 endfunction
 
-function [8:0] decode(input [15:0] insn);
+function [9:0] decode(input [15:0] insn);
 begin
   case (insn[15:8])
-    //                 i l  rw pp j
-    //                 m o  dr ou m
-    //                 m a     ps p
-    //                   d      h
-    8'h00: decode = 9'b1_10_00_01_00;
-    8'h01: decode = 9'b0_01_00_10_00;
-    8'h02: decode = 9'b0_00_00_01_00 | (insn[0] << 6);
-    8'h08: decode = 9'b1_11_10_01_00;
-    8'h09: decode = 9'b0_11_10_11_00;
-    8'h0c: decode = 9'b1_01_01_10_00;
-    8'h0d: decode = 9'b0_00_01_10_00;
-    8'h0e: decode = 9'b0_01_01_10_00;
-    8'h10: decode = 9'b1_00_00_00_01;
-    8'h11: decode = 9'b1_01_00_10_10;
-    8'h12: decode = 9'b1_01_00_10_11;
-    8'h20: decode = 9'b0_10_00_10_00;
-    default: decode = 9'd0;
+    //                  i l  rw pp j  b
+    //                  m o  dr ou m  y
+    //                  m a     ps p  t
+    //                    d      h
+    8'h00: decode = 10'b1_10_00_01_00_0;
+    8'h01: decode = 10'b0_01_00_10_00_0;
+    8'h02: decode = 10'b0_00_00_01_00_0 | (insn[0] << 7);
+    8'h10: decode = 10'b1_11_10_01_00_0;
+    8'h11: decode = 10'b0_11_10_11_00_0;
+    8'h14: decode = 10'b1_01_01_10_00_0;
+    8'h15: decode = 10'b0_00_01_10_00_0;
+    8'h16: decode = 10'b0_01_01_10_00_0;
+    8'h18: decode = 10'b1_11_10_01_00_1;
+    8'h19: decode = 10'b0_11_10_11_00_1;
+    8'h1c: decode = 10'b1_01_01_10_00_1;
+    8'h1d: decode = 10'b0_00_01_10_00_1;
+    8'h1e: decode = 10'b0_01_01_10_00_1;
+    8'h20: decode = 10'b1_00_00_00_01_0;
+    8'h21: decode = 10'b1_01_00_10_10_0;
+    8'h22: decode = 10'b1_01_00_10_11_0;
+    8'h30: decode = 10'b0_10_00_10_00_0;
+    default: decode = 10'd0;
   endcase
 end
 endfunction

@@ -1,6 +1,5 @@
 #include "type.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 
 struct Type *NewType(enum TypeKind kind) {
@@ -14,8 +13,24 @@ size_t SizeofType(struct Type *type) {
   switch (type->kind) {
   case kTypeChar: return 1;
   case kTypeInt: return 2;
+  case kTypePtr: return 2;
   }
 
   fprintf(stderr, "unknown type: %d\n", type->kind);
   exit(1);
+}
+
+void PrintType(FILE *out, struct Type *type) {
+  switch (type->kind) {
+  case kTypeChar:
+    fprintf(out, "char");
+    break;
+  case kTypeInt:
+    fprintf(out, "int");
+    break;
+  case kTypePtr:
+    fprintf(out, "*");
+    PrintType(out, type->base);
+    break;
+  }
 }

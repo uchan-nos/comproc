@@ -99,6 +99,13 @@ int main(void) {
     }
     ToLower(mnemonic);
 
+    char *sep = strchr(mnemonic, '.');
+    char *postfix = NULL;
+    if (sep) {
+      postfix = sep + 1;
+      *sep = '\0';
+    }
+
     if (strcmp(mnemonic, "push") == 0) {
       insn[pc] = 0x0000 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "pop") == 0) {
@@ -111,43 +118,49 @@ int main(void) {
       }
       insn[pc] = 0x0200 | n;
     } else if (strcmp(mnemonic, "ld") == 0) {
-      insn[pc] = 0x0800 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x1000 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[pc] = 0x0900;
+      insn[pc] = 0x1100;
     } else if (strcmp(mnemonic, "st") == 0) {
-      insn[pc] = 0x0c00 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x1400 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[pc] = 0x0d00;
+      insn[pc] = 0x1500;
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[pc] = 0x0e00;
+      insn[pc] = 0x1600;
     } else if (strcmp(mnemonic, "add") == 0) {
-      insn[pc] = 0x2002;
+      insn[pc] = 0x3002;
     } else if (strcmp(mnemonic, "sub") == 0) {
-      insn[pc] = 0x2003;
+      insn[pc] = 0x3003;
     } else if (strcmp(mnemonic, "mul") == 0) {
-      insn[pc] = 0x2004;
+      insn[pc] = 0x3004;
     } else if (strcmp(mnemonic, "join") == 0) {
-      insn[pc] = 0x2005;
+      insn[pc] = 0x3005;
     } else if (strcmp(mnemonic, "and") == 0) {
-      insn[pc] = 0x2006;
+      insn[pc] = 0x3006;
     } else if (strcmp(mnemonic, "lt") == 0) {
-      insn[pc] = 0x2008;
+      insn[pc] = 0x3008;
     } else if (strcmp(mnemonic, "eq") == 0) {
-      insn[pc] = 0x2009;
+      insn[pc] = 0x3009;
     } else if (strcmp(mnemonic, "neq") == 0) {
-      insn[pc] = 0x200a;
+      insn[pc] = 0x300a;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x1000;
+      insn[pc] = 0x2000;
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x1100;
+      insn[pc] = 0x2100;
     } else if (strcmp(mnemonic, "jnz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x1200;
+      insn[pc] = 0x2200;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
+    }
+
+    if (0x1000 <= insn[pc] && insn[pc] < 0x2000) {
+      if (postfix && strcmp(postfix, "1") == 0) {
+        insn[pc] |= 0x0800;
+      }
     }
 
     pc++;

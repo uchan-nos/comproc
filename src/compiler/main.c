@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +57,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       struct Symbol *sym = FindSymbol(ctx->syms, node->token);
       if (sym) {
+        assert(sym->type);
+        node->type = sym->type;
         printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
         if (SizeofType(sym->type) == 1) {
           printf("push 0xff\n");
@@ -102,14 +105,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       struct Symbol *sym = NewSymbol(kSymLVar, node->lhs->token);
       sym->offset = ctx->lvar_offset;
-      switch (node->token->kind) {
-      case kTokenChar:
-        sym->type = NewType(kTypeChar);
-        break;
-      case kTokenInt:
-        sym->type = NewType(kTypeInt);
-        break;
-      }
+
+      assert(node->type);
+      sym->type = node->type;
+
       ctx->lvar_offset += 2;
       AppendSymbol(ctx->syms, sym);
 
@@ -143,14 +142,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf("dup 1\n");
       printf(node->kind == kNodeInc ? "add\n" : "sub\n");
       Generate(ctx, node->lhs, 1);
-      printf("sta\n");
+      printf("sta.%d\n", (int)SizeofType(node->lhs->type));
       printf("pop\n");
     } else { // 前置インクリメント '++ exp'
       printf("push 1\n");
       Generate(ctx, node->rhs, 0);
       printf(node->kind == kNodeInc ? "add\n" : "sub\n");
       Generate(ctx, node->rhs, 1);
-      printf("std\n");
+      printf("std.%d\n", (int)SizeofType(node->rhs->type));
     }
     break;
   case kNodeFor:
@@ -183,6 +182,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       Generate(ctx, node->rhs, 0);
       printf("ldd\n");
     }
+    assert(node->rhs->type->base);
+    node->type = node->rhs->type->base;
     break;
   case kNodeLAnd:
     {
