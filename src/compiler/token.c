@@ -65,6 +65,20 @@ static char *FindReservedName(struct ReservedMapItem *map,
   return NULL;
 }
 
+static char DecodeEscape(char c) {
+  switch (c) {
+  case '0': return '\0';
+  case 'a': return '\a';
+  case 'b': return '\b';
+  case 't': return '\t';
+  case 'n': return '\n';
+  case 'v': return '\v';
+  case 'f': return '\f';
+  case 'r': return '\r';
+  default: return c;
+  }
+}
+
 static struct Token *NewToken(int kind, char *raw, size_t len) {
   struct Token *tk = calloc(1, sizeof(struct Token));
   tk->kind = kind;
@@ -86,6 +100,23 @@ static struct Token *NextToken(char *src) {
     while (isdigit(*(++p)));
     tk->len = p - src;
     tk->value.as_int = strtol(src, NULL, 10);
+    return tk;
+  }
+
+  if (*p == '\'') {
+    int value = 0;
+    ++p;
+    while (*p != '\'') {
+      if (p[0] == '\\') {
+        value = (value << 8) + DecodeEscape(p[1]);
+        p += 2;
+      } else {
+        value = (value << 8) + *p;
+        ++p;
+      }
+    }
+    struct Token *tk = NewToken(kTokenCharacter, src, p + 1 - src);
+    tk->value.as_int = value;
     return tk;
   }
 

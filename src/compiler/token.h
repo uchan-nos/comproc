@@ -17,6 +17,7 @@ enum TokenKind {
   kTokenNEq,
   kTokenAnd,
   kTokenOr,
+  kTokenCharacter, // char literal '*'
   kTokenEOF,
 };
 
