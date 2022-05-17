@@ -28,6 +28,8 @@ struct GenContext {
   struct Symbol *syms;
   uint16_t lvar_offset;
   int num_label;
+  int num_strings;
+  struct Token *strings[4];
 };
 
 char *GenLabel(struct GenContext *ctx) {
@@ -75,16 +77,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     printf("add\n");
+    node->type = node->lhs->type;
     break;
   case kNodeSub:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     printf("sub\n");
+    node->type = node->lhs->type;
     break;
   case kNodeMul:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     printf("mul\n");
+    node->type = node->lhs->type;
     break;
   case kNodeAssign:
     Generate(ctx, node->rhs, 0);
@@ -94,6 +99,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     } else {
       printf("std\n");
     }
+    node->type = node->lhs->type;
     break;
   case kNodeReturn:
     if (node->lhs) {
@@ -215,6 +221,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf("%s:\n", label_end);
     }
     break;
+  case kNodeString:
+    ctx->strings[ctx->num_strings] = node->token;
+    printf("push STR_%d\n", ctx->num_strings);
+    ctx->num_strings++;
+    break;
   }
 }
 
@@ -227,8 +238,22 @@ int main(void) {
   struct Node *ast = Block();
   Expect(kTokenEOF);
 
-  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20, 0};
+  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}};
   Generate(&gen_ctx, ast, 0);
+
+  for (int i = 0; i < gen_ctx.num_strings; i++) {
+    struct Token *tk_str = gen_ctx.strings[i];
+    printf("STR_%d: \ndb ", i);
+    for (int i = 1; i < tk_str->len - 1; i++) {
+      if (tk_str->raw[i] == '\\') {
+        printf("0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
+        i++;
+      } else {
+        printf("0x%02x,", tk_str->raw[i]);
+      }
+    }
+    printf("0\n");
+  }
 
   return 0;
 }

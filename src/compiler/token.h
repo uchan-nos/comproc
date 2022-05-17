@@ -18,6 +18,7 @@ enum TokenKind {
   kTokenAnd,
   kTokenOr,
   kTokenCharacter, // char literal '*'
+  kTokenString,    // string literal "foo"
   kTokenEOF,
 };
 
@@ -37,3 +38,4 @@ extern struct Token *cur_token;
 void Tokenize(char *src);
 struct Token *Consume(int kind);
 struct Token *Expect(int kind);
+char DecodeEscape(char c);

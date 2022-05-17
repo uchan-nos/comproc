@@ -23,6 +23,7 @@ enum NodeKind {
   kNodeRef,   // & exp
   kNodeDeref, // * exp
   kNodeLAnd,  // &&
+  kNodeString,// string literal
   kNodeLOr,   // ||
 };
 

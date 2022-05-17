@@ -262,8 +262,14 @@ struct Node *Primary() {
     Expect(')');
   } else if ((tk = Consume(kTokenInteger))) {
     node = NewNode(kNodeInteger, tk);
+    node->type = NewType(kTypeInt);
   } else if ((tk = Consume(kTokenCharacter))) {
     node = NewNode(kNodeInteger, tk);
+    node->type = NewType(kTypeInt);
+  } else if ((tk = Consume(kTokenString))) {
+    node = NewNode(kNodeString, tk);
+    node->type = NewType(kTypePtr);
+    node->type->base = NewType(kTypeChar);
   } else if ((tk = Consume(kTokenId))) {
     node = NewNode(kNodeId, tk);
   }

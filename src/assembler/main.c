@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_OPERAND 128
+
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
 int SplitOpcode(char *line, char **label, char **mnemonic, char **operands, int n) {
@@ -36,30 +38,6 @@ void ToLower(char *s) {
   }
 }
 
-// i 番目のオペランドを文字列として取得
-char *GetOperand(char *mnemonic, char **operands, int n, int i) {
-  if (n <= i) {
-    fprintf(stderr, "too few operands for '%s': %d\n", mnemonic, n);
-    exit(1);
-  }
-  return operands[i];
-}
-
-// i 番目のオペランドを long 値として取得
-long GetOperandLong(char *mnemonic, char **operands, int n, int i) {
-  char *endptr;
-  long value = strtol(GetOperand(mnemonic, operands, n, i), &endptr, 0);
-  if (*endptr) {
-    fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
-    exit(1);
-  }
-
-  return value;
-}
-
-#define GET_STR(i) GetOperand((mnemonic), (operands), (num_opr), (i))
-#define GET_LONG(i) GetOperandLong((mnemonic), (operands), (num_opr), (i))
-
 struct LabelAddr {
   const char *label;
   int pc;
@@ -70,11 +48,69 @@ void InitBackpatch(struct LabelAddr *bp, const char *label, int pc) {
   bp->pc = pc;
 }
 
+// i 番目のオペランドを文字列として取得
+char *GetOperand(char *mnemonic, char **operands, int n, int i) {
+  if (n <= i) {
+    fprintf(stderr, "too few operands for '%s': %d\n", mnemonic, n);
+    exit(1);
+  }
+  return operands[i];
+}
+
+// i 番目のオペランドを long 値として取得
+long GetOperandLong(char *operand, struct LabelAddr *backpatches,
+                    int *num_backpatches, int pc) {
+  char *endptr;
+  long value = strtol(operand, &endptr, 0);
+
+  if (endptr == operand) {
+    InitBackpatch(backpatches + *num_backpatches, strdup(operand), pc);
+    (*num_backpatches)++;
+    return 0;
+  } else if (*endptr) {
+    fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
+    exit(1);
+  }
+
+  return value;
+}
+
+#define GET_STR(i) GetOperand((mnemonic), (operands), (num_opr), (i))
+#define GET_LONG(i) GetOperandLong(\
+    GetOperand((mnemonic), (operands), (num_opr), (i)), \
+    (backpatches), &(num_backpatches), (pc))
+
+// db 命令のオペランドを解釈し、メモリに書き、バイト数を返す
+int DataByte(uint16_t *insn, char **operands, int num_opr) {
+  char *endptr;
+  for (int i = 0; i < num_opr / 2; i++) {
+    uint16_t v = strtol(operands[2 * i], &endptr, 0);
+    if (*endptr) {
+      fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
+      exit(1);
+    }
+    v |= strtol(operands[2 * i + 1], &endptr, 0) << 8;
+    if (*endptr) {
+      fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
+      exit(1);
+    }
+    insn[i] = v;
+  }
+  if (num_opr % 2) {
+    insn[num_opr / 2] = strtol(operands[num_opr - 1], &endptr, 0);
+    if (*endptr) {
+      fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
+      exit(1);
+    }
+  }
+  return num_opr;
+}
+
 int main(void) {
   char line[256];
   char *label;
   char *mnemonic;
-  char *operands[3];
+  char *operands[MAX_OPERAND];
 
   uint16_t insn[1024];
   int pc = 0;
@@ -86,7 +122,7 @@ int main(void) {
   int num_labels = 0;
 
   while (fgets(line, sizeof(line), stdin) != NULL) {
-    int num_opr = SplitOpcode(line, &label, &mnemonic, operands, 3);
+    int num_opr = SplitOpcode(line, &label, &mnemonic, operands, MAX_OPERAND);
 
     if (label) {
       labels[num_labels].label = strdup(label);
@@ -145,13 +181,17 @@ int main(void) {
       insn[pc] = 0x300a;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2000;
+      insn[pc] = 0x2000 | (uint8_t)-pc;
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2100;
+      insn[pc] = 0x2100 | (uint8_t)-pc;
     } else if (strcmp(mnemonic, "jnz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2200;
+      insn[pc] = 0x2200 | (uint8_t)-pc;
+    } else if (strcmp(mnemonic, "db") == 0) {
+      int len = DataByte(insn + pc, operands, num_opr);
+      pc += (len + 1) / 2;
+      continue;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
@@ -170,7 +210,8 @@ int main(void) {
     int l = 0;
     for (; l < num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label) == 0) {
-        insn[backpatches[i].pc] |= (uint8_t)(labels[l].pc - backpatches[i].pc);
+        uint8_t addend = insn[backpatches[i].pc];
+        insn[backpatches[i].pc] |= (uint8_t)(labels[l].pc + addend);
         break;
       }
     }

@@ -65,3 +65,4 @@ test_value 01 '{char c = 255; char *p = &c; (*p)++; return *p == 0 && c == 0;}'
 test_value 63 "{return 'a' + 2;}"
 test_value 27 "{return '\'';}"
 test_value 03 "{return '\n' + '\0' - '\a';}"
+test_value 01 '{return *("012" + 1) == 49;}'
