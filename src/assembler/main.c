@@ -210,8 +210,9 @@ int main(void) {
     int l = 0;
     for (; l < num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label) == 0) {
-        uint8_t addend = insn[backpatches[i].pc];
-        insn[backpatches[i].pc] |= (uint8_t)(labels[l].pc + addend);
+        uint16_t ins = insn[backpatches[i].pc];
+        uint8_t addr = labels[l].pc + ins;
+        insn[backpatches[i].pc] = (ins & 0xff00u) | addr;
         break;
       }
     }
