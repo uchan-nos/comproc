@@ -1,3 +1,5 @@
+`include "../../../common.sv"
+
 module main(
   input sys_clk,
   input rst_n_raw,
@@ -18,12 +20,17 @@ logic [3:0] row_index;
 logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_tx_en, uart_rx_data_wr;
 
-logic [15:0] recv_data, insn;
-logic [9:0] recv_addr, pc;
+logic [15:0] recv_data;
+logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
+logic mem_wr;
+logic [`ADDR_WIDTH-1:0] mem_addr;
+
+logic [15:0] wr_data;
+
 logic [7:0] cpu_out;
-logic [7:0] cpu_mem_addr;
+logic [`ADDR_WIDTH-1:0] cpu_mem_addr;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
 logic [15:0] cpu_stack[0:15];
@@ -33,7 +40,10 @@ assign led_row = led_on(counter) << row_index;
 assign led_col = led_pattern(row_index);
 
 // FF FF を受け取ったら機械語の受信完了と判断
-assign recv_compl = recv_data == 16'hffff;
+//assign recv_compl = recv_data == 16'hffff;
+assign mem_wr = ~recv_compl | cpu_mem_wr;
+assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
+assign wr_data = recv_compl ? cpu_wr_data : recv_data;
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -42,15 +52,15 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    4'd0:    led_pattern = insn[15:8];
-    4'd1:    led_pattern = insn[7:0];
+    4'd0:    led_pattern = wr_data[15:8];
+    4'd1:    led_pattern = wr_data[7:0];
     4'd2:    led_pattern = cpu_stack[0][7:0];
     4'd3:    led_pattern = cpu_stack[1][7:0];
     4'd4:    led_pattern = cpu_stack[2][7:0];
     4'd5:    led_pattern = cpu_stack[3][7:0];
     4'd6:    led_pattern = cpu_stack[4][7:0];
     4'd7:    led_pattern = cpu_stack[5][7:0];
-    4'd8:    led_pattern = encode_7seg(pc[4:0]);
+    4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
 endfunction
@@ -84,14 +94,14 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == 8'd1)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd1)
     uart_tx_data <= cpu_wr_data;
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == 8'd1)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd1)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;
@@ -151,40 +161,34 @@ end
 // recv_addr は命令の受信が完了するたびにインクリメントされる
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    recv_addr <= 10'd0;
-  else if (recv_data_v & ~recv_compl)
+    recv_addr <= 10'h100;
+  else if (recv_compl)
+    recv_addr <= 10'h100;
+  else if (recv_data_v)
     recv_addr <= recv_addr + 10'd1;
-  else if (uart_rx_data_wr && recv_compl)
-    recv_addr <= 10'd0;
 end
 
-// プログラムを格納する BRAM
-Gowin_SDPB prog_mem(
-  .clka(sys_clk),  //input clka
-  .cea(1'b1),      //input cea
-  .reseta(!rst_n), //input reseta
-  .clkb(sys_clk),  //input clkb
-  .ceb(1'b1),      //input ceb
-  .resetb(!rst_n), //input resetb
-  .oce(1'b0),      //input oce
-  .ada(recv_addr), //input [9:0] ada
-  .din(recv_data), //input [15:0] din
-  .adb(pc),        //input [9:0] adb
-  .dout(insn)      //output [15:0] dout
-);
+always @(posedge sys_clk, negedge rst_n) begin
+  if (!rst_n)
+    recv_compl <= 1'b0;
+  else if (recv_data == 16'hffff)
+    recv_compl <= 1'b1;
+  else
+    recv_compl <= 1'b0;
+end
 
-// データを格納する BRAM
-Gowin_SDPB_Data data_mem(
+// プログラムとデータを格納する BRAM
+Gowin_SDPB mem(
   .clka(sys_clk),     //input clka
-  .cea(cpu_mem_wr),   //input cea
+  .cea(mem_wr),       //input cea
   .reseta(!rst_n),    //input reseta
   .clkb(sys_clk),     //input clkb
   .ceb(1'b1),         //input ceb
   .resetb(!rst_n),    //input resetb
   .oce(1'b0),         //input oce
-  .ada(cpu_mem_addr), //input [7:0] ada
-  .din(cpu_wr_data),  //input [15:0] din
-  .adb(cpu_mem_addr), //input [7:0] adb
+  .ada(mem_addr),     //input [9:0] ada
+  .din(wr_data),      //input [15:0] din
+  .adb(cpu_mem_addr), //input [9:0] adb
   .dout(cpu_rd_data)  //output [15:0] dout
 );
 
@@ -192,8 +196,6 @@ Gowin_SDPB_Data data_mem(
 cpu cpu(
   .rst(~rst_n | ~recv_compl),
   .clk(sys_clk),
-  .insn(insn),
-  .pc(pc),
   .mem_addr(cpu_mem_addr),
   .mem_wr(cpu_mem_wr),
   .rd_data(cpu_rd_data),

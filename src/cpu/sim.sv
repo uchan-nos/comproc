@@ -4,24 +4,25 @@ localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
 localparam TIMEOUT = 10000;
 
-logic [15:0] sim_input[0:1023];
-logic [15:0] insn;
-logic [9:0] pc;
-logic [7:0] mem_addr;
+logic [9:0] mem_addr;
 logic [15:0] rd_data, wr_data;
 logic mem_wr;
 logic [15:0] stack[0:15];
+logic [15:0] mem[0:1023];
 
 integer num_insn = 0;
+integer pc_init = 10'h100;
 
 initial begin
   // stdin からテストデータを読む
-  while ($fscanf(STDIN, "%x", sim_input[num_insn]) == 1)
+  while ($fscanf(STDIN, "%x", mem[pc_init]) == 1) begin
     num_insn++;
+    pc_init++;
+  end
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x insn=%04x mem[%02x]=%04x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
-           $time, rst, pc, insn, mem_addr, rd_data, mem_wr, cpu.phase, cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
+  $monitor("%d: rst=%d pc=%02x mem[%02x]=%04x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
+           $time, rst, cpu.pc, mem_addr, rd_data, mem_wr, cpu.phase, cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
 
   // 各信号の初期値
   rst <= 1;
@@ -49,26 +50,15 @@ always @(posedge clk) begin
   end
 end
 
-// 命令メモリから命令を読み出す
-always @(posedge clk) begin
-  insn <= sim_input[pc];
-end
-
 // CPU を接続する
 logic rst, clk;
 cpu cpu(.*);
 
-logic [7:0] data_mem[0:255];
-
 always @(posedge clk) begin
-  if (mem_wr) begin
-    data_mem[mem_addr] <= wr_data[7:0];
-    data_mem[mem_addr + 1] <= wr_data[15:8];
-  end
-end
-
-always @(posedge clk) begin
-  rd_data <= {data_mem[mem_addr + 1], data_mem[mem_addr]};
+  if (mem_wr)
+    mem[mem_addr] <= wr_data;
+  else
+    rd_data <= mem[mem_addr];
 end
 
 endmodule

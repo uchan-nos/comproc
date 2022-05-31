@@ -1,9 +1,9 @@
+`include "common.sv"
+
 module cpu(
   input rst,
   input clk,
-  input [15:0] insn,
-  output logic [9:0] pc,
-  output [7:0] mem_addr,
+  output [`ADDR_WIDTH-1:0] mem_addr,
   output logic mem_wr,
   input        [15:0] rd_data,
   output logic [15:0] wr_data,
@@ -88,10 +88,34 @@ addr    説明
 01h     UART 入出力
 02h-1fh 予約
 20h-ffh 一般メモリ
+
+
+信号タイミング
+../../doc/signal-timing-design/cpu-mem-timing.png
+
+タイミング図生成ツール
+https://rawgit.com/osamutake/tchart-coffee/master/bin/editor-offline.html
+
+タイミング図ソースコード
+clock   ~_~_~_~_~_~_~_~_~_~_~_
+phase   X3=X0=X1=X2=X3=X0=X1=X2=X3=X0=X1=
+rw_addr =PC=X=addr==X=PC+1==X=addr==X=PC+2==X=addr==
+rd_data =?Xinsn===Xdata===Xinsn===Xdata===Xinsn===X
+wr_data =?===Xdata=X?===============
+mem_wr  ____~~________________
 */
 
-logic [1:0] phase; // 0=命令実行 1=メモリアクセス 2=PC更新 3=時間待ち
+/*
+3->0  命令フェッチ
+0     デコード
+0->1  メモリ読み込み（データ）
+1->2  メモリ書き込み、PC 更新、演算スタック更新
+2->3  メモリ読み込み（命令）
+*/
+logic [1:0] phase;
 logic [15:0] alu_out;
+logic [15:0] insn;
+logic [`ADDR_WIDTH-1:0] pc;
 
 logic imm, rd, wr, pop, push, byt;
 logic [1:0] load, jmp;
@@ -105,21 +129,23 @@ assign {imm, load, rd, wr, pop, push, jmp, byt} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, imm8, stack[0], stack[1]);
-assign mem_addr = alu_out[7:0];
+assign mem_addr = (phase <= 2'd1) ? alu_out[`ADDR_WIDTH-1:0] : pc;
 
 integer i;
+
+// 命令フェッチ
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    insn <= 16'd0;
+  else if (phase == 2'd3)
+    insn <= rd_data;
+end
 
 // 演算用スタックを更新
 always @(posedge clk, posedge rst) begin
   if (rst)
     for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
-  else if (phase == 2'd2) begin
-    /*
-    if (load)
-      stack[0] <= rd ? rd_data : alu_out;
-    else
-      stack[0] <= stack[1];
-    */
+  else if (phase == 2'd1) begin
     case (load)
       2'd0: stack[0] <= stack[0];
       2'd1: stack[0] <= stack[1];
@@ -138,7 +164,7 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     mem_wr <= 1'b0;
-  else if (phase == 2'd1 && wr)
+  else if (phase == 2'd0 && wr)
     mem_wr <= 1'b1;
   else
     mem_wr <= 1'b0;
@@ -148,7 +174,7 @@ end
 always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 8'd0;
-  else if (phase == 2'd1)
+  else if (phase == 2'd0)
     if (byt)
       wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
     else
@@ -158,7 +184,7 @@ end
 // 命令実行フェーズを更新
 always @(posedge clk, posedge rst) begin
   if (rst)
-    phase <= 2'd0;
+    phase <= 2'd2;
   else if (phase != 2'd3)
     phase <= phase + 2'd1;
   else if (clk_div == CLK_DIVIDER - 1)
@@ -168,10 +194,10 @@ end
 // 命令実行が完了したらプログラムカウンタを進める
 always @(posedge clk, posedge rst) begin
   if (rst)
-    pc <= 10'd0;
+    pc <= 10'h100;
   else if (insn == 16'hffff)
     ;
-  else if (phase == 2'd2)
+  else if (phase == 2'd1)
     if ((jmp == 2'd1) ||
         (jmp == 2'd2 && stack[0] == 16'd0) ||
         (jmp == 2'd3 && stack[0] != 16'd0))
