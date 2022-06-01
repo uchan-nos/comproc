@@ -144,7 +144,7 @@ int main(void) {
     }
 
     if (strcmp(mnemonic, "push") == 0) {
-      insn[pc] = GET_LONG(0) & 0x7ffu;
+      insn[pc] = GET_LONG(0) & 0x7fffu;
     } else if (strcmp(mnemonic, "pop") == 0) {
       insn[pc] = 0x8100;
     } else if (strcmp(mnemonic, "dup") == 0) {
