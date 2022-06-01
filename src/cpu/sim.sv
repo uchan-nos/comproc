@@ -24,8 +24,8 @@ initial begin
   end
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x mem[%02x]=%04x wr=%04x phase=%d alu=%02x stack{%02x %02x %02x %02x ..}",
-           $time, rst, cpu.pc, mem_addr, rd_data, wr_data_mon, cpu.phase, cpu.alu_out,
+  $monitor("%d: rst=%d pc=%02x.%d %04x mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..}",
+           $time, rst, cpu.pc, cpu.phase, cpu.insn, mem_addr, rd_data, wr_data_mon, cpu.alu_out,
            cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
 
   // 各信号の初期値

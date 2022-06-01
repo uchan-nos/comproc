@@ -212,8 +212,12 @@ int main(void) {
     for (; l < num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label) == 0) {
         uint16_t ins = insn[backpatches[i].pc];
-        uint8_t addr = labels[l].pc + ins;
-        insn[backpatches[i].pc] = (ins & 0xff00u) | addr;
+        uint16_t addr = labels[l].pc + ins;
+        if (ins >> 15) { // PUSH 以外の命令
+          insn[backpatches[i].pc] = (ins & 0xff00u) | (addr & 0x00ffu);
+        } else { // PUSH
+          insn[backpatches[i].pc] = addr & 0x7fffu;
+        }
         break;
       }
     }
