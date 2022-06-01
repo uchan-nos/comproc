@@ -10,6 +10,9 @@ logic mem_wr;
 logic [15:0] stack[0:15];
 logic [15:0] mem[0:1023];
 
+logic [15:0] wr_data_mon;
+assign wr_data_mon = mem_wr ? cpu.wr_data : 16'hzzzz;
+
 integer num_insn = 0;
 integer pc_init = 10'h100;
 
@@ -21,8 +24,9 @@ initial begin
   end
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x mem[%02x]=%04x wr=%d phase=%d stack{%02x %02x %02x %02x ..}",
-           $time, rst, cpu.pc, mem_addr, rd_data, mem_wr, cpu.phase, cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
+  $monitor("%d: rst=%d pc=%02x mem[%02x]=%04x wr=%04x phase=%d alu=%02x stack{%02x %02x %02x %02x ..}",
+           $time, rst, cpu.pc, mem_addr, rd_data, wr_data_mon, cpu.phase, cpu.alu_out,
+           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
 
   // 各信号の初期値
   rst <= 1;

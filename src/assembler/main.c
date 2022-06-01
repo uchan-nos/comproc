@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define MAX_OPERAND 128
+#define ORIGIN 0x100
 
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
@@ -113,7 +114,7 @@ int main(void) {
   char *operands[MAX_OPERAND];
 
   uint16_t insn[1024];
-  int pc = 0;
+  int pc = ORIGIN;
 
   struct LabelAddr backpatches[128];
   int num_backpatches = 0;
@@ -143,51 +144,51 @@ int main(void) {
     }
 
     if (strcmp(mnemonic, "push") == 0) {
-      insn[pc] = 0x0000 | (uint8_t)GET_LONG(0);
+      insn[pc] = GET_LONG(0) & 0x7ffu;
     } else if (strcmp(mnemonic, "pop") == 0) {
-      insn[pc] = 0x0100;
+      insn[pc] = 0x8100;
     } else if (strcmp(mnemonic, "dup") == 0) {
       long n = GET_LONG(0);
       if (n != 0 && n != 1) {
         fprintf(stderr, "DUP takes 0 or 1: %ld\n", n);
         exit(1);
       }
-      insn[pc] = 0x0200 | n;
+      insn[pc] = 0x8200 | n;
     } else if (strcmp(mnemonic, "ld") == 0) {
-      insn[pc] = 0x1000 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x9000 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[pc] = 0x1100;
+      insn[pc] = 0x9100;
     } else if (strcmp(mnemonic, "st") == 0) {
-      insn[pc] = 0x1400 | (uint8_t)GET_LONG(0);
+      insn[pc] = 0x9400 | (uint8_t)GET_LONG(0);
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[pc] = 0x1500;
+      insn[pc] = 0x9500;
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[pc] = 0x1600;
+      insn[pc] = 0x9600;
     } else if (strcmp(mnemonic, "add") == 0) {
-      insn[pc] = 0x3002;
+      insn[pc] = 0xb002;
     } else if (strcmp(mnemonic, "sub") == 0) {
-      insn[pc] = 0x3003;
+      insn[pc] = 0xb003;
     } else if (strcmp(mnemonic, "mul") == 0) {
-      insn[pc] = 0x3004;
+      insn[pc] = 0xb004;
     } else if (strcmp(mnemonic, "join") == 0) {
-      insn[pc] = 0x3005;
+      insn[pc] = 0xb005;
     } else if (strcmp(mnemonic, "and") == 0) {
-      insn[pc] = 0x3006;
+      insn[pc] = 0xb006;
     } else if (strcmp(mnemonic, "lt") == 0) {
-      insn[pc] = 0x3008;
+      insn[pc] = 0xb008;
     } else if (strcmp(mnemonic, "eq") == 0) {
-      insn[pc] = 0x3009;
+      insn[pc] = 0xb009;
     } else if (strcmp(mnemonic, "neq") == 0) {
-      insn[pc] = 0x300a;
+      insn[pc] = 0xb00a;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2000 | (uint8_t)-pc;
+      insn[pc] = 0xa000 | (uint8_t)-pc;
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2100 | (uint8_t)-pc;
+      insn[pc] = 0xa100 | (uint8_t)-pc;
     } else if (strcmp(mnemonic, "jnz") == 0) {
       InitBackpatch(backpatches + num_backpatches++, strdup(GET_STR(0)), pc);
-      insn[pc] = 0x2200 | (uint8_t)-pc;
+      insn[pc] = 0xa200 | (uint8_t)-pc;
     } else if (strcmp(mnemonic, "db") == 0) {
       int len = DataByte(insn + pc, operands, num_opr);
       pc += (len + 1) / 2;
@@ -197,7 +198,7 @@ int main(void) {
       exit(1);
     }
 
-    if (0x1000 <= insn[pc] && insn[pc] < 0x2000) {
+    if (0x9000 <= insn[pc] && insn[pc] < 0xa000) {
       if (postfix && strcmp(postfix, "1") == 0) {
         insn[pc] |= 0x0800;
       }
@@ -222,7 +223,7 @@ int main(void) {
     }
   }
 
-  for (int i = 0; i < pc; i++) {
+  for (int i = ORIGIN; i < pc; i++) {
     printf("%04X\n", insn[i]);
   }
   return 0;
