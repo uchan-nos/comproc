@@ -249,6 +249,10 @@ struct Node *Postfix() {
     node = NewNodeBinOp(kNodeInc, op, node, NULL);
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, node, NULL);
+  } else if ((op = Consume('['))) {
+    node = NewNodeBinOp(kNodeDeref, op, NULL,
+                        NewNodeBinOp(kNodeAdd, op, node, Expression()));
+    Expect(']');
   }
 
   return node;

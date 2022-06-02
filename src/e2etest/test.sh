@@ -67,3 +67,5 @@ test_value 27 "{return '\'';}"
 test_value 03 "{return '\n' + '\0' - '\a';}"
 test_value 03 "{int a = 255; int b = 1025; int c = 255; return b - 1022;}"
 test_value 01 '{return *("012" + 1) == 49;}'
+test_value 01 '{return "01234"[2] == 50;}'
+test_value 33 '{int i = 1; return "0123"[++i + 1];}'
