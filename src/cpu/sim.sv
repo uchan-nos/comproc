@@ -60,9 +60,9 @@ cpu cpu(.*);
 
 always @(posedge clk) begin
   if (mem_wr)
-    mem[mem_addr] <= wr_data;
+    mem[mem_addr >> 1] <= wr_data;
   else
-    rd_data <= mem[mem_addr];
+    rd_data <= mem[mem_addr >> 1];
 end
 
 endmodule

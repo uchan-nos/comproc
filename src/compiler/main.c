@@ -186,7 +186,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       Generate(ctx, node->rhs, 0);
     } else {
       Generate(ctx, node->rhs, 0);
-      printf("ldd\n");
+      if (SizeofType(node->rhs->type->base) == 1) {
+        printf("ldd.1\n");
+      } else {
+        printf("ldd\n");
+      }
     }
     assert(node->rhs->type->base);
     node->type = node->rhs->type->base;

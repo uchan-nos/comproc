@@ -161,11 +161,11 @@ end
 // recv_addr は命令の受信が完了するたびにインクリメントされる
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    recv_addr <= 10'h100;
+    recv_addr <= 10'h200;
   else if (recv_compl)
-    recv_addr <= 10'h100;
+    recv_addr <= 10'h200;
   else if (recv_data_v)
-    recv_addr <= recv_addr + 10'd1;
+    recv_addr <= recv_addr + 10'd2;
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
@@ -186,9 +186,9 @@ Gowin_SDPB mem(
   .ceb(1'b1),         //input ceb
   .resetb(!rst_n),    //input resetb
   .oce(1'b0),         //input oce
-  .ada(mem_addr),     //input [9:0] ada
+  .ada(mem_addr[`ADDR_WIDTH-1:1]),     //input [9:0] ada
   .din(wr_data),      //input [15:0] din
-  .adb(cpu_mem_addr), //input [9:0] adb
+  .adb(cpu_mem_addr[`ADDR_WIDTH-1:1]), //input [9:0] adb
   .dout(cpu_rd_data)  //output [15:0] dout
 );
 

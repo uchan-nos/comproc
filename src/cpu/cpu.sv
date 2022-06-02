@@ -88,8 +88,8 @@ addr      説明
 000h      無効
 001h      UART 入出力
 002h-01fh 予約
-020h-0ffh データメモリ
-100h-1ffh プログラムメモリ
+020h-1ffh データメモリ
+200h-3ffh プログラムメモリ
 
 
 信号タイミング
@@ -152,7 +152,7 @@ always @(posedge clk, posedge rst) begin
       2'd0: stack[0] <= stack[0];
       2'd1: stack[0] <= stack[1];
       2'd2: stack[0] <= alu_out;
-      2'd3: stack[0] <= rd_data;
+      2'd3: stack[0] <= byte_format(rd_data, byt, mem_addr & 1);
     endcase
 
     if (~pop & push)
@@ -196,16 +196,16 @@ end
 // 命令実行が完了したらプログラムカウンタを進める
 always @(posedge clk, posedge rst) begin
   if (rst)
-    pc <= 10'h100;
+    pc <= `ADDR_WIDTH'h200;
   else if (insn == 16'hffff)
     ;
   else if (phase == 2'd1)
     if ((jmp == 2'd1) ||
         (jmp == 2'd2 && stack[0] == 16'd0) ||
         (jmp == 2'd3 && stack[0] != 16'd0))
-      pc <= pc + { {2{imm8[7]}}, imm8};
+      pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
     else
-      pc <= pc + 10'd1;
+      pc <= pc + `ADDR_WIDTH'd2;
 end
 
 always @(posedge clk, posedge rst) begin
@@ -271,6 +271,19 @@ begin
     8'hb0:       decode = 10'b0_10_00_10_00_0;
     default:     decode = 10'd0;
   endcase
+end
+endfunction
+
+function [15:0] byte_format(input [15:0] val16, input byt, input addr1);
+begin
+  if (~byt)
+    byte_format = val16;
+  else begin
+    if (addr1)
+      byte_format = val16 >> 8;
+    else
+      byte_format = val16 & 16'h00ff;
+  end
 end
 endfunction
 

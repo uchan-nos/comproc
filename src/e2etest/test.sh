@@ -18,7 +18,7 @@ function test_value() {
       got=$(echo $bin | ../cpu/sim.exe 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin --timeout 30))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin --timeout 3))
       ;;
     *)
       echo "unknown target: $target"
@@ -65,4 +65,5 @@ test_value 01 '{char c = 255; char *p = &c; (*p)++; return *p == 0 && c == 0;}'
 test_value 63 "{return 'a' + 2;}"
 test_value 27 "{return '\'';}"
 test_value 03 "{return '\n' + '\0' - '\a';}"
+test_value 03 "{int a = 255; int b = 1025; int c = 255; return b - 1022;}"
 test_value 01 '{return *("012" + 1) == 49;}'
