@@ -19,6 +19,8 @@ enum TokenKind {
   kTokenOr,
   kTokenCharacter, // char literal '*'
   kTokenString,    // string literal "foo"
+  kTokenWhile,
+  kTokenBreak,
   kTokenEOF,
 };
 

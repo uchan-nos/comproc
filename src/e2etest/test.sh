@@ -69,3 +69,4 @@ test_value 03 "{int a = 255; int b = 1025; int c = 255; return b - 1022;}"
 test_value 01 '{return *("012" + 1) == 49;}'
 test_value 01 '{return "01234"[2] == 50;}'
 test_value 33 '{int i = 1; return "0123"[++i + 1];}'
+test_value 05 '{int i = 0; while(1){if(i == 5){break;} i++;} return i;}'

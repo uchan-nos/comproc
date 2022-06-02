@@ -18,6 +18,8 @@ enum NodeKind {
   kNodeInc,
   kNodeDec,
   kNodeFor,
+  kNodeWhile,
+  kNodeBreak,
   kNodeEq,
   kNodeNEq,
   kNodeRef,   // & exp
@@ -33,12 +35,14 @@ struct Node {
   struct Node *next;   // 線形リスト
   struct Type *type;   // ノードの型
 
-  // 用途         lhs     rhs     cond
-  // -----------------------------------
-  // 2 項演算     左辺    右辺    NULL
-  // kNodeReturn  返却値  NULL    NULL
-  // kNodeDefVar  変数名  初期値  NULL
-  // kNodeIf      then    else    条件式
+  // 用途         lhs       rhs       cond      備考
+  // ------------------------------------------------------
+  // 2 項演算     左辺      右辺      NULL
+  // kNodeReturn  返却値    NULL      NULL
+  // kNodeDefVar  変数名    初期値    NULL
+  // kNodeIf      then      else      条件式
+  // kNodeFor     初期化式  ブロック  条件式    lhs->next は更新式
+  // kNodeWhile   NULL      ブロック  条件式
   struct Node *lhs, *rhs, *cond;
 };
 

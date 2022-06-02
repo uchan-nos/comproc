@@ -123,6 +123,21 @@ struct Node *Statement() {
     return for_;
   }
 
+  if ((token = Consume(kTokenWhile))) {
+    struct Node *while_ = NewNode(kNodeWhile, token);
+    Expect('(');
+    while_->cond = Expression();
+    Expect(')');
+    while_->rhs = Block();
+
+    return while_;
+  }
+
+  if ((token = Consume(kTokenBreak))) {
+    Expect(';');
+    return NewNode(kNodeBreak, token);
+  }
+
   struct Node *e = Expression();
   Expect(';');
 

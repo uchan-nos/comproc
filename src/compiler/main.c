@@ -168,6 +168,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     printf("jmp label_for_cond\n");
     printf("label_for_end:\n");
     break;
+  case kNodeWhile:
+    printf("label_while_cond:\n");
+    Generate(ctx, node->cond, 0);
+    printf("jz label_while_end\n");
+    Generate(ctx, node->rhs, 0);
+    printf("jmp label_while_cond\n");
+    printf("label_while_end:\n");
+    break;
+  case kNodeBreak:
+    printf("jmp label_while_end\n");
+    break;
   case kNodeEq:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
