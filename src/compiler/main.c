@@ -24,19 +24,22 @@ void Locate(char *p) {
   fprintf(stderr, "%*s\n", (int)(p - start + 1), "^");
 }
 
+struct JumpLabels {
+  int lbreak;
+  int lcontinue;
+};
+
 struct GenContext {
   struct Symbol *syms;
   uint16_t lvar_offset;
   int num_label;
   int num_strings;
   struct Token *strings[4];
+  struct JumpLabels jump_labels;
 };
 
-char *GenLabel(struct GenContext *ctx) {
-  char *label = malloc(8);
-  sprintf(label, "l%d", ctx->num_label);
-  ctx->num_label++;
-  return label;
+int GenLabel(struct GenContext *ctx) {
+  return ctx->num_label++;
 }
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
@@ -159,25 +162,49 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeFor:
-    Generate(ctx, node->lhs, 0);
-    printf("label_for_cond:\n");
-    Generate(ctx, node->cond, 0);
-    printf("jz label_for_end\n");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs->next, 0);
-    printf("jmp label_for_cond\n");
-    printf("label_for_end:\n");
+    {
+      int label_cond = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
+      int label_next = GenLabel(ctx);
+
+      struct JumpLabels old_labels = ctx->jump_labels;
+      ctx->jump_labels.lbreak = label_end;
+      ctx->jump_labels.lcontinue = label_next;
+
+      Generate(ctx, node->lhs, 0);
+      printf("L_%d:\n", label_cond);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", label_end);
+      Generate(ctx, node->rhs, 0);
+      printf("L_%d:\n", label_next);
+      Generate(ctx, node->lhs->next, 0);
+      printf("jmp L_%d\n", label_cond);
+      printf("L_%d:\n", label_end);
+
+      ctx->jump_labels = old_labels;
+    }
     break;
   case kNodeWhile:
-    printf("label_while_cond:\n");
-    Generate(ctx, node->cond, 0);
-    printf("jz label_while_end\n");
-    Generate(ctx, node->rhs, 0);
-    printf("jmp label_while_cond\n");
-    printf("label_while_end:\n");
+    {
+      int label_cond = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
+
+      struct JumpLabels old_labels = ctx->jump_labels;
+      ctx->jump_labels.lbreak = label_end;
+      ctx->jump_labels.lcontinue = label_cond;
+
+      printf("L_%d:\n", label_cond);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", label_end);
+      Generate(ctx, node->rhs, 0);
+      printf("jmp L_%d\n", label_cond);
+      printf("L_%d:\n", label_end);
+
+      ctx->jump_labels = old_labels;
+    }
     break;
   case kNodeBreak:
-    printf("jmp label_while_end\n");
+    printf("jmp L_%d\n", ctx->jump_labels.lbreak);
     break;
   case kNodeEq:
     Generate(ctx, node->rhs, 0);
@@ -208,32 +235,32 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeLAnd:
     {
-      char *label_false = GenLabel(ctx);
-      char *label_end = GenLabel(ctx);
+      int label_false = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
       Generate(ctx, node->lhs, 0);
-      printf("jz %s\n", label_false);
+      printf("jz L_%d\n", label_false);
       Generate(ctx, node->rhs, 0);
-      printf("jz %s\n", label_false);
+      printf("jz L_%d\n", label_false);
       printf("push 1\n");
-      printf("jmp %s\n", label_end);
-      printf("%s:\n", label_false);
+      printf("jmp L_%d\n", label_end);
+      printf("L_%d:\n", label_false);
       printf("push 0\n");
-      printf("%s:\n", label_end);
+      printf("L_%d:\n", label_end);
     }
     break;
   case kNodeLOr:
     {
-      char *label_true = GenLabel(ctx);
-      char *label_end = GenLabel(ctx);
+      int label_true = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
       Generate(ctx, node->lhs, 0);
-      printf("jnz %s\n", label_true);
+      printf("jnz l%d\n", label_true);
       Generate(ctx, node->rhs, 0);
-      printf("jnz %s\n", label_true);
+      printf("jnz l%d\n", label_true);
       printf("push 0\n");
-      printf("jmp %s\n", label_end);
-      printf("%s:\n", label_true);
+      printf("jmp l%d\n", label_end);
+      printf("l%d:\n", label_true);
       printf("push 1\n");
-      printf("%s:\n", label_end);
+      printf("l%d:\n", label_end);
     }
     break;
   case kNodeString:
