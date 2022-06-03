@@ -133,15 +133,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     printf("lt\n");
     break;
   case kNodeIf:
-    Generate(ctx, node->cond, 0);
-    printf("jz %s\n", node->rhs ? "label_else" : "label_fi");
-    Generate(ctx, node->lhs, 0);
-    if (node->rhs) {
-      printf("jmp label_fi\n");
-      printf("label_else:\n");
-      Generate(ctx, node->rhs, 0);
+    {
+      int label_else = node->rhs ? GenLabel(ctx) : -1;
+      int label_end = GenLabel(ctx);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", node->rhs ? label_else : label_end);
+      Generate(ctx, node->lhs, 0);
+      if (node->rhs) {
+        printf("jmp L_%d\n", label_end);
+        printf("L_%d:\n", label_else);
+        Generate(ctx, node->rhs, 0);
+      }
+      printf("L_%d:\n", label_end);
     }
-    printf("label_fi:\n");
     break;
   case kNodeInc:
   case kNodeDec:
