@@ -280,7 +280,9 @@ int main(void) {
   struct Node *ast = Block();
   Expect(kTokenEOF);
 
-  struct GenContext gen_ctx = { NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}};
+  struct GenContext gen_ctx = {
+    NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}, {-1, -1}
+  };
   Generate(&gen_ctx, ast, 0);
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
