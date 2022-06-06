@@ -78,5 +78,6 @@ test_value 33 '{int i = 1; return "0123"[++i + 1];}'
 test_value 05 '{int i = 0; while(1){if(i == 5){break;} i++;} return i;}'
 test_value 06 '{int i; int j; int s=0; for(i=0;i<3;i++){for(j=0;j<2;j++){s++;}} return s;}'
 test_value 04 '{if(0){if(1){return 2;}else{return 3;}}else{if(1){return 4;} return 1;}}'
-test_value 05 '{int *p = 2; while(*p==65535){} return *p + 1;}' ff04
+test_value 05 '{int *p = 2; while(*p==-1){} return *p + 1;}' ff04
+test_value fe '{return -2;}'
 #test_value 37 '{int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;} s+=i;} return s;}'

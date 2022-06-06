@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "token.h"
+
 void Locate(char *p);
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token) {
@@ -249,6 +251,11 @@ struct Node *Unary() {
     node = NewNodeBinOp(kNodeRef, op, NULL, Unary());
   } else if ((op = Consume('*'))) {
     node = NewNodeBinOp(kNodeDeref, op, NULL, Unary());
+  } else if ((op = Consume('-'))) {
+    struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
+    zero_tk->value.as_int = 0;
+    struct Node *zero = NewNode(kNodeInteger, zero_tk);
+    node = NewNodeBinOp(kNodeSub, op, zero, Unary());
   } else {
     node = Postfix();
   }

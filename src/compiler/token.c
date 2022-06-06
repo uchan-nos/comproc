@@ -1,7 +1,6 @@
 #include "token.h"
 
 #include <ctype.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,7 +66,7 @@ static char *FindReservedName(struct ReservedMapItem *map,
   return NULL;
 }
 
-static struct Token *NewToken(int kind, char *raw, size_t len) {
+struct Token *NewToken(int kind, char *raw, size_t len) {
   struct Token *tk = calloc(1, sizeof(struct Token));
   tk->kind = kind;
   tk->raw = raw;

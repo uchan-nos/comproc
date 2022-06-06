@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 enum TokenKind {
   // 0 - 127 は 1 文字演算子用に予約
   kTokenInteger = 128,
@@ -37,6 +39,7 @@ struct Token {
 
 extern struct Token *cur_token;
 
+struct Token *NewToken(int kind, char *raw, size_t len);
 void Tokenize(char *src);
 struct Token *Consume(int kind);
 struct Token *Expect(int kind);
