@@ -16,11 +16,16 @@ assign wr_data_mon = mem_wr ? cpu.wr_data : 16'hzzzz;
 integer num_insn = 0;
 integer pc_init = 10'h100;
 
+logic [15:0] uart_in;
+
 initial begin
   // stdin からテストデータを読む
   while ($fscanf(STDIN, "%x", mem[pc_init]) == 1) begin
     num_insn++;
     pc_init++;
+  end
+  if (!$value$plusargs("uart_in=%d", uart_in)) begin
+    uart_in <= 16'hffff;
   end
 
   // 信号が変化したら自動的に出力する
@@ -44,7 +49,7 @@ end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
-  if (mem_wr & mem_addr == 8'h01) begin
+  if (mem_wr & mem_addr == 16'h02) begin
     $fdisplay(STDERR, "%x", wr_data[7:0]);
     $finish;
   end
@@ -61,6 +66,8 @@ cpu cpu(.*);
 always @(posedge clk) begin
   if (mem_wr)
     mem[mem_addr >> 1] <= wr_data;
+  else if (mem_addr == 10'h002)
+    rd_data <= uart_in;
   else
     rd_data <= mem[mem_addr >> 1];
 end

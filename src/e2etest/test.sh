@@ -9,16 +9,22 @@ make -C ../cpu sim.exe
 
 function test_value() {
   want="$1"
-  input="$2"
+  src="$2"
+  if [ $# -lt 3 ]
+  then
+    uart_in="ffff"
+  else
+    uart_in="$3"
+  fi
 
-  bin="$(echo "$input" | ../compiler/ucc | ../assembler/uasm) ffff"
+  bin="$(echo "$src" | ../compiler/ucc | ../assembler/uasm) ffff"
 
   case $target in
     sim)
-      got=$(echo $bin | ../cpu/sim.exe 2>&1 1>/dev/null)
+      got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin --timeout 3))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $uart_in --timeout 3))
       ;;
     *)
       echo "unknown target: $target"
@@ -28,12 +34,12 @@ function test_value() {
 
   if [ "$got" = "xx" ]
   then
-    echo "[FAILED]: $input -> '$got', want '$want'"
+    echo "[FAILED]: $src -> '$got', want '$want'"
   elif [ $((0x$want)) = $((0x$got)) ]
   then
-    echo "[  OK  ]: $input -> '$got'"
+    echo "[  OK  ]: $src -> '$got'"
   else
-    echo "[FAILED]: $input -> '$got', want '$want'"
+    echo "[FAILED]: $src -> '$got', want '$want'"
   fi
 }
 
@@ -72,4 +78,5 @@ test_value 33 '{int i = 1; return "0123"[++i + 1];}'
 test_value 05 '{int i = 0; while(1){if(i == 5){break;} i++;} return i;}'
 test_value 06 '{int i; int j; int s=0; for(i=0;i<3;i++){for(j=0;j<2;j++){s++;}} return s;}'
 test_value 04 '{if(0){if(1){return 2;}else{return 3;}}else{if(1){return 4;} return 1;}}'
+test_value 05 '{int *p = 2; while(*p==65535){} return *p + 1;}' ff04
 #test_value 37 '{int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;} s+=i;} return s;}'

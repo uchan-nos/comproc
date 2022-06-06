@@ -107,7 +107,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeReturn:
     if (node->lhs) {
       Generate(ctx, node->lhs, 0);
-      printf("st 0x1\n");
+      printf("st 0x2\n");
     }
     break;
   case kNodeDefVar:

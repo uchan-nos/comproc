@@ -27,10 +27,10 @@ logic recv_phase, recv_data_v, recv_compl;
 logic mem_wr;
 logic [`ADDR_WIDTH-1:0] mem_addr;
 
-logic [15:0] wr_data;
+logic [15:0] rd_data, wr_data;
 
 logic [7:0] cpu_out;
-logic [`ADDR_WIDTH-1:0] cpu_mem_addr;
+logic [`ADDR_WIDTH-1:0] cpu_mem_addr, cpu_mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
 logic [15:0] cpu_stack[0:15];
@@ -44,6 +44,7 @@ assign led_col = led_pattern(row_index);
 assign mem_wr = ~recv_compl | cpu_mem_wr;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data = recv_compl ? cpu_wr_data : recv_data;
+assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'd2 ? recv_data : rd_data;
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -94,17 +95,24 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd1)
-    uart_tx_data <= cpu_wr_data;
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd2)
+    uart_tx_data <= cpu_wr_data[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd1)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd2)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;
+end
+
+always @(posedge sys_clk, negedge rst_n) begin
+  if (!rst_n)
+    cpu_mem_addr_d <= `ADDR_WIDTH'd0;
+  else
+    cpu_mem_addr_d <= cpu_mem_addr;
 end
 
 uart uart(
@@ -173,7 +181,7 @@ always @(posedge sys_clk, negedge rst_n) begin
     recv_compl <= 1'b0;
   else if (recv_data == 16'hffff)
     recv_compl <= 1'b1;
-  else
+  else if (recv_phase == 1 && recv_data[7:0] != 8'hff)
     recv_compl <= 1'b0;
 end
 
@@ -189,7 +197,7 @@ Gowin_SDPB mem(
   .ada(mem_addr[`ADDR_WIDTH-1:1]),     //input [9:0] ada
   .din(wr_data),      //input [15:0] din
   .adb(cpu_mem_addr[`ADDR_WIDTH-1:1]), //input [9:0] adb
-  .dout(cpu_rd_data)  //output [15:0] dout
+  .dout(rd_data)      //output [15:0] dout
 );
 
 // 自作 CPU を接続する
