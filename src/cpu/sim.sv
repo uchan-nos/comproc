@@ -24,7 +24,7 @@ initial begin
     num_insn++;
     pc_init++;
   end
-  if (!$value$plusargs("uart_in=%d", uart_in)) begin
+  if (!$value$plusargs("uart_in=%x", uart_in)) begin
     uart_in <= 16'hffff;
   end
 
