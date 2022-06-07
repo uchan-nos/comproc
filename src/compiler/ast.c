@@ -179,11 +179,44 @@ struct Node *LogicalOr() {
 }
 
 struct Node *LogicalAnd() {
-  struct Node *node = Equality();
+  struct Node *node = BitwiseOr();
 
   struct Token *op;
   if ((op = Consume(kTokenAnd))) {
     node = NewNodeBinOp(kNodeLAnd, op, node, LogicalAnd());
+  }
+
+  return node;
+}
+
+struct Node *BitwiseOr() {
+  struct Node *node = BitwiseXor();
+
+  struct Token *op;
+  if ((op = Consume('|'))) {
+    node = NewNodeBinOp(kNodeOr, op, node, BitwiseOr());
+  }
+
+  return node;
+}
+
+struct Node *BitwiseXor() {
+  struct Node *node = BitwiseAnd();
+
+  struct Token *op;
+  if ((op = Consume('^'))) {
+    node = NewNodeBinOp(kNodeXor, op, node, BitwiseXor());
+  }
+
+  return node;
+}
+
+struct Node *BitwiseAnd() {
+  struct Node *node = Equality();
+
+  struct Token *op;
+  if ((op = Consume('&'))) {
+    node = NewNodeBinOp(kNodeAnd, op, node, BitwiseAnd());
   }
 
   return node;
@@ -256,6 +289,8 @@ struct Node *Unary() {
     zero_tk->value.as_int = 0;
     struct Node *zero = NewNode(kNodeInteger, zero_tk);
     node = NewNodeBinOp(kNodeSub, op, zero, Unary());
+  } else if ((op = Consume('~'))) {
+    node = NewNodeBinOp(kNodeNot, op, NULL, Unary());
   } else {
     node = Postfix();
   }

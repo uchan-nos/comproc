@@ -81,4 +81,6 @@ test_value 04 '{if(0){if(1){return 2;}else{return 3;}}else{if(1){return 4;} retu
 test_value 05 '{int *p = 2; while(*p == -1){} return *p + 1;}' fe04
 test_value fe '{return -2;}'
 test_value 03 '{if (-1 < 0) { return 3; } else { return 5; }}'
+test_value 85 '{return 0xaf & 0xc1 | 0xfb ^ 255;}'
+test_value dc '{char c = ~043; return c;}'
 #test_value 37 '{int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;} s+=i;} return s;}'

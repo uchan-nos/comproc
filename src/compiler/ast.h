@@ -27,6 +27,10 @@ enum NodeKind {
   kNodeLAnd,  // &&
   kNodeString,// string literal
   kNodeLOr,   // ||
+  kNodeAnd,   // &
+  kNodeXor,   // ^
+  kNodeOr,    // |
+  kNodeNot,   // ~
 };
 
 struct Node {
@@ -56,6 +60,9 @@ struct Node *Expression();
 struct Node *Assignment();
 struct Node *LogicalOr();
 struct Node *LogicalAnd();
+struct Node *BitwiseOr();
+struct Node *BitwiseXor();
+struct Node *BitwiseAnd();
 struct Node *Equality();
 struct Node *Relational();
 struct Node *Additive();

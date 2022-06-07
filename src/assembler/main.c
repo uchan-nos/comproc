@@ -186,14 +186,20 @@ int main(void) {
       insn[pc >> 1] = 0xb004;
     } else if (strcmp(mnemonic, "join") == 0) {
       insn[pc >> 1] = 0xb005;
-    } else if (strcmp(mnemonic, "and") == 0) {
-      insn[pc >> 1] = 0xb006;
     } else if (strcmp(mnemonic, "lt") == 0) {
       insn[pc >> 1] = 0xb008;
     } else if (strcmp(mnemonic, "eq") == 0) {
       insn[pc >> 1] = 0xb009;
     } else if (strcmp(mnemonic, "neq") == 0) {
       insn[pc >> 1] = 0xb00a;
+    } else if (strcmp(mnemonic, "and") == 0) {
+      insn[pc >> 1] = 0xb010;
+    } else if (strcmp(mnemonic, "xor") == 0) {
+      insn[pc >> 1] = 0xb011;
+    } else if (strcmp(mnemonic, "or") == 0) {
+      insn[pc >> 1] = 0xb012;
+    } else if (strcmp(mnemonic, "not") == 0) {
+      insn[pc >> 1] = 0xb013;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
                     pc, strdup(GET_STR(0)), BP_PC_REL8);

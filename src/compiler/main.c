@@ -272,6 +272,25 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     printf("push STR_%d\n", ctx->num_strings);
     ctx->num_strings++;
     break;
+  case kNodeAnd:
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    printf("and\n");
+    break;
+  case kNodeXor:
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    printf("xor\n");
+    break;
+  case kNodeOr:
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    printf("or\n");
+    break;
+  case kNodeNot:
+    Generate(ctx, node->rhs, 0);
+    printf("not\n");
+    break;
   }
 }
 

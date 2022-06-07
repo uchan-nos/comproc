@@ -66,11 +66,29 @@ static char *FindReservedName(struct ReservedMapItem *map,
   return NULL;
 }
 
-struct Token *NewToken(int kind, char *raw, size_t len) {
-  struct Token *tk = calloc(1, sizeof(struct Token));
-  tk->kind = kind;
-  tk->raw = raw;
-  tk->len = len;
+static int IsHexDigit(int ch) {
+  return isdigit(ch) || strchr("abcdef", tolower(ch));
+}
+
+static struct Token *ParseIntegerLiteral(char *src) {
+  struct Token *tk;
+  char *p = src;
+
+  if (p[0] == '0' && p[1] == 'x' && IsHexDigit(p[2])) {
+    p += 2;
+    while (IsHexDigit(*(++p)));
+    tk = NewToken(kTokenInteger, src, p - src);
+    tk->value.as_int = strtol(src + 2, NULL, 16);
+  } else if (p[0] == '0') {
+    while (isdigit(*(++p)));
+    tk = NewToken(kTokenInteger, src, p - src);
+    tk->value.as_int = strtol(src, NULL, 8);
+  } else {
+    while (isdigit(*(++p)));
+    tk = NewToken(kTokenInteger, src, p - src);
+    tk->value.as_int = strtol(src, NULL, 10);
+  }
+
   return tk;
 }
 
@@ -83,11 +101,7 @@ static struct Token *NextToken(char *src) {
   char *p = src;
 
   if (isdigit(*p)) {
-    struct Token *tk = NewToken(kTokenInteger, src, 0);
-    while (isdigit(*(++p)));
-    tk->len = p - src;
-    tk->value.as_int = strtol(src, NULL, 10);
-    return tk;
+    return ParseIntegerLiteral(p);
   }
 
   if (*p == '\'') {
@@ -128,7 +142,7 @@ static struct Token *NextToken(char *src) {
     return NewToken(op_kind, src, 2);
   }
 
-  if (strchr("+-*/();=<>{}&[]", *p) != NULL) {
+  if (strchr("+-*/();=<>{}&[]|^~", *p) != NULL) {
     return NewToken(*p, p, 1);
   }
 
@@ -147,6 +161,14 @@ static struct Token *NextToken(char *src) {
 }
 
 struct Token *cur_token;
+
+struct Token *NewToken(int kind, char *raw, size_t len) {
+  struct Token *tk = calloc(1, sizeof(struct Token));
+  tk->kind = kind;
+  tk->raw = raw;
+  tk->len = len;
+  return tk;
+}
 
 void Tokenize(char *src) {
   struct Token *tk = cur_token = NextToken(src);
