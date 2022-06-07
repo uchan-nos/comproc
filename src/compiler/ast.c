@@ -140,6 +140,11 @@ struct Node *Statement() {
     return NewNode(kNodeBreak, token);
   }
 
+  if ((token = Consume(kTokenContinue))) {
+    Expect(';');
+    return NewNode(kNodeContinue, token);
+  }
+
   struct Node *e = Expression();
   Expect(';');
 

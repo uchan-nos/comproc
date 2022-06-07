@@ -23,6 +23,7 @@ enum TokenKind {
   kTokenString,    // string literal "foo"
   kTokenWhile,
   kTokenBreak,
+  kTokenContinue,
   kTokenEOF,
 };
 

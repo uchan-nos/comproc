@@ -23,14 +23,15 @@ struct ReservedMapItem {
 
 #define ITEM(name, kind) { #name, sizeof(#name)-1, (kind) }
 static struct ReservedMapItem reserved_map[] = {
-  ITEM(return, kTokenReturn),
-  ITEM(int,    kTokenInt),
-  ITEM(if,     kTokenIf),
-  ITEM(else,   kTokenElse),
-  ITEM(for,    kTokenFor),
-  ITEM(char,   kTokenChar),
-  ITEM(while,  kTokenWhile),
-  ITEM(break,  kTokenBreak),
+  ITEM(return,   kTokenReturn),
+  ITEM(int,      kTokenInt),
+  ITEM(if,       kTokenIf),
+  ITEM(else,     kTokenElse),
+  ITEM(for,      kTokenFor),
+  ITEM(char,     kTokenChar),
+  ITEM(while,    kTokenWhile),
+  ITEM(break,    kTokenBreak),
+  ITEM(continue, kTokenContinue),
   {NULL, 0, 0},
 };
 static struct ReservedMapItem operator_map[] = {

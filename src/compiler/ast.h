@@ -20,6 +20,7 @@ enum NodeKind {
   kNodeFor,
   kNodeWhile,
   kNodeBreak,
+  kNodeContinue,
   kNodeEq,
   kNodeNEq,
   kNodeRef,   // & exp

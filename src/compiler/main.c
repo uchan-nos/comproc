@@ -210,6 +210,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeBreak:
     printf("jmp L_%d\n", ctx->jump_labels.lbreak);
     break;
+  case kNodeContinue:
+    printf("jmp L_%d\n", ctx->jump_labels.lcontinue);
+    break;
   case kNodeEq:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
