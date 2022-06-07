@@ -16,6 +16,8 @@ def main():
                    help='the number of bytes of a hex value')
     p.add_argument('--timeout', type=int, default=3,
                    help='time to wait for result')
+    p.add_argument('--nowait', action='store_true',
+                   help='do not wait for result')
     p.add_argument('hex', nargs='+',
                    help='list of hex values to send')
 
@@ -27,9 +29,11 @@ def main():
                         stopbits=serial.STOPBITS_ONE)
 
     ser.write(bytes_to_send)
-    read_bytes = ser.read(1)
+    ser.flush()
+    if not args.nowait:
+        read_bytes = ser.read(1)
+        print(' '.join('{:02x}'.format(b) for b in read_bytes))
 
-    print(' '.join('{:02x}'.format(b) for b in read_bytes))
     ser.close()
 
 
