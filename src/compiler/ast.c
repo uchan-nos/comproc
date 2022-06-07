@@ -77,6 +77,16 @@ struct Node *Declaration() {
     exit(1);
   }
   def->lhs = NewNode(kNodeId, id);
+
+  if (Consume('[')) {
+    struct Token *len = Expect(kTokenInteger);
+    Expect(']');
+    struct Type *t = NewType(kTypeArray);
+    t->len = len->value.as_int;
+    t->base = type;
+    type = t;
+  }
+
   def->type = type;
 
   if (Consume('=')) {

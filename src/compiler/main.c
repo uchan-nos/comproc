@@ -64,10 +64,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       if (sym) {
         assert(sym->type);
         node->type = sym->type;
-        printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
-        if (SizeofType(sym->type) == 1) {
-          printf("push 0xff\n");
-          printf("and\n");
+        if (sym->type->kind == kTypeArray) {
+          if (lval) {
+            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+                    sym->name->len, sym->name->raw);
+            exit(1);
+          }
+          printf("push 0x%x\n", sym->offset);
+        } else {
+          printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
+          if (SizeofType(sym->type) == 1) {
+            printf("push 0xff\n");
+            printf("and\n");
+          }
         }
       } else {
         fprintf(stderr, "unknown symbol\n");

@@ -7,11 +7,13 @@ enum TypeKind {
   kTypeChar,
   kTypeInt,
   kTypePtr,
+  kTypeArray,
 };
 
 struct Type {
   enum TypeKind kind;
   struct Type *base;
+  int len;
 };
 
 struct Type *NewType(enum TypeKind kind);
