@@ -21,7 +21,7 @@ module cpu(
 a0h - afh   ジャンプ命令
 b0h - b0h   2 項算術論理演算
 b1h - b1h   単項算術論理演算
-ffh         無効命令
+feh - ffh   無効命令
 
 
 命令リスト（算術論理演算以外）
@@ -94,7 +94,7 @@ addr      説明
 002h-003h の説明
 入出力とも、下位 8 ビットが有効
 入力は最後に受信された値が読める（一度読んでもクリアされない）
-入力データは上位8ビットを 0xff に固定し、下位 8 ビットに有効値を載せる
+入力データは上位 8 ビットを 0xfe とし、下位 8 ビットに有効値を載せる
 
 
 信号タイミング
@@ -229,6 +229,8 @@ function [15:0] alu(
   input [15:0] stack0,
   input [15:0] stack1);
 begin
+  logic [15:0] sub;
+  sub = stack0 - stack1;
   if (imm)
     if (insn[15])
       alu = {8'd0, insn[7:0]};
@@ -243,7 +245,7 @@ begin
       8'h04: alu = stack0 * stack1;
       8'h05: alu = stack0 | (stack1 << 8);
       8'h06: alu = stack0 & stack1;
-      8'h08: alu = stack0 < stack1;
+      8'h08: alu = sub[15] ^ is_overflow(stack0[15], stack1[15], sub[15]);
       8'h09: alu = stack0 == stack1;
       8'h0a: alu = stack0 != stack1;
     endcase
@@ -289,6 +291,12 @@ begin
     else
       byte_format = val16 & 16'h00ff;
   end
+end
+endfunction
+
+function is_overflow(input a, input b, input a_sub_b);
+begin
+  is_overflow = (a & ~b & ~a_sub_b) | (~a & b & a_sub_b);
 end
 endfunction
 

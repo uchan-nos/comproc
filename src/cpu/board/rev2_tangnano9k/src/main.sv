@@ -34,6 +34,7 @@ logic [`ADDR_WIDTH-1:0] cpu_mem_addr, cpu_mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_mem_wr;
 logic [15:0] cpu_stack[0:15];
+logic [15:0] uart_in;
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
@@ -44,7 +45,7 @@ assign led_col = led_pattern(row_index);
 assign mem_wr = ~recv_compl | cpu_mem_wr;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'd2 ? recv_data : rd_data;
+assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'd2 ? uart_in : rd_data;
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -181,8 +182,15 @@ always @(posedge sys_clk, negedge rst_n) begin
     recv_compl <= 1'b0;
   else if (recv_data == 16'hffff)
     recv_compl <= 1'b1;
-  else if (recv_phase == 1 && recv_data[7:0] != 8'hff)
+  else if (recv_phase == 1 && recv_data[7:1] != 7'h7f)
     recv_compl <= 1'b0;
+end
+
+always @(posedge sys_clk, negedge rst_n) begin
+  if (!rst_n)
+    uart_in <= 16'd0;
+  else if (recv_data_v)
+    uart_in <= recv_data;
 end
 
 // プログラムとデータを格納する BRAM
