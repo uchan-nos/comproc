@@ -91,8 +91,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     if (node->lhs->type &&
         (node->lhs->type->kind == kTypePtr ||
         node->lhs->type->kind == kTypeArray)) {
-      if (SizeofType(node->lhs->type->base) > 1) {
-        printf("push %d\n", SizeofType(node->lhs->type->base));
+      size_t element_size = SizeofType(node->lhs->type->base);
+      if (element_size > 1) {
+        printf("push %d\n", (int)element_size);
         printf("mul\n");
       }
     }
@@ -135,7 +136,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       assert(node->type);
       sym->type = node->type;
 
-      ctx->lvar_offset += 2;
+      ctx->lvar_offset += (SizeofType(sym->type) + 1) & ~((size_t)1);
       AppendSymbol(ctx->syms, sym);
 
       if (node->rhs) {
