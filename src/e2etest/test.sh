@@ -10,11 +10,12 @@ make -C ../cpu sim.exe
 function test_value() {
   want="$1"
   src="$2"
+  uart_in="./uart_in.hex"
   if [ $# -lt 3 ]
   then
-    uart_in="ffff"
+    echo "" > $uart_in
   else
-    uart_in="$3"
+    echo "$3" > $uart_in
   fi
 
   bin="$(echo "$src" | ../compiler/ucc | ../assembler/uasm) ffff"
@@ -24,7 +25,7 @@ function test_value() {
       got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $uart_in --timeout 3))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $(cat $uart_in) --timeout 3))
       ;;
     *)
       echo "unknown target: $target"
@@ -87,3 +88,5 @@ test_value 37 '{int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;} s+=i;} ret
 test_value 03 '{int a[2]; a[1] = 3; return a[1];}'
 test_value 05 '{int a[2]; a[0] = 1; *(a+1) = 4; return *a + a[a[0]];}'
 test_value 0f '{int a[3]; int *p = a+1; p[0] = 5; p[1] = 3; return a[1] * a[2];}'
+test_value 05 '{int *p=2; int s=0; while(*p!=-2){
+  while(*p==-1){} s+=*p&255; while((*p&0xff00)==0xfe00){}} return s;}' "fe02 ffff fe03 fffe"

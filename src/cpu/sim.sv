@@ -16,8 +16,10 @@ assign wr_data_mon = mem_wr ? cpu.wr_data : 16'hzzzz;
 integer num_insn = 0;
 integer pc_init = 10'h100;
 
-logic [15:0] uart_in;
+string uart_in_file;
+logic [15:0] uart_in[0:255];
 logic [4:0][7:0] insn_name;
+integer i;
 
 initial begin
   // stdin からテストデータを読む
@@ -25,8 +27,9 @@ initial begin
     num_insn++;
     pc_init++;
   end
-  if (!$value$plusargs("uart_in=%x", uart_in)) begin
-    uart_in <= 16'hffff;
+  for (i = 0; i < 256; i++) uart_in[i] = 0;
+  if ($value$plusargs("uart_in=%s", uart_in_file)) begin
+    $readmemh(uart_in_file, uart_in, 0, 0);
   end
 
   // 信号が変化したら自動的に出力する
@@ -68,7 +71,7 @@ always @(posedge clk) begin
   if (mem_wr)
     mem[mem_addr >> 1] <= wr_data;
   else if (mem_addr == 10'h002)
-    rd_data <= uart_in;
+    rd_data <= uart_in[0];
   else
     rd_data <= mem[mem_addr >> 1];
 end
