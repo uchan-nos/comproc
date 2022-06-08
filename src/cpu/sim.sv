@@ -19,7 +19,7 @@ integer pc_init = 10'h100;
 string uart_in_file;
 logic [15:0] uart_in[0:255];
 logic [4:0][7:0] insn_name;
-integer i;
+integer uart_index;
 
 initial begin
   // stdin からテストデータを読む
@@ -27,9 +27,11 @@ initial begin
     num_insn++;
     pc_init++;
   end
-  for (i = 0; i < 256; i++) uart_in[i] = 0;
+
+  for (uart_index = 0; uart_index < 256; uart_index++) uart_in[uart_index] = 0;
+  uart_index = 0;
   if ($value$plusargs("uart_in=%s", uart_in_file)) begin
-    $readmemh(uart_in_file, uart_in, 0, 0);
+    $readmemh(uart_in_file, uart_in);
   end
 
   // 信号が変化したら自動的に出力する
@@ -71,9 +73,13 @@ always @(posedge clk) begin
   if (mem_wr)
     mem[mem_addr >> 1] <= wr_data;
   else if (mem_addr == 10'h002)
-    rd_data <= uart_in[0];
+    rd_data <= uart_in[uart_index];
   else
     rd_data <= mem[mem_addr >> 1];
+end
+
+always #1000 begin
+  uart_index <= uart_index + 1;
 end
 
 always @(posedge clk) begin
