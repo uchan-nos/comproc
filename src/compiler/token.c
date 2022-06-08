@@ -41,6 +41,8 @@ static struct ReservedMapItem operator_map[] = {
   ITEM(!=, kTokenNEq),
   ITEM(&&, kTokenAnd),
   ITEM(||, kTokenOr),
+  ITEM(>>, kTokenRShift),
+  ITEM(<<, kTokenLShift),
   {NULL, 0, 0},
 };
 #undef ITEM

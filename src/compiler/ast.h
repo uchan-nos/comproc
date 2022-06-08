@@ -32,6 +32,8 @@ enum NodeKind {
   kNodeXor,   // ^
   kNodeOr,    // |
   kNodeNot,   // ~
+  kNodeRShift,// >>
+  kNodeLShift,// <<
 };
 
 struct Node {
@@ -66,6 +68,7 @@ struct Node *BitwiseXor();
 struct Node *BitwiseAnd();
 struct Node *Equality();
 struct Node *Relational();
+struct Node *BitwiseShift();
 struct Node *Additive();
 struct Node *Multiplicative();
 struct Node *Unary();

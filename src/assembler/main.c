@@ -200,6 +200,12 @@ int main(void) {
       insn[pc >> 1] = 0xb012;
     } else if (strcmp(mnemonic, "not") == 0) {
       insn[pc >> 1] = 0xb013;
+    } else if (strcmp(mnemonic, "shr") == 0) {
+      insn[pc >> 1] = 0xb014;
+    } else if (strcmp(mnemonic, "shl") == 0) {
+      insn[pc >> 1] = 0xb015;
+    } else if (strcmp(mnemonic, "sar") == 0) {
+      insn[pc >> 1] = 0xb016;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
                     pc, strdup(GET_STR(0)), BP_PC_REL8);

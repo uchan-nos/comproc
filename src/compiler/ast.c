@@ -251,13 +251,26 @@ struct Node *Equality() {
 }
 
 struct Node *Relational() {
-  struct Node *node = Additive();
+  struct Node *node = BitwiseShift();
 
   struct Token *op;
   if ((op = Consume('<'))) {
     node = NewNodeBinOp(kNodeLT, op, node, Relational());
   } else if ((op = Consume('>'))) {
     node = NewNodeBinOp(kNodeLT, op, Relational(), node);
+  }
+
+  return node;
+}
+
+struct Node *BitwiseShift() {
+  struct Node *node = Additive();
+
+  struct Token *op;
+  if ((op = Consume(kTokenRShift))) {
+    node = NewNodeBinOp(kNodeRShift, op, node, BitwiseShift());
+  } else if ((op = Consume(kTokenLShift))) {
+    node = NewNodeBinOp(kNodeLShift, op, node, BitwiseShift());
   }
 
   return node;

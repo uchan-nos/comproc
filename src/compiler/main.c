@@ -312,6 +312,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->rhs, 0);
     printf("not\n");
     break;
+  case kNodeRShift:
+  case kNodeLShift:
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
+    printf("%s\n", node->kind == kNodeRShift ? "sar" : "shl");
+    break;
   }
 }
 

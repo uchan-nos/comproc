@@ -82,6 +82,9 @@ ALU 機能
 11h   XOR   stack[0] ^ stack[1]
 12h   OR    stack[0] | stack[1]
 13h   NOT   ~stack[0]
+14h   SHR   stack[0] >> stack[1]
+15h   SHL   stack[0] << stack[1]
+16h   SAR   stack[0] >> stack[1] (符号付きシフト)
 
 
 メモリマップ
@@ -254,6 +257,9 @@ begin
       8'h11: alu = stack0 ^ stack1;
       8'h12: alu = stack0 | stack1;
       8'h13: alu = ~stack0;
+      8'h14: alu = stack0 >> stack1;
+      8'h15: alu = stack0 << stack1;
+      8'h16: alu = shiftr_signed(stack0, stack1[3:0]);
     endcase
 end
 endfunction
@@ -303,6 +309,29 @@ endfunction
 function is_overflow(input a, input b, input a_sub_b);
 begin
   is_overflow = (a & ~b & ~a_sub_b) | (~a & b & a_sub_b);
+end
+endfunction
+
+function [15:0] shiftr_signed(input [15:0] v, input [3:0] n);
+begin
+  case (n)
+    4'd0:  shiftr_signed = v;
+    4'd1:  shiftr_signed = {{ 2{v[15]}}, v[14:1]};
+    4'd2:  shiftr_signed = {{ 3{v[15]}}, v[14:2]};
+    4'd3:  shiftr_signed = {{ 4{v[15]}}, v[14:3]};
+    4'd4:  shiftr_signed = {{ 5{v[15]}}, v[14:4]};
+    4'd5:  shiftr_signed = {{ 6{v[15]}}, v[14:5]};
+    4'd6:  shiftr_signed = {{ 7{v[15]}}, v[14:6]};
+    4'd7:  shiftr_signed = {{ 8{v[15]}}, v[14:7]};
+    4'd8:  shiftr_signed = {{ 9{v[15]}}, v[14:8]};
+    4'd9:  shiftr_signed = {{10{v[15]}}, v[14:9]};
+    4'd10: shiftr_signed = {{11{v[15]}}, v[14:10]};
+    4'd11: shiftr_signed = {{12{v[15]}}, v[14:11]};
+    4'd12: shiftr_signed = {{13{v[15]}}, v[14:12]};
+    4'd13: shiftr_signed = {{14{v[15]}}, v[14:13]};
+    4'd14: shiftr_signed = {{15{v[15]}}, v[14]};
+    4'd15: shiftr_signed = {16{v[15]}};
+  endcase
 end
 endfunction
 
