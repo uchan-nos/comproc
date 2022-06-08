@@ -86,8 +86,16 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeAdd:
-    Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    if (node->lhs->type &&
+        (node->lhs->type->kind == kTypePtr ||
+        node->lhs->type->kind == kTypeArray)) {
+      if (SizeofType(node->lhs->type->base) > 1) {
+        printf("push %d\n", SizeofType(node->lhs->type->base));
+        printf("mul\n");
+      }
+    }
     printf("add\n");
     node->type = node->lhs->type;
     break;

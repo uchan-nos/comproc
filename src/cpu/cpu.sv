@@ -37,11 +37,11 @@ ST imm8     94h   stack からポップした値を mem[imm8] に書く
 STA         95h   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
                   stack[0] = addr, stack[1] = data
 STD         96h   stack からアドレスと値をポップしメモリに書き、値をプッシュ
-LD.B imm8   98h   byte version
-LDD.B       99h   byte version
-ST.B imm8   9ch   byte version
-STA.B       9dh   byte version
-STD.B       9eh   byte version
+LD.1 imm8   98h   byte version
+LDD.1       99h   byte version
+ST.1 imm8   9ch   byte version
+STA.1       9dh   byte version
+STD.1       9eh   byte version
 JMP imm8    a0h   pc+imm8 にジャンプ
 JZ imm8     a1h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
