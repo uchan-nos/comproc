@@ -78,7 +78,7 @@ always @(posedge clk) begin
     rd_data <= mem[mem_addr >> 1];
 end
 
-always #1000 begin
+always #5000 begin
   uart_index <= uart_index + 1;
 end
 
@@ -97,6 +97,10 @@ always @(posedge clk) begin
         8'h11: insn_name <= "xor";
         8'h12: insn_name <= "or";
         8'h13: insn_name <= "not";
+        8'h14: insn_name <= "shr";
+        8'h15: insn_name <= "shl";
+        8'h16: insn_name <= "sar";
+        default: insn_name <= "UNDEF";
       endcase
     else
       casex (cpu.insn[15:8])
