@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/bin/bash -u
 
 target=${TARGET:-sim}
 uart_dev="${UART_DEV:-/dev/ttyUSB0}"
@@ -7,16 +7,10 @@ make -C ../compiler
 make -C ../assembler
 make -C ../cpu sim.exe
 
-function test_value() {
-  want="$1"
-  src="$2"
+function test_prog() {
+  src="$1"
   uart_in="./uart_in.hex"
-  if [ $# -lt 3 ]
-  then
-    echo "" > $uart_in
-  else
-    echo "$3" > $uart_in
-  fi
+  echo "$2" > $uart_in
 
   bin="$(echo "$src" | ../compiler/ucc | ../assembler/uasm) ffff"
 
@@ -28,15 +22,34 @@ function test_value() {
       got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $(cat $uart_in) --timeout 3))
       ;;
     *)
-      echo "unknown target: $target"
+      echo "unknown target: $target" >&2
       exit 1
       ;;
   esac
 
-  if [ "$got" = "xx" ]
+  return $((0x$got))
+}
+
+function test_value() {
+  want="$1"
+  src="$2"
+  test_prog "$src" "${3:-}"
+  got=$?
+
+  if [ $((0x$want)) -eq $got ]
   then
+    echo "[  OK  ]: $src -> '$got'"
+  else
     echo "[FAILED]: $src -> '$got', want '$want'"
-  elif [ $((0x$want)) = $((0x$got)) ]
+  fi
+}
+
+function test_stdout() {
+  want="$1"
+  src="$2"
+  got=$(test_prog "$src" "${3:-}")
+
+  if [ "$want" = "$got" ]
   then
     echo "[  OK  ]: $src -> '$got'"
   else
@@ -93,3 +106,4 @@ test_value 14 '{return (010 >> 1) | (002 << 3);}'
 test_value fe '{return 0xefff >> 12;}'
 test_value ff '{return 0x8000 >> 15;}'
 test_value 00 '{return 0x8000 >> 16;}'
+test_stdout 'hello' '{int *p=2; char *s="hello"; while(*s){*p=*s++;} return 0;}'
