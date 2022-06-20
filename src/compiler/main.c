@@ -175,12 +175,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       Generate(ctx, node->lhs, 1);
       printf("sta.%d\n", (int)SizeofType(node->lhs->type));
       printf("pop\n");
+      node->type = node->lhs->type;
     } else { // 前置インクリメント '++ exp'
       printf("push 1\n");
       Generate(ctx, node->rhs, 0);
       printf(node->kind == kNodeInc ? "add\n" : "sub\n");
       Generate(ctx, node->rhs, 1);
       printf("std.%d\n", (int)SizeofType(node->rhs->type));
+      node->type = node->rhs->type;
     }
     break;
   case kNodeFor:
