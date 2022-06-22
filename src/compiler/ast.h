@@ -4,6 +4,7 @@
 #include "type.h"
 
 enum NodeKind {
+  kNodeFuncDef,
   kNodeBlock,
   kNodeInteger,
   kNodeId,
@@ -50,12 +51,14 @@ struct Node {
   // kNodeIf      then      else      条件式
   // kNodeFor     初期化式  ブロック  条件式    lhs->next は更新式
   // kNodeWhile   NULL      ブロック  条件式
+  // kNodeFuncDef NULL      ブロック  NULL
   struct Node *lhs, *rhs, *cond;
 };
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token);
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
                           struct Node *lhs, struct Node *rhs);
+struct Node *FunctionDefinition();
 struct Node *Block();
 struct Node *Declaration();
 struct Node *Statement();

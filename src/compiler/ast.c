@@ -24,6 +24,18 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   return n;
 }
 
+struct Node *FunctionDefinition() {
+  Expect(kTokenInt);
+  struct Token *func_name = Expect(kTokenId);
+  Expect('(');
+  Expect(')');
+  struct Node *body = Block();
+
+  struct Node *func_def = NewNode(kNodeFuncDef, func_name);
+  func_def->rhs = body;
+  return func_def;
+}
+
 struct Node *Block() {
   struct Token *brace = Consume('{');
   if (brace == NULL) {

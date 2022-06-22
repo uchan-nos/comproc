@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ast.h"
 #include "symbol.h"
@@ -44,6 +45,9 @@ int GenLabel(struct GenContext *ctx) {
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
+  case kNodeFuncDef:
+    Generate(ctx, node->rhs, 0);
+    break;
   case kNodeBlock:
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
@@ -329,8 +333,14 @@ int main(void) {
   src[src_len] = '\0';
 
   Tokenize(src);
-  struct Node *ast = Block();
+  struct Node *ast = FunctionDefinition();
   Expect(kTokenEOF);
+
+  if (ast->token->len != 4 ||
+      strncmp("main", ast->token->raw, 4) != 0) {
+    fprintf(stderr, "only 'main' func is supported\n");
+    exit(1);
+  }
 
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}, {-1, -1}
