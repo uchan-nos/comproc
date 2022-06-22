@@ -12,20 +12,34 @@ function test_prog() {
   uart_in="./uart_in.hex"
   echo "$2" > $uart_in
 
+  if [ "${uart_out:-}" != "" ]
+  then
+    uart_out_opt_sim="+uart_out=$uart_out"
+    uart_out_opt_uart="--stdout $uart_out"
+  else
+    uart_out_opt_sim=""
+    uart_out_opt_uart=""
+  fi
+
   bin="$(echo "$src" | ../compiler/ucc | ../assembler/uasm) ffff"
 
   case $target in
     sim)
-      got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in 2>&1 1>/dev/null)
+      got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in $uart_out_opt_sim 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $(cat $uart_in) --timeout 3))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $(cat $uart_in) --timeout 3 $uart_out_opt_uart))
       ;;
     *)
       echo "unknown target: $target" >&2
       exit 1
       ;;
   esac
+
+  if [ "${uart_out:-}" != "" ]
+  then
+    cat $uart_out
+  fi
 
   return $((0x$got))
 }
@@ -47,7 +61,9 @@ function test_value() {
 function test_stdout() {
   want="$1"
   src="$2"
-  got=$(test_prog "$src" "${3:-}")
+  uart_out="uart_out.hex"
+  rm -f $uart_out
+  got="$(test_prog "$src" "${3:-}")"
 
   if [ "$want" = "$got" ]
   then
@@ -107,4 +123,4 @@ test_value fe '{return 0xefff >> 12;}'
 test_value ff '{return 0x8000 >> 15;}'
 test_value 00 '{return 0x8000 >> 16;}'
 test_value 61 '{int i=0; char *s="a"; while(*s){i+=*s++;} return i;}'
-test_stdout 'hello' '{int *p=2; char *s="hello"; while(*s){*p=*s++;} return 0;}'
+test_stdout 'hello' '{int *p=2; char *s="hello"; while(*s){*p=*s++;} *p=4; return 0;}'

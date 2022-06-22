@@ -17,6 +17,9 @@ integer num_insn = 0;
 integer pc_init = 10'h100;
 
 string uart_in_file;
+string uart_out_file = "";
+integer uart_out = 0;
+integer uart_eot = 0;
 logic [15:0] uart_in[0:255];
 logic [4:0][7:0] insn_name;
 integer uart_index;
@@ -30,9 +33,10 @@ initial begin
 
   for (uart_index = 0; uart_index < 256; uart_index++) uart_in[uart_index] = 0;
   uart_index = 0;
-  if ($value$plusargs("uart_in=%s", uart_in_file)) begin
+  if ($value$plusargs("uart_in=%s", uart_in_file))
     $readmemh(uart_in_file, uart_in);
-  end
+  if ($value$plusargs("uart_out=%s", uart_out_file))
+    uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
   $monitor("%d: rst=%d pc=%02x.%d %04x %-5s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..}",
@@ -56,8 +60,14 @@ end
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
   if (mem_wr & mem_addr == 16'h02) begin
-    $fdisplay(STDERR, "%x", wr_data[7:0]);
-    $finish;
+    if (uart_out == 0 || uart_eot != 0) begin
+      $fdisplay(STDERR, "%x", wr_data[7:0]);
+      $finish;
+    end
+    if (wr_data[7:0] == 4)
+      uart_eot = 1;
+    else
+      $fwrite(uart_out, "%c", wr_data[7:0]);
   end
   else if ($time > TIMEOUT) begin
     $fdisplay(STDERR, "timeout");

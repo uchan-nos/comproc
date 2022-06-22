@@ -8,6 +8,19 @@ def hex_to_bytes(hex_list, unit, byte_order):
     return b''.join(int(c, 16).to_bytes(unit, byte_order) for c in hex_list)
 
 
+def receive_stdout(filename, ser):
+    num = 0
+    with open(filename, 'wb') as f:
+        b = ser.read(1)
+        while b != b'\x04':
+            num += 1
+            f.write(b)
+            b = ser.read(1)
+            if len(b) < 1:
+                break
+    return num
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--dev', default='/dev/ttyUSB0',
@@ -17,7 +30,9 @@ def main():
     p.add_argument('--timeout', type=int, default=3,
                    help='time to wait for result')
     p.add_argument('--nowait', action='store_true',
-                   help='do not wait for result')
+                   help='do not wait for result/stdout')
+    p.add_argument('--stdout',
+                   help='path to a file to hold bytes received')
     p.add_argument('hex', nargs='+',
                    help='list of hex values to send')
 
@@ -31,6 +46,8 @@ def main():
     ser.write(bytes_to_send)
     ser.flush()
     if not args.nowait:
+        if args.stdout:
+            receive_stdout(args.stdout, ser)
         read_bytes = ser.read(1)
         print(' '.join('{:02x}'.format(b) for b in read_bytes))
 
