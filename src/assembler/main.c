@@ -199,7 +199,7 @@ int main(void) {
     } else if (strcmp(mnemonic, "or") == 0) {
       insn[pc >> 1] = 0xb012;
     } else if (strcmp(mnemonic, "not") == 0) {
-      insn[pc >> 1] = 0xb013;
+      insn[pc >> 1] = 0xb113;
     } else if (strcmp(mnemonic, "shr") == 0) {
       insn[pc >> 1] = 0xb014;
     } else if (strcmp(mnemonic, "shl") == 0) {
@@ -218,6 +218,12 @@ int main(void) {
       InitBackpatch(backpatches + num_backpatches++,
                     pc, strdup(GET_STR(0)), BP_PC_REL8);
       insn[pc >> 1] = 0xa200;
+    } else if (strcmp(mnemonic, "call") == 0) {
+      InitBackpatch(backpatches + num_backpatches++,
+                    pc, strdup(GET_STR(0)), BP_PC_REL8);
+      insn[pc >> 1] = 0xa300;
+    } else if (strcmp(mnemonic, "ret") == 0) {
+      insn[pc >> 1] = 0xa400 | (uint8_t)GET_LONG(0, BP_ABS8);
     } else if (strcmp(mnemonic, "db") == 0) {
       pc += DataByte(&insn[pc >> 1], operands, num_opr);
       if (pc & 1) {

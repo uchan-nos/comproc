@@ -36,11 +36,6 @@ function test_prog() {
       ;;
   esac
 
-  if [ "${uart_out:-}" != "" ]
-  then
-    cat $uart_out
-  fi
-
   return $((0x$got))
 }
 
@@ -63,7 +58,9 @@ function test_stdout() {
   src="$2"
   uart_out="uart_out.hex"
   rm -f $uart_out
-  got="$(test_prog "$src" "${3:-}")"
+  test_prog "$src" "${3:-}"
+  got=$(cat $uart_out)
+  unset uart_out
 
   if [ "$want" = "$got" ]
   then
@@ -124,3 +121,4 @@ test_value ff 'int main() {return 0x8000 >> 15;}'
 test_value 00 'int main() {return 0x8000 >> 16;}'
 test_value 61 'int main() {int i=0; char *s="a"; while(*s){i+=*s++;} return i;}'
 test_stdout 'hello' 'int main() {int *p=2; char *s="hello"; while(*s){*p=*s++;} *p=4; return 0;}'
+test_value 03 'int f() { return 2; } int main() { return f() + 1; }'

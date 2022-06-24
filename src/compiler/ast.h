@@ -4,24 +4,16 @@
 #include "type.h"
 
 enum NodeKind {
-  kNodeFuncDef,
-  kNodeBlock,
+  // 式（値をスタックに積むもの）
   kNodeInteger,
   kNodeId,
   kNodeAdd,
   kNodeSub,
   kNodeMul,
   kNodeAssign,
-  kNodeReturn,
-  kNodeDefVar,
   kNodeLT, // <
-  kNodeIf,
   kNodeInc,
   kNodeDec,
-  kNodeFor,
-  kNodeWhile,
-  kNodeBreak,
-  kNodeContinue,
   kNodeEq,
   kNodeNEq,
   kNodeRef,   // & exp
@@ -35,6 +27,18 @@ enum NodeKind {
   kNodeNot,   // ~
   kNodeRShift,// >>
   kNodeLShift,// <<
+  kNodeCall,
+  kNodeExprEnd,
+  // 式以外（値をスタックに積まないもの）
+  kNodeDefFunc,
+  kNodeBlock,
+  kNodeReturn,
+  kNodeDefVar,
+  kNodeIf,
+  kNodeFor,
+  kNodeWhile,
+  kNodeBreak,
+  kNodeContinue,
 };
 
 struct Node {
@@ -52,12 +56,14 @@ struct Node {
   // kNodeFor     初期化式  ブロック  条件式    lhs->next は更新式
   // kNodeWhile   NULL      ブロック  条件式
   // kNodeFuncDef NULL      ブロック  NULL
+  // kNodeCall    関数名    引数      NULL
   struct Node *lhs, *rhs, *cond;
 };
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token);
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
                           struct Node *lhs, struct Node *rhs);
+struct Node *Program();
 struct Node *FunctionDefinition();
 struct Node *Block();
 struct Node *Declaration();

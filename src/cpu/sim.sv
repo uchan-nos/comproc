@@ -130,6 +130,8 @@ always @(posedge clk) begin
         8'ha0:       insn_name <= "jmp";
         8'ha1:       insn_name <= "jz";
         8'ha2:       insn_name <= "jnz";
+        8'ha3:       insn_name <= "call";
+        8'ha4:       insn_name <= "ret";
         default:     insn_name <= "UNDEF";
       endcase
   end

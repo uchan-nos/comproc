@@ -7,6 +7,7 @@
 enum SymbolKind {
   kSymHead, // 線形リストのヘッドを表す特殊な種別
   kSymLVar, // ローカル変数
+  kSymFunc, // 関数
 };
 
 struct Type;

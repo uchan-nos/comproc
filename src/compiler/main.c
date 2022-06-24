@@ -45,12 +45,20 @@ int GenLabel(struct GenContext *ctx) {
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
-  case kNodeFuncDef:
-    Generate(ctx, node->rhs, 0);
+  case kNodeDefFunc:
+    {
+      struct Symbol *sym = NewSymbol(kSymFunc, node->token);
+      AppendSymbol(ctx->syms, sym);
+      printf("%.*s:\n", sym->name->len, sym->name->raw);
+      Generate(ctx, node->rhs, 0);
+    }
     break;
   case kNodeBlock:
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
+      if (n->kind <= kNodeExprEnd) {
+        printf("pop\n");
+      }
     }
     break;
   case kNodeInteger:
@@ -66,21 +74,32 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       struct Symbol *sym = FindSymbol(ctx->syms, node->token);
       if (sym) {
-        assert(sym->type);
-        node->type = sym->type;
-        if (sym->type->kind == kTypeArray) {
-          if (lval) {
-            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
-                    sym->name->len, sym->name->raw);
-            exit(1);
+        switch (sym->kind) {
+        case kSymHead:
+          fprintf(stderr, "this must not happen");
+          exit(1);
+          break;
+        case kSymLVar:
+          assert(sym->type);
+          node->type = sym->type;
+          if (sym->type->kind == kTypeArray) {
+            if (lval) {
+              fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+                      sym->name->len, sym->name->raw);
+              exit(1);
+            }
+            printf("push 0x%x\n", sym->offset);
+          } else {
+            printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
+            if (SizeofType(sym->type) == 1) {
+              printf("push 0xff\n");
+              printf("and\n");
+            }
           }
-          printf("push 0x%x\n", sym->offset);
-        } else {
-          printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
-          if (SizeofType(sym->type) == 1) {
-            printf("push 0xff\n");
-            printf("and\n");
-          }
+          break;
+        case kSymFunc:
+          printf("push %.*s\n", sym->name->len, sym->name->raw);
+          break;
         }
       } else {
         fprintf(stderr, "unknown symbol\n");
@@ -129,7 +148,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeReturn:
     if (node->lhs) {
       Generate(ctx, node->lhs, 0);
-      printf("st 0x2\n");
+      printf("ret 1\n");
+    } else {
+      printf("ret 0\n");
     }
     break;
   case kNodeDefVar:
@@ -200,12 +221,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lcontinue = label_next;
 
       Generate(ctx, node->lhs, 0);
+      printf("pop\n");
       printf("L_%d:\n", label_cond);
       Generate(ctx, node->cond, 0);
       printf("jz L_%d\n", label_end);
       Generate(ctx, node->rhs, 0);
+      if (node->rhs->kind <= kNodeExprEnd) {
+        printf("pop\n");
+      }
       printf("L_%d:\n", label_next);
       Generate(ctx, node->lhs->next, 0);
+      printf("pop\n");
       printf("jmp L_%d\n", label_cond);
       printf("L_%d:\n", label_end);
 
@@ -324,6 +350,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->lhs, 0);
     printf("%s\n", node->kind == kNodeRShift ? "sar" : "shl");
     break;
+  case kNodeCall:
+    if (node->lhs->kind == kNodeId) {
+      printf("call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
+    } else {
+      fprintf(stderr, "not implemented call of non-id expression\n");
+      Locate(node->lhs->token->raw);
+      exit(1);
+    }
+    break;
+  case kNodeExprEnd:
+    break;
   }
 }
 
@@ -333,19 +370,21 @@ int main(void) {
   src[src_len] = '\0';
 
   Tokenize(src);
-  struct Node *ast = FunctionDefinition();
+  struct Node *ast = Program();
   Expect(kTokenEOF);
-
-  if (ast->token->len != 4 ||
-      strncmp("main", ast->token->raw, 4) != 0) {
-    fprintf(stderr, "only 'main' func is supported\n");
-    exit(1);
-  }
 
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}, {-1, -1}
   };
-  Generate(&gen_ctx, ast, 0);
+  printf("call main\n");
+  printf("st 2\n");
+  printf("fin:\n");
+  printf("jmp fin\n");
+  for (struct Node *n = ast; n; n = n->next) {
+    if (n->kind == kNodeDefFunc) {
+      Generate(&gen_ctx, n, 0);
+    }
+  }
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];

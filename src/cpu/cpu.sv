@@ -45,6 +45,8 @@ STD.1       9eh   byte version
 JMP imm8    a0h   pc+imm8 にジャンプ
 JZ imm8     a1h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
+CALL imm8   a3h   stack に pc をプッシュし pc+imm8 ジャンプ
+RET 0/1     a4h   stack[0/1] からアドレスをポップし、ジャンプ
 
 
 制御線の構成
@@ -54,7 +56,8 @@ JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジ
 imm   0: insn[7:0] は ALU 機能選択
       1: insn[7:0] は即値
 load  演算用スタックの先頭にロードする値の選択
-      0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
+      0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data,
+      4: pc+2
 rd    メモリ読み込み
 wr    メモリ書き込み
 pop   演算用スタックから値をポップ
@@ -131,7 +134,8 @@ logic [15:0] insn;
 logic [`ADDR_WIDTH-1:0] pc;
 
 logic imm, rd, wr, pop, push, byt;
-logic [1:0] load, jmp;
+logic [2:0] load;
+logic [1:0] jmp;
 logic [7:0] imm8;
 
 //localparam CLK_DIVIDER=32'd2_000_000;
@@ -160,10 +164,11 @@ always @(posedge clk, posedge rst) begin
     for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
   else if (phase == 2'd1) begin
     case (load)
-      2'd0: stack[0] <= stack[0];
-      2'd1: stack[0] <= stack[1];
-      2'd2: stack[0] <= alu_out;
-      2'd3: stack[0] <= byte_format(rd_data, byt, mem_addr & 1);
+      3'd0: stack[0] <= stack[0];
+      3'd1: stack[0] <= stack[1];
+      3'd2: stack[0] <= alu_out;
+      3'd3: stack[0] <= byte_format(rd_data, byt, mem_addr & 1);
+      3'd4: stack[0] <= { {16-`ADDR_WIDTH{1'b0}}, pc } + `ADDR_WIDTH'd2;
     endcase
 
     if (~pop & push)
@@ -213,8 +218,12 @@ always @(posedge clk, posedge rst) begin
   else if (phase == 2'd1)
     if ((jmp == 2'd1) ||
         (jmp == 2'd2 && stack[0] == 16'd0) ||
-        (jmp == 2'd3 && stack[0] != 16'd0))
-      pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
+        (jmp == 2'd3 && stack[0] != 16'd0)) begin
+      if (imm)
+        pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
+      else
+        pc <= alu_out;
+    end
     else
       pc <= pc + `ADDR_WIDTH'd2;
 end
@@ -264,31 +273,34 @@ begin
 end
 endfunction
 
-function [9:0] decode(input [15:0] insn);
+function [10:0] decode(input [15:0] insn);
 begin
   casex (insn[15:8])
-    //                        i l  rw pp j  b
-    //                        m o  dr ou m  y
-    //                        m a     ps p  t
-    //                          d      h
-    8'b0xxxxxxx: decode = 10'b1_10_00_01_00_0;
-    8'h81:       decode = 10'b0_01_00_10_00_0;
-    8'h82:       decode = 10'b0_00_00_01_00_0 | (insn[0] << 7);
-    8'h90:       decode = 10'b1_11_10_01_00_0;
-    8'h91:       decode = 10'b0_11_10_11_00_0;
-    8'h94:       decode = 10'b1_01_01_10_00_0;
-    8'h95:       decode = 10'b0_00_01_10_00_0;
-    8'h96:       decode = 10'b0_01_01_10_00_0;
-    8'h98:       decode = 10'b1_11_10_01_00_1;
-    8'h99:       decode = 10'b0_11_10_11_00_1;
-    8'h9c:       decode = 10'b1_01_01_10_00_1;
-    8'h9d:       decode = 10'b0_00_01_10_00_1;
-    8'h9e:       decode = 10'b0_01_01_10_00_1;
-    8'ha0:       decode = 10'b1_00_00_00_01_0;
-    8'ha1:       decode = 10'b1_01_00_10_10_0;
-    8'ha2:       decode = 10'b1_01_00_10_11_0;
-    8'hb0:       decode = 10'b0_10_00_10_00_0;
-    default:     decode = 10'd0;
+    //                        i  l  rw pp j  b
+    //                        m  o  dr ou m  y
+    //                        m  a     ps p  t
+    //                           d      h
+    8'b0xxxxxxx: decode = 11'b1_010_00_01_00_0;
+    8'h81:       decode = 11'b0_001_00_10_00_0;
+    8'h82:       decode = 11'b0_000_00_01_00_0 | {insn[0], 7'd0};
+    8'h90:       decode = 11'b1_011_10_01_00_0;
+    8'h91:       decode = 11'b0_011_10_11_00_0;
+    8'h94:       decode = 11'b1_001_01_10_00_0;
+    8'h95:       decode = 11'b0_000_01_10_00_0;
+    8'h96:       decode = 11'b0_001_01_10_00_0;
+    8'h98:       decode = 11'b1_011_10_01_00_1;
+    8'h99:       decode = 11'b0_011_10_11_00_1;
+    8'h9c:       decode = 11'b1_001_01_10_00_1;
+    8'h9d:       decode = 11'b0_000_01_10_00_1;
+    8'h9e:       decode = 11'b0_001_01_10_00_1;
+    8'ha0:       decode = 11'b1_000_00_00_01_0;
+    8'ha1:       decode = 11'b1_001_00_10_10_0;
+    8'ha2:       decode = 11'b1_001_00_10_11_0;
+    8'ha3:       decode = 11'b1_100_00_01_01_0;
+    8'ha4:       decode = 11'b0_000_00_10_01_0 | {~insn[0], 7'd0};
+    8'hb0:       decode = 11'b0_010_00_10_00_0;
+    8'hb1:       decode = 11'b0_010_00_11_00_0;
+    default:     decode = 11'd0;
   endcase
 end
 endfunction

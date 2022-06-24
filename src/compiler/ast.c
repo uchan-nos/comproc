@@ -24,14 +24,27 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   return n;
 }
 
+struct Node *Program() {
+  struct Node *head = FunctionDefinition();
+  struct Node *n = head;
+  while (n) {
+    n->next = FunctionDefinition();
+    n = n->next;
+  }
+  return head;
+}
+
 struct Node *FunctionDefinition() {
-  Expect(kTokenInt);
+  if (Consume(kTokenInt) == NULL) {
+    return NULL;
+  }
+
   struct Token *func_name = Expect(kTokenId);
   Expect('(');
   Expect(')');
   struct Node *body = Block();
 
-  struct Node *func_def = NewNode(kNodeFuncDef, func_name);
+  struct Node *func_def = NewNode(kNodeDefFunc, func_name);
   func_def->rhs = body;
   return func_def;
 }
@@ -350,6 +363,9 @@ struct Node *Postfix() {
     node = NewNodeBinOp(kNodeDeref, op, NULL,
                         NewNodeBinOp(kNodeAdd, op, node, Expression()));
     Expect(']');
+  } else if ((op = Consume('('))) {
+    node = NewNodeBinOp(kNodeCall, op, node, NULL);
+    Expect(')');
   }
 
   return node;
