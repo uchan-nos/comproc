@@ -19,8 +19,8 @@ enum NodeKind {
   kNodeRef,   // & exp
   kNodeDeref, // * exp
   kNodeLAnd,  // &&
-  kNodeString,// string literal
   kNodeLOr,   // ||
+  kNodeString,// string literal
   kNodeAnd,   // &
   kNodeXor,   // ^
   kNodeOr,    // |

@@ -45,22 +45,6 @@ int GenLabel(struct GenContext *ctx) {
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
-  case kNodeDefFunc:
-    {
-      struct Symbol *sym = NewSymbol(kSymFunc, node->token);
-      AppendSymbol(ctx->syms, sym);
-      printf("%.*s:\n", sym->name->len, sym->name->raw);
-      Generate(ctx, node->rhs, 0);
-    }
-    break;
-  case kNodeBlock:
-    for (struct Node *n = node->next; n; n = n->next) {
-      Generate(ctx, n, 0);
-      if (n->kind <= kNodeExprEnd) {
-        printf("pop\n");
-      }
-    }
-    break;
   case kNodeInteger:
     if ((node->token->value.as_int >> 15) == 0) {
       printf("push %d\n", node->token->value.as_int);
@@ -145,50 +129,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     node->type = node->lhs->type;
     break;
-  case kNodeReturn:
-    if (node->lhs) {
-      Generate(ctx, node->lhs, 0);
-      printf("ret 1\n");
-    } else {
-      printf("ret 0\n");
-    }
-    break;
-  case kNodeDefVar:
-    {
-      struct Symbol *sym = NewSymbol(kSymLVar, node->lhs->token);
-      sym->offset = ctx->lvar_offset;
-
-      assert(node->type);
-      sym->type = node->type;
-
-      ctx->lvar_offset += (SizeofType(sym->type) + 1) & ~((size_t)1);
-      AppendSymbol(ctx->syms, sym);
-
-      if (node->rhs) {
-        Generate(ctx, node->rhs, 0);
-        printf("st 0x%x\n", sym->offset);
-      }
-    }
-    break;
   case kNodeLT:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     printf("lt\n");
-    break;
-  case kNodeIf:
-    {
-      int label_else = node->rhs ? GenLabel(ctx) : -1;
-      int label_end = GenLabel(ctx);
-      Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", node->rhs ? label_else : label_end);
-      Generate(ctx, node->lhs, 0);
-      if (node->rhs) {
-        printf("jmp L_%d\n", label_end);
-        printf("L_%d:\n", label_else);
-        Generate(ctx, node->rhs, 0);
-      }
-      printf("L_%d:\n", label_end);
-    }
     break;
   case kNodeInc:
   case kNodeDec:
@@ -209,59 +153,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf("std.%d\n", (int)SizeofType(node->rhs->type));
       node->type = node->rhs->type;
     }
-    break;
-  case kNodeFor:
-    {
-      int label_cond = GenLabel(ctx);
-      int label_end = GenLabel(ctx);
-      int label_next = GenLabel(ctx);
-
-      struct JumpLabels old_labels = ctx->jump_labels;
-      ctx->jump_labels.lbreak = label_end;
-      ctx->jump_labels.lcontinue = label_next;
-
-      Generate(ctx, node->lhs, 0);
-      printf("pop\n");
-      printf("L_%d:\n", label_cond);
-      Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", label_end);
-      Generate(ctx, node->rhs, 0);
-      if (node->rhs->kind <= kNodeExprEnd) {
-        printf("pop\n");
-      }
-      printf("L_%d:\n", label_next);
-      Generate(ctx, node->lhs->next, 0);
-      printf("pop\n");
-      printf("jmp L_%d\n", label_cond);
-      printf("L_%d:\n", label_end);
-
-      ctx->jump_labels = old_labels;
-    }
-    break;
-  case kNodeWhile:
-    {
-      int label_cond = GenLabel(ctx);
-      int label_end = GenLabel(ctx);
-
-      struct JumpLabels old_labels = ctx->jump_labels;
-      ctx->jump_labels.lbreak = label_end;
-      ctx->jump_labels.lcontinue = label_cond;
-
-      printf("L_%d:\n", label_cond);
-      Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", label_end);
-      Generate(ctx, node->rhs, 0);
-      printf("jmp L_%d\n", label_cond);
-      printf("L_%d:\n", label_end);
-
-      ctx->jump_labels = old_labels;
-    }
-    break;
-  case kNodeBreak:
-    printf("jmp L_%d\n", ctx->jump_labels.lbreak);
-    break;
-  case kNodeContinue:
-    printf("jmp L_%d\n", ctx->jump_labels.lcontinue);
     break;
   case kNodeEq:
     Generate(ctx, node->rhs, 0);
@@ -360,6 +251,117 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeExprEnd:
+    fprintf(stderr, "kNodeExprEnd must not be used\n");
+    exit(1);
+    break;
+  case kNodeDefFunc:
+    {
+      struct Symbol *sym = NewSymbol(kSymFunc, node->token);
+      AppendSymbol(ctx->syms, sym);
+      printf("%.*s:\n", sym->name->len, sym->name->raw);
+      Generate(ctx, node->rhs, 0);
+    }
+    break;
+  case kNodeBlock:
+    for (struct Node *n = node->next; n; n = n->next) {
+      Generate(ctx, n, 0);
+      if (n->kind <= kNodeExprEnd) {
+        printf("pop\n");
+      }
+    }
+    break;
+  case kNodeReturn:
+    if (node->lhs) {
+      Generate(ctx, node->lhs, 0);
+      printf("ret 1\n");
+    } else {
+      printf("ret 0\n");
+    }
+    break;
+  case kNodeDefVar:
+    {
+      struct Symbol *sym = NewSymbol(kSymLVar, node->lhs->token);
+      sym->offset = ctx->lvar_offset;
+
+      assert(node->type);
+      sym->type = node->type;
+
+      ctx->lvar_offset += (SizeofType(sym->type) + 1) & ~((size_t)1);
+      AppendSymbol(ctx->syms, sym);
+
+      if (node->rhs) {
+        Generate(ctx, node->rhs, 0);
+        printf("st 0x%x\n", sym->offset);
+      }
+    }
+    break;
+  case kNodeIf:
+    {
+      int label_else = node->rhs ? GenLabel(ctx) : -1;
+      int label_end = GenLabel(ctx);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", node->rhs ? label_else : label_end);
+      Generate(ctx, node->lhs, 0);
+      if (node->rhs) {
+        printf("jmp L_%d\n", label_end);
+        printf("L_%d:\n", label_else);
+        Generate(ctx, node->rhs, 0);
+      }
+      printf("L_%d:\n", label_end);
+    }
+    break;
+  case kNodeFor:
+    {
+      int label_cond = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
+      int label_next = GenLabel(ctx);
+
+      struct JumpLabels old_labels = ctx->jump_labels;
+      ctx->jump_labels.lbreak = label_end;
+      ctx->jump_labels.lcontinue = label_next;
+
+      Generate(ctx, node->lhs, 0);
+      printf("pop\n");
+      printf("L_%d:\n", label_cond);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", label_end);
+      Generate(ctx, node->rhs, 0);
+      if (node->rhs->kind <= kNodeExprEnd) {
+        printf("pop\n");
+      }
+      printf("L_%d:\n", label_next);
+      Generate(ctx, node->lhs->next, 0);
+      printf("pop\n");
+      printf("jmp L_%d\n", label_cond);
+      printf("L_%d:\n", label_end);
+
+      ctx->jump_labels = old_labels;
+    }
+    break;
+  case kNodeWhile:
+    {
+      int label_cond = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
+
+      struct JumpLabels old_labels = ctx->jump_labels;
+      ctx->jump_labels.lbreak = label_end;
+      ctx->jump_labels.lcontinue = label_cond;
+
+      printf("L_%d:\n", label_cond);
+      Generate(ctx, node->cond, 0);
+      printf("jz L_%d\n", label_end);
+      Generate(ctx, node->rhs, 0);
+      printf("jmp L_%d\n", label_cond);
+      printf("L_%d:\n", label_end);
+
+      ctx->jump_labels = old_labels;
+    }
+    break;
+  case kNodeBreak:
+    printf("jmp L_%d\n", ctx->jump_labels.lbreak);
+    break;
+  case kNodeContinue:
+    printf("jmp L_%d\n", ctx->jump_labels.lcontinue);
     break;
   }
 }
