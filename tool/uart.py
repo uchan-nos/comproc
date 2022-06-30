@@ -39,7 +39,7 @@ def main():
     args = p.parse_args()
 
     bytes_to_send = hex_to_bytes(args.hex, args.unit, 'big')
-    ser = serial.Serial(args.dev, 9600, timeout=args.timeout,
+    ser = serial.Serial(args.dev, 115200, timeout=args.timeout,
                         bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                         stopbits=serial.STOPBITS_ONE)
 
