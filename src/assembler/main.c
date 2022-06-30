@@ -223,7 +223,15 @@ int main(void) {
                     pc, strdup(GET_STR(0)), BP_PC_REL8);
       insn[pc >> 1] = 0xa300;
     } else if (strcmp(mnemonic, "ret") == 0) {
-      insn[pc >> 1] = 0xa400 | (uint8_t)GET_LONG(0, BP_ABS8);
+      insn[pc >> 1] = 0xa400;
+    } else if (strcmp(mnemonic, "pushbp") == 0) {
+      insn[pc >> 1] = 0xc020;
+    } else if (strcmp(mnemonic, "popfp") == 0) {
+      insn[pc >> 1] = 0xc100;
+    } else if (strcmp(mnemonic, "enter") == 0) {
+      insn[pc >> 1] = 0xc221;
+    } else if (strcmp(mnemonic, "leave") == 0) {
+      insn[pc >> 1] = 0xc320;
     } else if (strcmp(mnemonic, "db") == 0) {
       pc += DataByte(&insn[pc >> 1], operands, num_opr);
       if (pc & 1) {

@@ -21,6 +21,7 @@ module cpu(
 a0h - afh   ジャンプ命令
 b0h - b0h   2 項算術論理演算
 b1h - b1h   単項算術論理演算
+c0h - cfh   スタックフレーム命令
 feh - ffh   無効命令
 
 
@@ -31,6 +32,8 @@ mnemonic    code  説明
 PUSH imm15  00h   imm15 を stack にプッシュ
 POP         81h   stack をポップ
 DUP 0/1     82h   stack[0/1] を stack にプッシュ
+CSPUSH      83h   cstack に stack[0] をプッシュ
+CSPOP imm8  84h   cstack から imm8 ワードをポップ
 LD imm8     90h   mem[imm8] から読んだ値を stack にプッシュ
 LDD         91h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
 ST imm8     94h   stack からポップした値を mem[imm8] に書く
@@ -45,25 +48,32 @@ STD.1       9eh   byte version
 JMP imm8    a0h   pc+imm8 にジャンプ
 JZ imm8     a1h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
-CALL imm8   a3h   stack に pc をプッシュし pc+imm8 ジャンプ
-RET 0/1     a4h   stack[0/1] からアドレスをポップし、ジャンプ
+CALL imm8   a3h   cstack に pc+2 をプッシュし pc+imm8 ジャンプ
+RET         a4h   cstack からアドレスをポップし、ジャンプ
+PUSHBP      c020h bp を stack にプッシュ
+POPFP       c1h   stack から値をポップし fp に書く
+ENTER       c221h bp を mem[fp] に書き、bp に fp を書く
+LEAVE       c320h fp に bp を書き、bp に mem[bp] を書く
 
 
 制御線の構成
 
-名前  説明
+名前    説明
 -----------------------
-imm   0: insn[7:0] は ALU 機能選択
-      1: insn[7:0] は即値
-load  演算用スタックの先頭にロードする値の選択
-      0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data,
-      4: pc+2
-rd    メモリ読み込み
-wr    メモリ書き込み
-pop   演算用スタックから値をポップ
-push  演算用スタックに値をプッシュ
-jmp   ジャンプ条件
-      0: ジャンプしない, 1: 無条件, 2: stack[0] == 0, 3: stack[0] != 0
+imm     0: insn[7:0] は ALU 機能選択
+        1: insn[7:0] は即値
+load    演算用スタックの先頭にロードする値の選択
+        0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
+rd      メモリ読み込み
+wr      メモリ書き込み
+pop     演算用スタックから値をポップ
+push    演算用スタックに値をプッシュ
+jmp     ジャンプ条件
+        0: ジャンプしない, 1: 無条件, 2: stack[0] == 0, 3: stack[0] != 0
+load_cs コールスタックの先頭にロードする値の選択
+        0: stack[0], 1: pc+2
+pop_cs  コールスタックから値をポップ
+push_cs コールスタックに値をプッシュ
 
 imm8=insn[7:0] 即値、ALU 機能選択
 
@@ -88,6 +98,7 @@ ALU 機能
 14h   SHR   stack[0] >> stack[1]
 15h   SHL   stack[0] << stack[1]
 16h   SAR   stack[0] >> stack[1] (符号付きシフト)
+20h         BP
 
 
 メモリマップ
@@ -128,13 +139,32 @@ mem_wr  ____~~________________
 1->2  メモリ書き込み、PC 更新、演算スタック更新
 2->3  メモリ読み込み（命令）
 */
+
+/* メモリとスタックフレーム
+         mem               mem
+      |        |  fp -> | local  |
+      |        |        |   vars |
+      |        |        | arg n  |
+      |        |        | ...    |
+      |        |        | arg 2  |
+      |        |        | arg 1  |
+fp -> |        |  bp -> | old bp |
+      | stack  |        | stack  |
+      |  frame |        |  frame |
+bp -> | old bp |        | old bp |
+
+関数呼び出しによるスタックフレームの変化
+*/
 logic [1:0] phase;
 logic [15:0] alu_out;
 logic [15:0] insn;
 logic [`ADDR_WIDTH-1:0] pc;
+logic [15:0] cstack[0:255]; // call stack
+logic [7:0] cstack_ptr;
+logic [15:0] bp, fp;
 
-logic imm, rd, wr, pop, push, byt;
-logic [2:0] load;
+logic imm, rd, wr, pop, push, byt, load_cs, pop_cs, push_cs;
+logic [1:0] load;
 logic [1:0] jmp;
 logic [7:0] imm8;
 
@@ -142,7 +172,7 @@ logic [7:0] imm8;
 localparam CLK_DIVIDER=32'd1;
 logic [31:0] clk_div;
 
-assign {imm, load, rd, wr, pop, push, jmp, byt} = decode(insn);
+assign {imm, load, rd, wr, pop, push, jmp, byt, load_cs, pop_cs, push_cs} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, insn, stack[0], stack[1]);
@@ -178,6 +208,20 @@ always @(posedge clk, posedge rst) begin
   end
 end
 
+// コールスタックを更新
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    cstack_ptr <= 8'hff;
+  else if (phase == 2'd1) begin
+    if (pop_cs)
+      cstack_ptr <= cstack_ptr - 8'd1;
+    if (push_cs) begin
+      cstack[(cstack_ptr + 8'd1) & 8'hff] <= pc + 16'd2;
+      cstack_ptr <= cstack_ptr + 8'd1;
+    end
+  end
+end
+
 // メモリ書き込み命令だったら mem_wr を有効化する
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -193,10 +237,13 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 16'd0;
   else if (phase == 2'd0)
-    if (byt)
-      wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
+    if (insn[15:8] == 8'hc2)
+      wr_data = bp;
     else
-      wr_data <= imm ? stack[0] : stack[1];
+      if (byt)
+        wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
+      else
+        wr_data <= imm ? stack[0] : stack[1];
 end
 
 // 命令実行フェーズを更新
@@ -222,10 +269,32 @@ always @(posedge clk, posedge rst) begin
       if (imm)
         pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
       else
-        pc <= alu_out;
+        pc <= cstack[cstack_ptr];
     end
     else
       pc <= pc + `ADDR_WIDTH'd2;
+end
+
+// スタックフレーム BP 制御
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    bp <= 16'd0;
+  else if (phase == 2'd1)
+    if (insn[15:8] == 8'hc2) // ENTER
+      bp <= fp;
+    else if (insn[15:8] == 8'hc3) // LEAVE
+      bp <= rd_data;
+end
+
+// スタックフレーム FP 制御
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    fp <= 16'd0;
+  else if (phase == 2'd1)
+    if (insn[15:8] == 8'hc1) // POPFP
+      fp <= stack[0];
+    else if (insn[15:8] == 8'hc3) // LEAVE
+      fp <= bp;
 end
 
 always @(posedge clk, posedge rst) begin
@@ -269,38 +338,47 @@ begin
       8'h14: alu = stack0 >> stack1;
       8'h15: alu = stack0 << stack1;
       8'h16: alu = shiftr_signed(stack0, stack1[3:0]);
+      8'h20: alu = bp;
+      8'h21: alu = fp;
     endcase
 end
 endfunction
 
-function [10:0] decode(input [15:0] insn);
+function [12:0] decode(input [15:0] insn);
 begin
   casex (insn[15:8])
-    //                        i  l  rw pp j  b
-    //                        m  o  dr ou m  y
-    //                        m  a     ps p  t
-    //                           d      h
-    8'b0xxxxxxx: decode = 11'b1_010_00_01_00_0;
-    8'h81:       decode = 11'b0_001_00_10_00_0;
-    8'h82:       decode = 11'b0_000_00_01_00_0 | {insn[0], 7'd0};
-    8'h90:       decode = 11'b1_011_10_01_00_0;
-    8'h91:       decode = 11'b0_011_10_11_00_0;
-    8'h94:       decode = 11'b1_001_01_10_00_0;
-    8'h95:       decode = 11'b0_000_01_10_00_0;
-    8'h96:       decode = 11'b0_001_01_10_00_0;
-    8'h98:       decode = 11'b1_011_10_01_00_1;
-    8'h99:       decode = 11'b0_011_10_11_00_1;
-    8'h9c:       decode = 11'b1_001_01_10_00_1;
-    8'h9d:       decode = 11'b0_000_01_10_00_1;
-    8'h9e:       decode = 11'b0_001_01_10_00_1;
-    8'ha0:       decode = 11'b1_000_00_00_01_0;
-    8'ha1:       decode = 11'b1_001_00_10_10_0;
-    8'ha2:       decode = 11'b1_001_00_10_11_0;
-    8'ha3:       decode = 11'b1_100_00_01_01_0;
-    8'ha4:       decode = 11'b0_000_00_10_01_0 | {~insn[0], 7'd0};
-    8'hb0:       decode = 11'b0_010_00_10_00_0;
-    8'hb1:       decode = 11'b0_010_00_11_00_0;
-    default:     decode = 11'd0;
+    //                                        |cs|
+    //                        i l  rw pp j  b l pp
+    //                        m o  dr ou m  y o ou
+    //                        m a     ps p  t a ps
+    //                          d      h      d  h
+    8'b0xxxxxxx: decode = 13'b1_10_00_01_00_0_0_00;
+    8'h81:       decode = 13'b0_01_00_10_00_0_0_00;
+    8'h82:       decode = 13'b0_00_00_01_00_0_0_00 | {insn[0], 10'd0};
+    8'h83:       decode = 13'b0_00_00_00_00_0_0_01;
+    8'h84:       decode = 13'b1_00_00_00_00_0_0_10;
+    8'h90:       decode = 13'b1_11_10_01_00_0_0_00;
+    8'h91:       decode = 13'b0_11_10_11_00_0_0_00;
+    8'h94:       decode = 13'b1_01_01_10_00_0_0_00;
+    8'h95:       decode = 13'b0_00_01_10_00_0_0_00;
+    8'h96:       decode = 13'b0_01_01_10_00_0_0_00;
+    8'h98:       decode = 13'b1_11_10_01_00_1_0_00;
+    8'h99:       decode = 13'b0_11_10_11_00_1_0_00;
+    8'h9c:       decode = 13'b1_01_01_10_00_1_0_00;
+    8'h9d:       decode = 13'b0_00_01_10_00_1_0_00;
+    8'h9e:       decode = 13'b0_01_01_10_00_1_0_00;
+    8'ha0:       decode = 13'b1_00_00_00_01_0_0_00;
+    8'ha1:       decode = 13'b1_01_00_10_10_0_0_00;
+    8'ha2:       decode = 13'b1_01_00_10_11_0_0_00;
+    8'ha3:       decode = 13'b1_00_00_00_01_0_1_01;
+    8'ha4:       decode = 13'b0_00_00_00_01_0_0_10;
+    8'hb0:       decode = 13'b0_10_00_10_00_0_0_00;
+    8'hb1:       decode = 13'b0_10_00_11_00_0_0_00;
+    8'hc0:       decode = 13'b0_10_00_01_00_0_0_00;
+    8'hc1:       decode = 13'b0_01_00_10_00_0_0_00;
+    8'hc2:       decode = 13'b0_00_01_00_00_0_0_00;
+    8'hc3:       decode = 13'b0_00_10_00_00_0_0_00;
+    default:     decode = 13'd0;
   endcase
 end
 endfunction

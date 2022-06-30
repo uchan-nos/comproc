@@ -41,11 +41,13 @@ struct Node *FunctionDefinition() {
 
   struct Token *func_name = Expect(kTokenId);
   Expect('(');
+  struct Node *params = ParameterList();
   Expect(')');
   struct Node *body = Block();
 
   struct Node *func_def = NewNode(kNodeDefFunc, func_name);
   func_def->rhs = body;
+  func_def->cond = params;
   return func_def;
 }
 
@@ -74,25 +76,10 @@ struct Node *Block() {
 }
 
 struct Node *Declaration() {
-  struct Token *token;
-  struct Type *type = NULL;
+  struct Node *tspec = TypeSpec();
 
-  if ((token = Consume(kTokenInt))) {
-    type = NewType(kTypeInt);
-  } else if ((token = Consume(kTokenChar))) {
-    type = NewType(kTypeChar);
-  }
-
-  if (!type) {
+  if (!tspec) {
     return NULL;
-  }
-
-  struct Node *def = NewNode(kNodeDefVar, token);
-
-  if (Consume('*')) {
-    struct Type *t = NewType(kTypePtr);
-    t->base = type;
-    type = t;
   }
 
   struct Token *id = Expect(kTokenId);
@@ -101,6 +88,8 @@ struct Node *Declaration() {
     Locate(id->raw);
     exit(1);
   }
+  struct Node *def = NewNode(kNodeDefVar, tspec->token);
+  def->type = tspec->type;
   def->lhs = NewNode(kNodeId, id);
 
   if (Consume('[')) {
@@ -108,11 +97,9 @@ struct Node *Declaration() {
     Expect(']');
     struct Type *t = NewType(kTypeArray);
     t->len = len->value.as_int;
-    t->base = type;
-    type = t;
+    t->base = def->type;
+    def->type = t;
   }
-
-  def->type = type;
 
   if (Consume('=')) {
     def->rhs = Expression();
@@ -365,7 +352,15 @@ struct Node *Postfix() {
     Expect(']');
   } else if ((op = Consume('('))) {
     node = NewNodeBinOp(kNodeCall, op, node, NULL);
-    Expect(')');
+    if (!Consume(')')) {
+      node->rhs = Expression();
+      struct Node *arg = node->rhs;
+      while (Consume(',')) {
+        arg->next = Expression();
+        arg = arg->next;
+      }
+      Expect(')');
+    }
   }
 
   return node;
@@ -398,4 +393,51 @@ struct Node *Primary() {
   }
 
   return node;
+}
+
+struct Node *TypeSpec() {
+  struct Type *type = NULL;
+  struct Token *token;
+
+  if ((token = Consume(kTokenInt))) {
+    type = NewType(kTypeInt);
+  } else if ((token = Consume(kTokenChar))) {
+    type = NewType(kTypeChar);
+  }
+
+  if (!type) {
+    return NULL;
+  }
+
+  if (Consume('*')) {
+    struct Type *t = NewType(kTypePtr);
+    t->base = type;
+    type = t;
+  }
+
+  struct Node *tspec = NewNode(kNodeTypeSpec, token);
+  tspec->type = type;
+  return tspec;
+}
+
+struct Node *ParameterList() {
+  struct Node *tspec = TypeSpec();
+  if (!tspec) {
+    return NULL;
+  }
+
+  struct Node *param = NewNode(kNodePList, tspec->token);
+  param->type = tspec->type;
+  param->lhs = NewNode(kNodeId, Expect(kTokenId));
+  struct Node *plist = param;
+
+  while (Consume(',')) {
+    tspec = TypeSpec();
+    struct Node *p = NewNode(kNodePList, tspec->token);
+    p->type = tspec->type;
+    p->lhs = NewNode(kNodeId, Expect(kTokenId));
+    param->next = p;
+    param = param->next;
+  }
+  return plist;
 }

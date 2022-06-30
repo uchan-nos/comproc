@@ -21,7 +21,7 @@ string uart_out_file = "";
 integer uart_out = 0;
 integer uart_eot = 0;
 logic [15:0] uart_in[0:255];
-logic [4:0][7:0] insn_name;
+logic [5:0][7:0] insn_name;
 integer uart_index;
 
 initial begin
@@ -39,9 +39,10 @@ initial begin
     uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x.%d %04x %-5s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..}",
+  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} cs{%02x %02x %02x ..} csp=%02x bp=%04x fp=%04x",
            $time, rst, cpu.pc, cpu.phase, cpu.insn, insn_name, mem_addr, rd_data, wr_data_mon, cpu.alu_out,
-           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3]);
+           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3],
+           cpu.cstack[0], cpu.cstack[1], cpu.cstack[2], cpu.cstack_ptr, cpu.bp, cpu.fp);
 
   // 各信号の初期値
   rst <= 1;
@@ -113,26 +114,30 @@ always @(posedge clk) begin
         default: insn_name <= "UNDEF";
       endcase
     else
-      casex (cpu.insn[15:8])
-        8'b0xxxxxxx: insn_name <= "push";
-        8'h81:       insn_name <= "pop";
-        8'h82:       insn_name <= "dup";
-        8'h90:       insn_name <= "ld";
-        8'h91:       insn_name <= "ldd";
-        8'h94:       insn_name <= "st";
-        8'h95:       insn_name <= "sta";
-        8'h96:       insn_name <= "std";
-        8'h98:       insn_name <= "ld.1";
-        8'h99:       insn_name <= "ldd.1";
-        8'h9c:       insn_name <= "st.1";
-        8'h9d:       insn_name <= "sta.1";
-        8'h9e:       insn_name <= "std.1";
-        8'ha0:       insn_name <= "jmp";
-        8'ha1:       insn_name <= "jz";
-        8'ha2:       insn_name <= "jnz";
-        8'ha3:       insn_name <= "call";
-        8'ha4:       insn_name <= "ret";
-        default:     insn_name <= "UNDEF";
+      casex (cpu.insn)
+        16'b0xxxxxxx_xxxxxxxx: insn_name <= "push";
+        16'h81xx:              insn_name <= "pop";
+        16'h82xx:              insn_name <= "dup";
+        16'h90xx:              insn_name <= "ld";
+        16'h91xx:              insn_name <= "ldd";
+        16'h94xx:              insn_name <= "st";
+        16'h95xx:              insn_name <= "sta";
+        16'h96xx:              insn_name <= "std";
+        16'h98xx:              insn_name <= "ld.1";
+        16'h99xx:              insn_name <= "ldd.1";
+        16'h9cxx:              insn_name <= "st.1";
+        16'h9dxx:              insn_name <= "sta.1";
+        16'h9exx:              insn_name <= "std.1";
+        16'ha0xx:              insn_name <= "jmp";
+        16'ha1xx:              insn_name <= "jz";
+        16'ha2xx:              insn_name <= "jnz";
+        16'ha3xx:              insn_name <= "call";
+        16'ha4xx:              insn_name <= "ret";
+        16'hc020:              insn_name <= "pushbp";
+        16'hc1xx:              insn_name <= "popfp";
+        16'hc221:              insn_name <= "enter";
+        16'hc320:              insn_name <= "leave";
+        default:               insn_name <= "UNDEF";
       endcase
   end
 end

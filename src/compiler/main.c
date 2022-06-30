@@ -32,7 +32,7 @@ struct JumpLabels {
 
 struct GenContext {
   struct Symbol *syms;
-  uint16_t lvar_offset;
+  int lvar_offset;
   int num_label;
   int num_strings;
   struct Token *strings[4];
@@ -72,12 +72,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
                       sym->name->len, sym->name->raw);
               exit(1);
             }
+            printf("pushbp\n");
             printf("push 0x%x\n", sym->offset);
+            printf("add\n");
           } else {
-            printf("%s 0x%x\n", lval ? "push" : "ld", sym->offset);
-            if (SizeofType(sym->type) == 1) {
-              printf("push 0xff\n");
-              printf("and\n");
+            printf("pushbp\n");
+            printf("push 0x%x\n", sym->offset);
+            printf("add\n");
+            if (!lval) {
+              if (SizeofType(sym->type) == 1) {
+                printf("ldd.1\n");
+              } else {
+                printf("ldd\n");
+              }
             }
           }
           break;
@@ -242,12 +249,27 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     printf("%s\n", node->kind == kNodeRShift ? "sar" : "shl");
     break;
   case kNodeCall:
-    if (node->lhs->kind == kNodeId) {
-      printf("call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
-    } else {
-      fprintf(stderr, "not implemented call of non-id expression\n");
-      Locate(node->lhs->token->raw);
-      exit(1);
+    {
+      struct Node *args[10];
+      int num_args = 0;
+      for (struct Node *arg = node->rhs; arg; arg = arg->next) {
+        if (num_args >= 10) {
+          fprintf(stderr, "the number of arguments must be < 10\n");
+          Locate(arg->token->raw);
+          exit(1);
+        }
+        args[num_args++] = arg;
+      }
+      for (int i = 0; i < num_args; i++) {
+        Generate(ctx, args[num_args - 1 - i], 0);
+      }
+      if (node->lhs->kind == kNodeId) {
+        printf("call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
+      } else {
+        fprintf(stderr, "not implemented call of non-id expression\n");
+        Locate(node->lhs->token->raw);
+        exit(1);
+      }
     }
     break;
   case kNodeExprEnd:
@@ -256,9 +278,28 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeDefFunc:
     {
-      struct Symbol *sym = NewSymbol(kSymFunc, node->token);
-      AppendSymbol(ctx->syms, sym);
-      printf("%.*s:\n", sym->name->len, sym->name->raw);
+      struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
+      AppendSymbol(ctx->syms, func_sym);
+      printf("%.*s:\n", func_sym->name->len, func_sym->name->raw);
+      printf("enter\n");
+      for (struct Node *param = node->cond; param; param = param->next) {
+        struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
+        sym->offset = ctx->lvar_offset;
+        sym->type = param->type;
+        assert(sym->type);
+        AppendSymbol(ctx->syms, sym);
+        printf("pushbp\n");
+        printf("push 0x%x\n", sym->offset);
+        printf("add\n");
+        printf("std\n");
+        printf("pop\n");
+        ctx->lvar_offset += 2;
+      }
+      printf("pushbp\n");
+      printf("push 0x%x\n", ctx->lvar_offset);
+      printf("add\n");
+      printf("popfp\n");
+      ctx->lvar_offset = 2;
       Generate(ctx, node->rhs, 0);
     }
     break;
@@ -273,10 +314,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeReturn:
     if (node->lhs) {
       Generate(ctx, node->lhs, 0);
-      printf("ret 1\n");
-    } else {
-      printf("ret 0\n");
     }
+    printf("leave\n");
+    printf("ret\n");
     break;
   case kNodeDefVar:
     {
@@ -291,7 +331,15 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
-        printf("st 0x%x\n", sym->offset);
+        printf("pushbp\n");
+        printf("push 0x%x\n", sym->offset);
+        printf("add\n");
+        if (SizeofType(sym->type) == 1) {
+          printf("sta.1\n");
+        } else {
+          printf("sta\n");
+        }
+        printf("popfp\n");
       }
     }
     break;
@@ -363,6 +411,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeContinue:
     printf("jmp L_%d\n", ctx->jump_labels.lcontinue);
     break;
+  case kNodeTypeSpec:
+  case kNodePList:
+    break;
   }
 }
 
@@ -378,6 +429,8 @@ int main(void) {
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}, {-1, -1}
   };
+  printf("push 0x20\n");
+  printf("popfp\n");
   printf("call main\n");
   printf("st 2\n");
   printf("fin:\n");
