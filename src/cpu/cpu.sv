@@ -272,19 +272,6 @@ always @(posedge clk, posedge rst) begin
       bp <= rd_data;
 end
 
-// スタックフレーム BP 制御
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    bp <= `ADDR_WIDTH'd0;
-  else if (phase == 2'd1)
-    case (load_fp)
-      2'd0: fp <= fp;
-      2'd1: fp <= fp + `ADDR_WIDTH'd2;
-      2'd2: fp <= fp - `ADDR_WIDTH'd2;
-      2'd3: fp <= alu_out;
-    endcase
-end
-
 // スタックフレーム FP 制御
 always @(posedge clk, posedge rst) begin
   if (rst)
