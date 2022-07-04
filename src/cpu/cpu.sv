@@ -32,8 +32,6 @@ mnemonic    code  説明
 PUSH imm15  00h   imm15 を stack にプッシュ
 POP         81h   stack をポップ
 DUP 0/1     82h   stack[0/1] を stack にプッシュ
-CSPUSH      83h   cstack に stack[0] をプッシュ
-CSPOP imm8  84h   cstack から imm8 ワードをポップ
 LD imm8     90h   mem[imm8] から読んだ値を stack にプッシュ
 LDD         91h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
 ST imm8     94h   stack からポップした値を mem[imm8] に書く
@@ -48,10 +46,10 @@ STD.1       9eh   byte version
 JMP imm8    a0h   pc+imm8 にジャンプ
 JZ imm8     a1h   stack から値をポップし、0 なら pc+imm8 にジャンプ
 JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
-CALL imm8   a3h   cstack に pc+2 をプッシュし pc+imm8 ジャンプ
-RET         a4h   cstack からアドレスをポップし、ジャンプ
+CALL imm8   a3h   コールスタックに pc+2 をプッシュし、pc+imm8 にジャンプ
+RET         a4h   コールスタックからアドレスをポップし、ジャンプ
 PUSHBP      c020h bp を stack にプッシュ
-POPFP       c1h   stack から値をポップし fp に書く
+POPFP       c100h stack から値をポップし fp に書く
 ENTER       c221h bp を mem[fp] に書き、bp に fp を書く
 LEAVE       c320h fp に bp を書き、bp に mem[bp] を書く
 
@@ -70,10 +68,10 @@ pop     演算用スタックから値をポップ
 push    演算用スタックに値をプッシュ
 jmp     ジャンプ条件
         0: ジャンプしない, 1: 無条件, 2: stack[0] == 0, 3: stack[0] != 0
-load_cs コールスタックの先頭にロードする値の選択
-        0: stack[0], 1: pc+2
-pop_cs  コールスタックから値をポップ
-push_cs コールスタックに値をプッシュ
+load_bp bp にロードする値の選択
+        0/1: bp, 2: rd_data, 3: alu_out
+load_fp fp にロードする値の選択
+        0: fp, 1: fp+2, 2: fp-2, 3: alu_out
 
 imm8=insn[7:0] 即値、ALU 機能選択
 
@@ -141,17 +139,17 @@ mem_wr  ____~~________________
 */
 
 /* メモリとスタックフレーム
-         mem               mem
-      |        |  fp -> | local  |
-      |        |        |   vars |
-      |        |        | arg n  |
-      |        |        | ...    |
-      |        |        | arg 2  |
-      |        |        | arg 1  |
-fp -> |        |  bp -> | old bp |
-      | stack  |        | stack  |
-      |  frame |        |  frame |
-bp -> | old bp |        | old bp |
+          mem                 mem                 mem
+bp -> |  old bp  |        |  old bp  |        |  old bp  |
+      | stack    |        | stack    |        | stack    |
+      |    frame |        |    frame |        |    frame |
+fp -> |          |  bp=   | ret addr |        | ret addr |
+      |          |  fp -> |  old bp  |  bp -> |  old bp  |
+      |          |        |          |        | local    |
+      |          |        |          |        |    vars  |
+      |          |        |          |  fp -> |          |
+
+        初期状態          CALL & ENTER     ローカル変数の配置
 
 関数呼び出しによるスタックフレームの変化
 */
@@ -159,24 +157,24 @@ logic [1:0] phase;
 logic [15:0] alu_out;
 logic [15:0] insn;
 logic [`ADDR_WIDTH-1:0] pc;
-logic [15:0] cstack[0:255]; // call stack
-logic [7:0] cstack_ptr;
-logic [15:0] bp, fp;
+logic [`ADDR_WIDTH-1:0] bp, fp;
 
-logic imm, rd, wr, pop, push, byt, load_cs, pop_cs, push_cs;
+logic imm, rd, wr, pop, push, byt;
 logic [1:0] load;
 logic [1:0] jmp;
 logic [7:0] imm8;
+logic [1:0] load_bp, load_fp;
 
 //localparam CLK_DIVIDER=32'd2_000_000;
 localparam CLK_DIVIDER=32'd1;
 logic [31:0] clk_div;
 
-assign {imm, load, rd, wr, pop, push, jmp, byt, load_cs, pop_cs, push_cs} = decode(insn);
+assign {imm, load, rd, wr, pop, push, jmp, byt, load_bp, load_fp} = decode(insn);
 assign imm8 = insn[7:0];
 
 assign alu_out = alu(imm, insn, stack[0], stack[1]);
-assign mem_addr = (phase <= 2'd1) ? alu_out[`ADDR_WIDTH-1:0] : pc;
+assign mem_addr = (phase <= 2'd1) ?
+  (insn[15:8] == 8'ha3 ? fp : (insn[15:8] == 8'ha4 ? fp - 2 : alu_out[`ADDR_WIDTH-1:0])) : pc;
 
 integer i;
 
@@ -208,20 +206,6 @@ always @(posedge clk, posedge rst) begin
   end
 end
 
-// コールスタックを更新
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    cstack_ptr <= 8'hff;
-  else if (phase == 2'd1) begin
-    if (pop_cs)
-      cstack_ptr <= cstack_ptr - 8'd1;
-    if (push_cs) begin
-      cstack[(cstack_ptr + 8'd1) & 8'hff] <= pc + 16'd2;
-      cstack_ptr <= cstack_ptr + 8'd1;
-    end
-  end
-end
-
 // メモリ書き込み命令だったら mem_wr を有効化する
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -237,8 +221,10 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     wr_data <= 16'd0;
   else if (phase == 2'd0)
-    if (insn[15:8] == 8'hc2)
-      wr_data = bp;
+    if (insn[15:8] == 8'hc2) // ENTER
+      wr_data <= bp;
+    else if (insn[15:8] == 8'ha3) // CALL
+      wr_data <= pc + `ADDR_WIDTH'd2;
     else
       if (byt)
         wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
@@ -269,7 +255,7 @@ always @(posedge clk, posedge rst) begin
       if (imm)
         pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
       else
-        pc <= cstack[cstack_ptr];
+        pc <= rd_data;
     end
     else
       pc <= pc + `ADDR_WIDTH'd2;
@@ -286,15 +272,30 @@ always @(posedge clk, posedge rst) begin
       bp <= rd_data;
 end
 
+// スタックフレーム BP 制御
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    bp <= `ADDR_WIDTH'd0;
+  else if (phase == 2'd1)
+    case (load_fp)
+      2'd0: fp <= fp;
+      2'd1: fp <= fp + `ADDR_WIDTH'd2;
+      2'd2: fp <= fp - `ADDR_WIDTH'd2;
+      2'd3: fp <= alu_out;
+    endcase
+end
+
 // スタックフレーム FP 制御
 always @(posedge clk, posedge rst) begin
   if (rst)
-    fp <= 16'd0;
+    fp <= `ADDR_WIDTH'd0;
   else if (phase == 2'd1)
-    if (insn[15:8] == 8'hc1) // POPFP
-      fp <= stack[0];
-    else if (insn[15:8] == 8'hc3) // LEAVE
-      fp <= bp;
+    case (load_fp)
+      2'd0: fp <= fp;
+      2'd1: fp <= fp + `ADDR_WIDTH'd2;
+      2'd2: fp <= fp - `ADDR_WIDTH'd2;
+      2'd3: fp <= alu_out;
+    endcase
 end
 
 always @(posedge clk, posedge rst) begin
@@ -344,41 +345,38 @@ begin
 end
 endfunction
 
-function [12:0] decode(input [15:0] insn);
+function [13:0] decode(input [15:0] insn);
 begin
   casex (insn[15:8])
-    //                                        |cs|
-    //                        i l  rw pp j  b l pp
-    //                        m o  dr ou m  y o ou
-    //                        m a     ps p  t a ps
-    //                          d      h      d  h
-    8'b0xxxxxxx: decode = 13'b1_10_00_01_00_0_0_00;
-    8'h81:       decode = 13'b0_01_00_10_00_0_0_00;
-    8'h82:       decode = 13'b0_00_00_01_00_0_0_00 | {insn[0], 10'd0};
-    8'h83:       decode = 13'b0_00_00_00_00_0_0_01;
-    8'h84:       decode = 13'b1_00_00_00_00_0_0_10;
-    8'h90:       decode = 13'b1_11_10_01_00_0_0_00;
-    8'h91:       decode = 13'b0_11_10_11_00_0_0_00;
-    8'h94:       decode = 13'b1_01_01_10_00_0_0_00;
-    8'h95:       decode = 13'b0_00_01_10_00_0_0_00;
-    8'h96:       decode = 13'b0_01_01_10_00_0_0_00;
-    8'h98:       decode = 13'b1_11_10_01_00_1_0_00;
-    8'h99:       decode = 13'b0_11_10_11_00_1_0_00;
-    8'h9c:       decode = 13'b1_01_01_10_00_1_0_00;
-    8'h9d:       decode = 13'b0_00_01_10_00_1_0_00;
-    8'h9e:       decode = 13'b0_01_01_10_00_1_0_00;
-    8'ha0:       decode = 13'b1_00_00_00_01_0_0_00;
-    8'ha1:       decode = 13'b1_01_00_10_10_0_0_00;
-    8'ha2:       decode = 13'b1_01_00_10_11_0_0_00;
-    8'ha3:       decode = 13'b1_00_00_00_01_0_1_01;
-    8'ha4:       decode = 13'b0_00_00_00_01_0_0_10;
-    8'hb0:       decode = 13'b0_10_00_10_00_0_0_00;
-    8'hb1:       decode = 13'b0_10_00_11_00_0_0_00;
-    8'hc0:       decode = 13'b0_10_00_01_00_0_0_00;
-    8'hc1:       decode = 13'b0_01_00_10_00_0_0_00;
-    8'hc2:       decode = 13'b0_00_01_00_00_0_0_00;
-    8'hc3:       decode = 13'b0_00_10_00_00_0_0_00;
-    default:     decode = 13'd0;
+    //                        i l  rw pp j  b b  f
+    //                        m o  dr ou m  y p  p
+    //                        m a     ps p  t
+    //                          d      h
+    8'b0xxxxxxx: decode = 14'b1_10_00_01_00_0_00_00;
+    8'h81:       decode = 14'b0_01_00_10_00_0_00_00;
+    8'h82:       decode = 14'b0_00_00_01_00_0_00_00 | {insn[0], 11'd0};
+    8'h90:       decode = 14'b1_11_10_01_00_0_00_00;
+    8'h91:       decode = 14'b0_11_10_11_00_0_00_00;
+    8'h94:       decode = 14'b1_01_01_10_00_0_00_00;
+    8'h95:       decode = 14'b0_00_01_10_00_0_00_00;
+    8'h96:       decode = 14'b0_01_01_10_00_0_00_00;
+    8'h98:       decode = 14'b1_11_10_01_00_1_00_00;
+    8'h99:       decode = 14'b0_11_10_11_00_1_00_00;
+    8'h9c:       decode = 14'b1_01_01_10_00_1_00_00;
+    8'h9d:       decode = 14'b0_00_01_10_00_1_00_00;
+    8'h9e:       decode = 14'b0_01_01_10_00_1_00_00;
+    8'ha0:       decode = 14'b1_00_00_00_01_0_00_00;
+    8'ha1:       decode = 14'b1_01_00_10_10_0_00_00;
+    8'ha2:       decode = 14'b1_01_00_10_11_0_00_00;
+    8'ha3:       decode = 14'b1_00_01_00_01_0_00_01;
+    8'ha4:       decode = 14'b0_00_10_00_01_0_00_10;
+    8'hb0:       decode = 14'b0_10_00_10_00_0_00_00;
+    8'hb1:       decode = 14'b0_10_00_11_00_0_00_00;
+    8'hc0:       decode = 14'b0_10_00_01_00_0_00_00;
+    8'hc1:       decode = 14'b0_01_00_10_00_0_00_11;
+    8'hc2:       decode = 14'b0_00_01_00_00_0_11_00;
+    8'hc3:       decode = 14'b0_00_10_00_00_0_10_11;
+    default:     decode = 14'd0;
   endcase
 end
 endfunction

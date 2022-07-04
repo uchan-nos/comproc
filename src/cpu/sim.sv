@@ -39,10 +39,9 @@ initial begin
     uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} cs{%02x %02x %02x ..} csp=%02x bp=%04x fp=%04x",
+  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} bp=%04x fp=%04x",
            $time, rst, cpu.pc, cpu.phase, cpu.insn, insn_name, mem_addr, rd_data, wr_data_mon, cpu.alu_out,
-           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3],
-           cpu.cstack[0], cpu.cstack[1], cpu.cstack[2], cpu.cstack_ptr, cpu.bp, cpu.fp);
+           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3], cpu.bp, cpu.fp);
 
   // 各信号の初期値
   rst <= 1;
