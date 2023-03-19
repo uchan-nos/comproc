@@ -3,6 +3,10 @@
 target=${TARGET:-sim}
 uart_dev="${UART_DEV:-/dev/ttyUSB0}"
 
+echo Testing with TARGET=$target. Target list:
+echo "  sim   Simulation"
+echo "  uart  Using real CPU"
+
 make -C ../compiler
 make -C ../assembler
 make -C ../cpu sim.exe
