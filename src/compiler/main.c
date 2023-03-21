@@ -432,7 +432,7 @@ int main(void) {
   printf("push 0x20\n");
   printf("popfp\n");
   printf("call main\n");
-  printf("st 2\n");
+  printf("st 0x1e\n");
   printf("fin:\n");
   printf("jmp fin\n");
   for (struct Node *n = ast; n; n = n->next) {

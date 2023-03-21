@@ -45,7 +45,7 @@ assign led_col = led_pattern(row_index);
 assign mem_wr = ~recv_compl | cpu_mem_wr;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'd2 ? uart_in : rd_data;
+assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'h01e ? uart_in : rd_data;
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -96,14 +96,14 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd2)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
     uart_tx_data <= cpu_wr_data[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'd2)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;

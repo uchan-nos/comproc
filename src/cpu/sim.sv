@@ -59,7 +59,7 @@ end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
-  if (mem_wr & mem_addr == 16'h02) begin
+  if (mem_wr && mem_addr == 10'h01e) begin
     if (uart_out == 0 || uart_eot != 0) begin
       $fdisplay(STDERR, "%x", wr_data[7:0]);
       $finish;
@@ -82,7 +82,7 @@ cpu cpu(.*);
 always @(posedge clk) begin
   if (mem_wr)
     mem[mem_addr >> 1] <= wr_data;
-  else if (mem_addr == 10'h002)
+  else if (mem_addr == 10'h01e)
     rd_data <= uart_in[uart_index];
   else
     rd_data <= mem[mem_addr >> 1];
