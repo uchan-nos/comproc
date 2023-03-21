@@ -40,16 +40,15 @@ function test_prog() {
       ;;
   esac
 
-  return $((0x$got))
+  echo $got
 }
 
 function test_value() {
   want="$1"
   src="$2"
-  test_prog "$src" "${3:-}"
-  got=$?
+  got=$(test_prog "$src" "${3:-}")
 
-  if [ $((0x$want)) -eq $got ]
+  if [ $((0x$want)) -eq $((0x$got)) ]
   then
     echo "[  OK  ]: $src -> '$got'"
   else
@@ -71,6 +70,18 @@ function test_stdout() {
     echo "[  OK  ]: $src -> '$got'"
   else
     echo "[FAILED]: $src -> '$got', want '$want'"
+  fi
+}
+
+function test_timeout() {
+  src="$1"
+  got=$(test_prog "$src" "${2:-}")
+
+  if [ "timeout" = "$got" ]
+  then
+    echo "[  OK  ]: $src timed out"
+  else
+    echo "[FAILED]: $src didn't time out, got '$got'"
   fi
 }
 
@@ -128,4 +139,5 @@ test_stdout 'hello' 'int main() {int *p=0x1e; char *s="hello"; while(*s){*p=*s++
 test_value 03 'int f() { return 2; } int main() { return f() + 1; }'
 test_value 05 'int f(int a, int b) { return a+b; } int main() { return f(2,3); }'
 test_value 08 'int fib(int n) { if(n<3){return 1;}else{return fib(n-1)+fib(n-2);} } int main() { return fib(6); }'
-test_value 01 'int main() {int *p = 4; *p = 2; while (*p > 0) 0==0; return 1; }'
+test_value 03 'int main() {int *p = 0; *p = 2; while (*p > 0) {} return 3; }'
+test_timeout  'int main() {int *p = 0; *p = 1000; while (*p > 0) {} return 3; }'

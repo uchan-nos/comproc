@@ -2,7 +2,8 @@ module Simulation;
 
 localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
-localparam TIMEOUT = 100000;
+localparam CLOCK_HZ = 10_000;
+localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
 logic [9:0] mem_addr;
 logic [15:0] rd_data, wr_data;
@@ -39,9 +40,10 @@ initial begin
     uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} bp=%04x fp=%04x",
+  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} bp=%04x fp=%04x cdt=%04x cdtms=%04x",
            $time, rst, cpu.pc, cpu.phase, cpu.insn, insn_name, mem_addr, rd_data, wr_data_mon, cpu.alu_out,
-           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3], cpu.bp, cpu.fp);
+           cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3], cpu.bp, cpu.fp,
+           cpu.cd_timer, cpu.cd_timer_ms);
 
   // 各信号の初期値
   rst <= 1;
@@ -77,7 +79,7 @@ end
 
 // CPU を接続する
 logic rst, clk;
-cpu cpu(.*);
+cpu#(.CLOCK_HZ(100_000)) cpu(.*);
 
 always @(posedge clk) begin
   if (mem_wr)

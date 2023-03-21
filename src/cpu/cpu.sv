@@ -1,6 +1,8 @@
 `include "common.sv"
 
-module cpu(
+module cpu#(
+  parameter CLOCK_HZ = 27_000_000
+) (
   input rst,
   input clk,
   output [`ADDR_WIDTH-1:0] mem_addr,
@@ -164,12 +166,15 @@ logic [15:0] alu_out;
 logic [15:0] insn;
 logic [`ADDR_WIDTH-1:0] pc;
 logic [`ADDR_WIDTH-1:0] bp, fp;
+logic [15:0] cd_timer;
+logic [15:0] cd_timer_ms;
 
 logic imm, rd, wr, pop, push, byt;
 logic [1:0] load;
 logic [1:0] jmp;
 logic [7:0] imm8;
 logic [1:0] load_bp, load_fp;
+logic [15:0] rd_mem_reg;
 
 //localparam CLK_DIVIDER=32'd2_000_000;
 localparam CLK_DIVIDER=32'd1;
@@ -181,6 +186,8 @@ assign imm8 = insn[7:0];
 assign alu_out = alu(imm, insn, stack[0], stack[1]);
 assign mem_addr = (phase <= 2'd1) ?
   (insn[15:8] == 8'ha3 ? fp : (insn[15:8] == 8'ha4 ? fp - 2 : alu_out[`ADDR_WIDTH-1:0])) : pc;
+
+assign rd_mem_reg = read_mem_or_reg(mem_addr, rd_data, cd_timer);
 
 integer i;
 
@@ -201,7 +208,7 @@ always @(posedge clk, posedge rst) begin
       3'd0: stack[0] <= stack[0];
       3'd1: stack[0] <= stack[1];
       3'd2: stack[0] <= alu_out;
-      3'd3: stack[0] <= byte_format(rd_data, byt, mem_addr & 1);
+      3'd3: stack[0] <= byte_format(rd_mem_reg, byt, mem_addr & 1);
       3'd4: stack[0] <= { {16-`ADDR_WIDTH{1'b0}}, pc } + `ADDR_WIDTH'd2;
     endcase
 
@@ -415,5 +422,39 @@ begin
   endcase
 end
 endfunction
+
+function [15:0] read_mem_or_reg(
+  input [`ADDR_WIDTH-1:0] addr,
+  input [15:0] mem,
+  input [15:0] cd_timer
+);
+begin
+  casex (addr)
+    `ADDR_WIDTH'b000x: read_mem_or_reg = cd_timer;
+    `ADDR_WIDTH'b001x: read_mem_or_reg = 16'd1;
+    `ADDR_WIDTH'b01xx: read_mem_or_reg = 16'd2;
+    `ADDR_WIDTH'b1xxx: read_mem_or_reg = 16'd3;
+    default:           read_mem_or_reg = mem;
+  endcase
+end
+endfunction
+
+// カウントダウンタイマ
+always @(posedge clk, posedge rst) begin
+  if (rst) begin
+    cd_timer <= 16'd0;
+    cd_timer_ms <= 16'd0; // 1ms 周期生成用
+  end else if (phase == 2'd1 && wr && mem_addr == `ADDR_WIDTH'h000) begin
+    cd_timer <= wr_data;
+    cd_timer_ms <= 16'd0;
+  end else if (cd_timer > 16'd0) begin
+    if (cd_timer_ms < (CLOCK_HZ/1000) - 1) // Clock = 27MHz
+      cd_timer_ms <= cd_timer_ms + 1;
+    else begin
+      cd_timer <= cd_timer - 1;
+      cd_timer_ms <= 16'd0;
+    end
+  end
+end
 
 endmodule
