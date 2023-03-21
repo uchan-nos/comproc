@@ -36,6 +36,8 @@ logic cpu_mem_wr;
 logic [15:0] cpu_stack[0:15];
 logic [15:0] uart_in;
 
+logic [15:0] cpu_io_led;
+
 // 継続代入
 assign led_row = led_on(counter) << row_index;
 assign led_col = led_pattern(row_index);
@@ -45,7 +47,8 @@ assign led_col = led_pattern(row_index);
 assign mem_wr = ~recv_compl | cpu_mem_wr;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = cpu_mem_addr_d == `ADDR_WIDTH'h01e ? uart_in : rd_data;
+assign cpu_rd_data = read_mem_or_reg(
+  cpu_mem_addr_d, rd_data, cpu_io_led, uart_in);
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -60,8 +63,8 @@ function [7:0] led_pattern(input [3:0] row_index);
     4'd3:    led_pattern = cpu_stack[1][7:0];
     4'd4:    led_pattern = cpu_stack[2][7:0];
     4'd5:    led_pattern = cpu_stack[3][7:0];
-    4'd6:    led_pattern = cpu_stack[4][7:0];
-    4'd7:    led_pattern = cpu_stack[5][7:0];
+    4'd6:    led_pattern = cpu_io_led[15:8];
+    4'd7:    led_pattern = cpu_io_led[7:0];
     4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
@@ -96,6 +99,8 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01c)
+    cpu_io_led <= cpu_wr_data;
   else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
     uart_tx_data <= cpu_wr_data[7:0];
 end
@@ -245,6 +250,22 @@ begin
     4'hd: encode_7seg = {7'b0111101, n[4]};
     4'he: encode_7seg = {7'b1001111, n[4]};
     4'hf: encode_7seg = {7'b1000111, n[4]};
+  endcase
+end
+endfunction
+
+function [15:0] read_mem_or_reg(
+  input [`ADDR_WIDTH-1:0] addr,
+  input [15:0] mem,
+  input [15:0] io_led,
+  input [15:0] uart_in
+);
+begin
+  casex (addr)
+    `ADDR_WIDTH'b1_110x: read_mem_or_reg = io_led;
+    `ADDR_WIDTH'b1_111x: read_mem_or_reg = uart_in;
+    `ADDR_WIDTH'b1_xxxx: read_mem_or_reg = 16'd0;
+    default:             read_mem_or_reg = mem;
   endcase
 end
 endfunction
