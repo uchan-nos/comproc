@@ -7,12 +7,24 @@ module cpu#(
   input clk,
   output [`ADDR_WIDTH-1:0] mem_addr,
   output logic mem_wr,
+  output mem_byt,
   input        [15:0] rd_data,
   output logic [15:0] wr_data,
   output logic [15:0] stack[0:15]
 );
 
 /*
+引数の仕様
+
+mem_wr    メモリ書き込み命令のとき 1
+mem_byt   バイトアクセスなら 1
+rd_data   メモリからの読み込みデータ
+          mem_byt=0 なら [15:0] が有効
+          mem_byt=1 なら、mem_addr の最下位ビットに応じて [15:8] か [7:0] が有効
+wr_data   メモリへの書き込みデータ
+          mem_byt とビットの有効範囲は rd_data と同じ
+
+
 オペコードの構成
 
 値の範囲    役割
@@ -115,8 +127,15 @@ addr      説明
 addr      説明
 ---------------
 000h-001h カウントダウンタイマ
-01ch-01dh ドットマトリクス LED
+01ch      ドットマトリクス LED
+01dh      キャラクタ LCD
 01eh-01fh UART 入出力
+
+01ch の説明
+ビット 0: E
+ビット 1: R/W
+ビット 2: RS
+ビット 4 - 7: DB4 - DB7
 
 01eh-01fh の説明
 入出力とも、下位 8 ビットが有効
@@ -187,6 +206,7 @@ assign imm8 = insn[7:0];
 assign alu_out = alu(imm, insn, stack[0], stack[1]);
 assign mem_addr = (phase <= 2'd1) ?
   (insn[15:8] == 8'ha3 ? fp : (insn[15:8] == 8'ha4 ? fp - 2 : alu_out[`ADDR_WIDTH-1:0])) : pc;
+assign mem_byt = byt;
 
 assign rd_mem_reg = read_mem_or_reg(mem_addr, rd_data, cd_timer);
 
@@ -240,9 +260,12 @@ always @(posedge clk, posedge rst) begin
     else if (insn[15:8] == 8'ha3) // CALL
       wr_data <= pc + `ADDR_WIDTH'd2;
     else
-      if (byt)
-        wr_data <= {8'd0, {imm ? stack[0][7:0] : stack[1][7:0]}};
-      else
+      if (byt) begin
+        if (mem_addr[0])
+          wr_data[15:8] <= {imm ? stack[0][7:0] : stack[1][7:0]};
+        else
+          wr_data[7:0] <= {imm ? stack[0][7:0] : stack[1][7:0]};
+      end else
         wr_data <= imm ? stack[0] : stack[1];
 end
 

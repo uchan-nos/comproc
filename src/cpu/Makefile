@@ -2,7 +2,7 @@
 sim: sim.exe
 	TARGET=sim ./test.sh
 
-sim.exe: sim.sv cpu.sv
+sim.exe: sim.sv cpu.sv mem.sv
 	iverilog -g2012 -o $@ $^
 
 .PHONY: uart

@@ -7,6 +7,12 @@ echo Testing with TARGET=$target. Target list:
 echo "  sim   Simulation"
 echo "  uart  Using real CPU"
 
+if [ "$target" = "uart" ] && [ ! -e $uart_dev ]
+then
+  echo "No UART device: $uart_dev" >&2
+  exit 1
+fi
+
 make -C ../compiler
 make -C ../assembler
 make -C ../cpu sim.exe
@@ -141,3 +147,5 @@ test_value 05 'int f(int a, int b) { return a+b; } int main() { return f(2,3); }
 test_value 08 'int fib(int n) { if(n<3){return 1;}else{return fib(n-1)+fib(n-2);} } int main() { return fib(6); }'
 test_value 03 'int main() {int *p = 0; *p = 2; while (*p > 0) {} return 3; }'
 test_timeout  'int main() {int *p = 0; *p = 0x7fff; while (*p > 0) {} return 3; }'
+test_value 03 'int main() {char *p=0x1c; *p=2; return *p+1; }'
+test_value 04 'int main() {char *p=0x1d; *p=1; return *p+3; }'

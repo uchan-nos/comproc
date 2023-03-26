@@ -1,3 +1,4 @@
+`include "common.sv"
 module Simulation;
 
 localparam STDIN  = 'h8000_0000;
@@ -8,8 +9,8 @@ localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 logic [9:0] mem_addr;
 logic [15:0] rd_data, wr_data;
 logic mem_wr;
+logic mem_byt;
 logic [15:0] stack[0:15];
-logic [15:0] mem[0:1023];
 
 logic [15:0] wr_data_mon;
 assign wr_data_mon = mem_wr ? cpu.wr_data : 16'hzzzz;
@@ -25,9 +26,13 @@ logic [15:0] uart_in[0:255];
 logic [5:0][7:0] insn_name;
 integer uart_index;
 
+logic [15:0] insn_buf;
+
 initial begin
   // stdin からテストデータを読む
-  while ($fscanf(STDIN, "%x", mem[pc_init]) == 1) begin
+  while ($fscanf(STDIN, "%x", insn_buf) == 1) begin
+    mem_lo.data[pc_init] <= insn_buf[7:0];
+    mem_hi.data[pc_init] <= insn_buf[15:8];
     num_insn++;
     pc_init++;
   end
@@ -40,8 +45,9 @@ initial begin
     uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x alu=%02x stack{%02x %02x %02x %02x ..} bp=%04x fp=%04x cdt=%04x cdtms=%04x",
-           $time, rst, cpu.pc, cpu.phase, cpu.insn, insn_name, mem_addr, rd_data, wr_data_mon, cpu.alu_out,
+  $monitor("%d: rst=%d pc=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x byt=%d alu=%02x stack{%02x %02x %02x %02x ..} bp=%04x fp=%04x cdt=%04x cdtms=%04x",
+           $time, rst, cpu.pc, cpu.phase, cpu.insn, insn_name, mem_addr, rd_data,
+           wr_data_mon, cpu.mem_byt, cpu.alu_out,
            cpu.stack[0], cpu.stack[1], cpu.stack[2], cpu.stack[3], cpu.bp, cpu.fp,
            cpu.cd_timer, cpu.cd_timer_ms);
 
@@ -81,14 +87,51 @@ end
 logic rst, clk;
 cpu#(.CLOCK_HZ(100_000)) cpu(.*);
 
-always @(posedge clk) begin
-  if (mem_wr)
-    mem[mem_addr >> 1] <= wr_data;
-  else if (mem_addr == 10'h01e)
-    rd_data <= uart_in[uart_index];
-  else
-    rd_data <= mem[mem_addr >> 1];
-end
+logic bram_clk, bram_rst, wr_lo, wr_hi;
+logic [`ADDR_WIDTH-2:0] addr_lo, addr_hi;
+logic [7:0] wr_data_lo, wr_data_hi, rd_data_lo, rd_data_hi;
+logic [15:0] bram_rd_data;
+mem mem(
+  .rst(rst),
+  .clk(clk),
+  .addr(mem_addr),
+  .wr(mem_wr),
+  .byt(mem_byt),
+  .wr_data(wr_data),
+  .rd_data(bram_rd_data),
+
+  .bram_rst(bram_rst),
+  .bram_clk(bram_clk),
+  .wr_lo(wr_lo),
+  .wr_hi(wr_hi),
+  .addr_lo(addr_lo),
+  .addr_hi(addr_hi),
+  .wr_data_lo(wr_data_lo),
+  .wr_data_hi(wr_data_hi),
+  .rd_data_lo(rd_data_lo),
+  .rd_data_hi(rd_data_hi)
+);
+
+byte_bram mem_lo(
+  .rst(bram_rst),
+  .clk(bram_clk),
+  .wr(wr_lo),
+  .addr(addr_lo),
+  .wr_data(wr_data_lo),
+  .rd_data(rd_data_lo)
+);
+
+byte_bram mem_hi(
+  .rst(bram_rst),
+  .clk(bram_clk),
+  .wr(wr_hi),
+  .addr(addr_hi),
+  .wr_data(wr_data_hi),
+  .rd_data(rd_data_hi)
+);
+
+assign rd_data = mem_addr == `ADDR_WIDTH'h01e ?
+                 uart_in[uart_index] : bram_rd_data;
 
 always #5000 begin
   uart_index <= uart_index + 1;
@@ -143,4 +186,20 @@ always @(posedge clk) begin
   end
 end
 
+endmodule
+
+module byte_bram(
+  input rst,
+  input clk,
+  input wr,
+  input [`ADDR_WIDTH-2:0] addr,
+  input [7:0] wr_data,
+  output [7:0] rd_data
+);
+logic [7:0] data[0:(1<<(`ADDR_WIDTH-1))-1];
+assign rd_data = data[addr];
+always @(posedge clk) begin
+  if (wr)
+    data[addr] <= wr_data;
+end
 endmodule

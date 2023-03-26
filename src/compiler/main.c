@@ -129,11 +129,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeAssign:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 1);
-    if (lval) {
-      printf("sta\n");
-    } else {
-      printf("std\n");
-    }
+    printf("%s%s\n",
+           lval ? "sta" : "std",
+           SizeofType(node->lhs->type) == 1 ? ".1" : "");
     node->type = node->lhs->type;
     break;
   case kNodeLT:

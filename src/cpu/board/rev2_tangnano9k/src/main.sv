@@ -6,7 +6,11 @@ module main(
   input uart_rx,
   output uart_tx,
   output [7:0] led_col,
-  output [8:0] led_row
+  output [8:0] led_row,
+  output lcd_e,
+  output lcd_rw,
+  output lcd_rs,
+  output [7:4] lcd_db
 );
 
 parameter PERIOD = 16'd27000;
@@ -24,31 +28,38 @@ logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
-logic mem_wr;
+logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr;
 
-logic [15:0] rd_data, wr_data;
+logic [15:0] bram_rd_data, wr_data;
 
 logic [7:0] cpu_out;
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, cpu_mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
-logic cpu_mem_wr;
+logic cpu_mem_wr, cpu_mem_byt;
 logic [15:0] cpu_stack[0:15];
 logic [15:0] uart_in;
 
-logic [15:0] cpu_io_led;
+logic [7:0] cpu_io_lcd;
+logic [7:0] cpu_io_led;
 
 // 継続代入
 assign led_row = led_on(counter) << row_index;
 assign led_col = led_pattern(row_index);
 
+assign lcd_e  = cpu_io_lcd[0];
+assign lcd_rw = cpu_io_lcd[1];
+assign lcd_rs = cpu_io_lcd[2];
+assign lcd_db = cpu_io_lcd;
+
 // FF FF を受け取ったら機械語の受信完了と判断
 //assign recv_compl = recv_data == 16'hffff;
 assign mem_wr = ~recv_compl | cpu_mem_wr;
+assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data = recv_compl ? cpu_wr_data : recv_data;
 assign cpu_rd_data = read_mem_or_reg(
-  cpu_mem_addr_d, rd_data, cpu_io_led, uart_in);
+  cpu_mem_addr_d, bram_rd_data, cpu_io_led, cpu_io_lcd, uart_in);
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -63,8 +74,8 @@ function [7:0] led_pattern(input [3:0] row_index);
     4'd3:    led_pattern = cpu_stack[1][7:0];
     4'd4:    led_pattern = cpu_stack[2][7:0];
     4'd5:    led_pattern = cpu_stack[3][7:0];
-    4'd6:    led_pattern = cpu_io_led[15:8];
-    4'd7:    led_pattern = cpu_io_led[7:0];
+    4'd6:    led_pattern = cpu_stack[4][7:0];
+    4'd7:    led_pattern = cpu_io_led;
     4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
@@ -99,8 +110,8 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01c)
-    cpu_io_led <= cpu_wr_data;
+  else if (cpu_mem_wr && (cpu_mem_addr & `ADDR_WIDTH'hffe) == `ADDR_WIDTH'h01c)
+    {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
   else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
     uart_tx_data <= cpu_wr_data[7:0];
 end
@@ -198,30 +209,73 @@ always @(posedge sys_clk, negedge rst_n) begin
     uart_in <= recv_data;
 end
 
-// プログラムとデータを格納する BRAM
-Gowin_SDPB mem(
-  .clka(sys_clk),     //input clka
-  .cea(mem_wr),       //input cea
-  .reseta(!rst_n),    //input reseta
-  .clkb(sys_clk),     //input clkb
-  .ceb(1'b1),         //input ceb
-  .resetb(!rst_n),    //input resetb
-  .oce(1'b0),         //input oce
-  .ada(mem_addr[`ADDR_WIDTH-1:1]),     //input [9:0] ada
-  .din(wr_data),      //input [15:0] din
-  .adb(cpu_mem_addr[`ADDR_WIDTH-1:1]), //input [9:0] adb
-  .dout(rd_data)      //output [15:0] dout
-);
-
 // 自作 CPU を接続する
 cpu cpu(
   .rst(~rst_n | ~recv_compl),
   .clk(sys_clk),
   .mem_addr(cpu_mem_addr),
   .mem_wr(cpu_mem_wr),
+  .mem_byt(cpu_mem_byt),
   .rd_data(cpu_rd_data),
   .wr_data(cpu_wr_data),
   .stack(cpu_stack)
+);
+
+logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;
+logic [`ADDR_WIDTH-2:0] bram_addr_lo, bram_addr_hi;
+logic [7:0] bram_wr_data_lo, bram_wr_data_hi;
+logic [7:0] bram_rd_data_lo, bram_rd_data_hi;
+
+// メモリ
+mem mem(
+  .rst(~rst_n),
+  .clk(sys_clk),
+  .addr(mem_addr),
+  .wr(mem_wr),
+  .byt(mem_byt),
+  .wr_data(wr_data),
+  .rd_data(bram_rd_data),
+
+  .bram_rst(bram_rst),
+  .bram_clk(bram_clk),
+  .wr_lo(bram_wr_lo),
+  .wr_hi(bram_wr_hi),
+  .addr_lo(bram_addr_lo),
+  .addr_hi(bram_addr_hi),
+  .wr_data_lo(bram_wr_data_lo),
+  .wr_data_hi(bram_wr_data_hi),
+  .rd_data_lo(bram_rd_data_lo),
+  .rd_data_hi(bram_rd_data_hi)
+);
+
+// プログラムとデータを格納する BRAM（偶数アドレス）
+Gowin_SDPB mem_lo(
+  .clka(bram_clk),    //input clka
+  .cea(bram_wr_lo),   //input cea
+  .reseta(bram_rst),  //input reseta
+  .clkb(bram_clk),    //input clkb
+  .ceb(1'b1),         //input ceb
+  .resetb(bram_rst),  //input resetb
+  .oce(1'b0),         //input oce
+  .ada(bram_addr_lo), //input [10:0] ada
+  .din(bram_wr_data_lo),  //input [7:0] din
+  .adb(bram_addr_lo), //input [10:0] adb
+  .dout(bram_rd_data_lo)  //output [7:0] dout
+);
+
+// プログラムとデータを格納する BRAM（奇数アドレス）
+Gowin_SDPB mem_hi(
+  .clka(bram_clk),    //input clka
+  .cea(bram_wr_hi),   //input cea
+  .reseta(bram_rst),  //input reseta
+  .clkb(bram_clk),    //input clkb
+  .ceb(1'b1),         //input ceb
+  .resetb(bram_rst),  //input resetb
+  .oce(1'b0),         //input oce
+  .ada(bram_addr_hi), //input [10:0] ada
+  .din(bram_wr_data_hi),  //input [7:0] din
+  .adb(bram_addr_hi), //input [10:0] adb
+  .dout(bram_rd_data_hi)  //output [7:0] dout
 );
 
 function [7:0] encode_7seg(input [4:0] n);
@@ -257,12 +311,13 @@ endfunction
 function [15:0] read_mem_or_reg(
   input [`ADDR_WIDTH-1:0] addr,
   input [15:0] mem,
-  input [15:0] io_led,
+  input [7:0] io_led,
+  input [7:0] io_lcd,
   input [15:0] uart_in
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b1_110x: read_mem_or_reg = io_led;
+    `ADDR_WIDTH'b1_110x: read_mem_or_reg = {io_lcd, io_led};
     `ADDR_WIDTH'b1_111x: read_mem_or_reg = uart_in;
     `ADDR_WIDTH'b1_xxxx: read_mem_or_reg = 16'd0;
     default:             read_mem_or_reg = mem;
