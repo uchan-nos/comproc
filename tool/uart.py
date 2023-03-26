@@ -49,7 +49,10 @@ def main():
         if args.stdout:
             receive_stdout(args.stdout, ser)
         read_bytes = ser.read(1)
-        print(' '.join('{:02x}'.format(b) for b in read_bytes))
+        if len(read_bytes) == 0: # timeout
+            print('timeout')
+        else:
+            print(' '.join('{:02x}'.format(b) for b in read_bytes))
 
     ser.close()
 
