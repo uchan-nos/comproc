@@ -172,11 +172,11 @@ always @(posedge clk) begin
         16'h9cxx:              insn_name <= "st.1";
         16'h9dxx:              insn_name <= "sta.1";
         16'h9exx:              insn_name <= "std.1";
-        16'ha0xx:              insn_name <= "jmp";
-        16'ha1xx:              insn_name <= "jz";
-        16'ha2xx:              insn_name <= "jnz";
-        16'ha3xx:              insn_name <= "call";
-        16'ha4xx:              insn_name <= "ret";
+        16'b1010000x_xxxxxxxx: insn_name <= "jmp";
+        16'b1010001x_xxxxxxxx: insn_name <= "jz";
+        16'b1010010x_xxxxxxxx: insn_name <= "jnz";
+        16'b1010011x_xxxxxxxx: insn_name <= "call";
+        16'b1010100x_xxxxxxxx: insn_name <= "ret";
         16'hc020:              insn_name <= "pushbp";
         16'hc1xx:              insn_name <= "popfp";
         16'hc221:              insn_name <= "enter";

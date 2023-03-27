@@ -50,7 +50,7 @@ assign led_col = led_pattern(row_index);
 assign lcd_e  = cpu_io_lcd[0];
 assign lcd_rw = cpu_io_lcd[1];
 assign lcd_rs = cpu_io_lcd[2];
-assign lcd_db = cpu_io_lcd;
+assign lcd_db = cpu_io_lcd[7:4];
 
 // FF FF を受け取ったら機械語の受信完了と判断
 //assign recv_compl = recv_data == 16'hffff;

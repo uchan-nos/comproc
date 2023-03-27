@@ -57,11 +57,11 @@ LDD.1       99h   byte version
 ST.1 imm8   9ch   byte version
 STA.1       9dh   byte version
 STD.1       9eh   byte version
-JMP imm8    a0h   pc+imm8 にジャンプ
-JZ imm8     a1h   stack から値をポップし、0 なら pc+imm8 にジャンプ
-JNZ imm8    a2h   stack から値をポップし、0 以外なら pc+imm8 にジャンプ
-CALL imm8   a3h   コールスタックに pc+2 をプッシュし、pc+imm8 にジャンプ
-RET         a4h   コールスタックからアドレスをポップし、ジャンプ
+JMP imm9    a0h   pc+imm9 にジャンプ
+JZ imm9     a2h   stack から値をポップし、0 なら pc+imm9 にジャンプ
+JNZ imm9    a4h   stack から値をポップし、0 以外なら pc+imm9 にジャンプ
+CALL imm9   a6h   コールスタックに pc+2 をプッシュし、pc+imm9 にジャンプ
+RET         a8h   コールスタックからアドレスをポップし、ジャンプ
 PUSHBP      c020h bp を stack にプッシュ
 POPFP       c100h stack から値をポップし fp に書く
 ENTER       c221h bp を mem[fp] に書き、bp に fp を書く
@@ -193,6 +193,7 @@ logic imm, rd, wr, pop, push, byt;
 logic [1:0] load;
 logic [1:0] jmp;
 logic [7:0] imm8;
+logic [8:0] imm9;
 logic [1:0] load_bp, load_fp;
 logic [15:0] rd_mem_reg;
 
@@ -202,10 +203,13 @@ logic [31:0] clk_div;
 
 assign {imm, load, rd, wr, pop, push, jmp, byt, load_bp, load_fp} = decode(insn);
 assign imm8 = insn[7:0];
+assign imm9 = insn[8:0];
 
 assign alu_out = alu(imm, insn, stack[0], stack[1]);
 assign mem_addr = (phase <= 2'd1) ?
-  (insn[15:8] == 8'ha3 ? fp : (insn[15:8] == 8'ha4 ? fp - 2 : alu_out[`ADDR_WIDTH-1:0])) : pc;
+  (insn[15:9] == 7'h53 /* CALL */ ? fp
+   : (insn[15:9] == 7'h54 /* RET */ ? fp - 2
+   : alu_out[`ADDR_WIDTH-1:0])) : pc;
 assign mem_byt = byt;
 
 assign rd_mem_reg = read_mem_or_reg(mem_addr, rd_data, cd_timer);
@@ -257,7 +261,7 @@ always @(posedge clk, posedge rst) begin
   else if (phase == 2'd0)
     if (insn[15:8] == 8'hc2) // ENTER
       wr_data <= bp;
-    else if (insn[15:8] == 8'ha3) // CALL
+    else if (insn[15:9] == 7'h53) // CALL
       wr_data <= pc + `ADDR_WIDTH'd2;
     else
       if (byt) begin
@@ -290,7 +294,7 @@ always @(posedge clk, posedge rst) begin
         (jmp == 2'd2 && stack[0] == 16'd0) ||
         (jmp == 2'd3 && stack[0] != 16'd0)) begin
       if (imm)
-        pc <= pc + { {`ADDR_WIDTH-9{imm8[7]}}, imm8, 1'b0};
+        pc <= pc + { {`ADDR_WIDTH-10{imm9[8]}}, imm9, 1'b0};
       else
         pc <= rd_data;
     end
@@ -389,11 +393,11 @@ begin
     8'h9c:       decode = 14'b1_01_01_10_00_1_00_00;
     8'h9d:       decode = 14'b0_00_01_10_00_1_00_00;
     8'h9e:       decode = 14'b0_01_01_10_00_1_00_00;
-    8'ha0:       decode = 14'b1_00_00_00_01_0_00_00;
-    8'ha1:       decode = 14'b1_01_00_10_10_0_00_00;
-    8'ha2:       decode = 14'b1_01_00_10_11_0_00_00;
-    8'ha3:       decode = 14'b1_00_01_00_01_0_00_01;
-    8'ha4:       decode = 14'b0_00_10_00_01_0_00_10;
+    8'b1010000x: decode = 14'b1_00_00_00_01_0_00_00; // JMP
+    8'b1010001x: decode = 14'b1_01_00_10_10_0_00_00; // JZ
+    8'b1010010x: decode = 14'b1_01_00_10_11_0_00_00; // JNZ
+    8'b1010011x: decode = 14'b1_00_01_00_01_0_00_01; // CALL
+    8'b1010100x: decode = 14'b0_00_10_00_01_0_00_10; // RET
     8'hb0:       decode = 14'b0_10_00_10_00_0_00_00;
     8'hb1:       decode = 14'b0_10_00_11_00_0_00_00;
     8'hc0:       decode = 14'b0_10_00_01_00_0_00_00;

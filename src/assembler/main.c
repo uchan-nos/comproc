@@ -45,7 +45,7 @@ struct LabelAddr {
 };
 
 enum BPType {
-  BP_PC_REL8,
+  BP_PC_REL9,
   BP_ABS8,
   BP_ABS15,
 };
@@ -208,22 +208,22 @@ int main(void) {
       insn[pc >> 1] = 0xb016;
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_PC_REL8);
+                    pc, strdup(GET_STR(0)), BP_PC_REL9);
       insn[pc >> 1] = 0xa000;
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_PC_REL8);
-      insn[pc >> 1] = 0xa100;
+                    pc, strdup(GET_STR(0)), BP_PC_REL9);
+      insn[pc >> 1] = 0xa200;
     } else if (strcmp(mnemonic, "jnz") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_PC_REL8);
-      insn[pc >> 1] = 0xa200;
+                    pc, strdup(GET_STR(0)), BP_PC_REL9);
+      insn[pc >> 1] = 0xa400;
     } else if (strcmp(mnemonic, "call") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_PC_REL8);
-      insn[pc >> 1] = 0xa300;
+                    pc, strdup(GET_STR(0)), BP_PC_REL9);
+      insn[pc >> 1] = 0xa600;
     } else if (strcmp(mnemonic, "ret") == 0) {
-      insn[pc >> 1] = 0xa400;
+      insn[pc >> 1] = 0xa800;
     } else if (strcmp(mnemonic, "pushbp") == 0) {
       insn[pc >> 1] = 0xc020;
     } else if (strcmp(mnemonic, "popfp") == 0) {
@@ -262,8 +262,8 @@ int main(void) {
       int ins_pc = backpatches[i].pc;
       uint16_t ins = insn[ins_pc >> 1];
       switch (backpatches[i].type) {
-      case BP_PC_REL8:
-        ins = (ins & 0xff00u) | (uint8_t)((labels[l].pc - ins_pc) >> 1);
+      case BP_PC_REL9:
+        ins = (ins & 0xfe00u) | (((labels[l].pc - ins_pc) >> 1) & 0x1ffu);
         break;
       case BP_ABS8:
         ins = (ins & 0xff00u) | (uint8_t)labels[l].pc;

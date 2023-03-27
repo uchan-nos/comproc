@@ -96,9 +96,29 @@ static struct Token *ParseIntegerLiteral(char *src) {
 }
 
 static struct Token *NextToken(char *src) {
-  src += strspn(src, " \t\n");
-  if (*src == '\0') {
-    return NewToken(kTokenEOF, src, 0);
+  while (1) {
+    src += strspn(src, " \t\n");
+    if (*src == '\0') {
+      return NewToken(kTokenEOF, src, 0);
+    } else if (*src != '/') {
+      break;
+    }
+
+    if (src[1] == '/') {
+      char *lf = strchr(src + 2, '\n');
+      if (lf == NULL) {
+        return NewToken(kTokenEOF, src, 0);
+      }
+      src = lf + 1;
+    } else if (src[1] == '*') {
+      char *end = strstr(src + 2, "*/");
+      if (end == NULL) {
+        return NewToken(kTokenEOF, src, 0);
+      }
+      src = end + 2;
+    } else {
+      break;
+    }
   }
 
   char *p = src;
