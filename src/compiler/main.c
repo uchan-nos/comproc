@@ -280,6 +280,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       AppendSymbol(ctx->syms, func_sym);
       printf("%.*s:\n", func_sym->name->len, func_sym->name->raw);
       printf("enter\n");
+      ctx->lvar_offset = 2;
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
         sym->offset = ctx->lvar_offset;
@@ -297,7 +298,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf("push 0x%x\n", ctx->lvar_offset);
       printf("add\n");
       printf("popfp\n");
-      ctx->lvar_offset = 2;
       Generate(ctx, node->rhs, 0);
     }
     break;
@@ -324,8 +324,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       assert(node->type);
       sym->type = node->type;
 
-      ctx->lvar_offset += (SizeofType(sym->type) + 1) & ~((size_t)1);
+      size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
+      ctx->lvar_offset += stk_size;
       AppendSymbol(ctx->syms, sym);
+      printf("pushfp\n");
+      printf("push 0x%x\n", (unsigned int)stk_size);
+      printf("add\n");
+      printf("popfp\n");
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
@@ -337,7 +342,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         } else {
           printf("sta\n");
         }
-        printf("popfp\n");
+        printf("pop\n");
       }
     }
     break;
@@ -425,7 +430,7 @@ int main(void) {
   Expect(kTokenEOF);
 
   struct GenContext gen_ctx = {
-    NewSymbol(kSymHead, NULL), 0x20, 0, 0, {}, {-1, -1}
+    NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}
   };
   printf("push 0x20\n");
   printf("popfp\n");

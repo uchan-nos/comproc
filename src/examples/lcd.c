@@ -9,7 +9,6 @@ int lcd_out4(int rs, int val) {
   char *p = 0x1d;
   *p = (val << 4) | (rs << 2) | 1;
   delay_ms(1);
-  p = 0x1d;
   *p = *p & 0xfe;
   delay_ms(2);
   return 0;

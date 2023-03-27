@@ -63,6 +63,7 @@ JNZ imm9    a4h   stack から値をポップし、0 以外なら pc+imm9 にジ
 CALL imm9   a6h   コールスタックに pc+2 をプッシュし、pc+imm9 にジャンプ
 RET         a8h   コールスタックからアドレスをポップし、ジャンプ
 PUSHBP      c020h bp を stack にプッシュ
+PUSHFP      c021h fp を stack にプッシュ
 POPFP       c100h stack から値をポップし fp に書く
 ENTER       c221h bp を mem[fp] に書き、bp に fp を書く
 LEAVE       c320h fp に bp を書き、bp に mem[bp] を書く

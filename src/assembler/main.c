@@ -226,6 +226,8 @@ int main(void) {
       insn[pc >> 1] = 0xa800;
     } else if (strcmp(mnemonic, "pushbp") == 0) {
       insn[pc >> 1] = 0xc020;
+    } else if (strcmp(mnemonic, "pushfp") == 0) {
+      insn[pc >> 1] = 0xc021;
     } else if (strcmp(mnemonic, "popfp") == 0) {
       insn[pc >> 1] = 0xc100;
     } else if (strcmp(mnemonic, "enter") == 0) {
