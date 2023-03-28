@@ -1,44 +1,32 @@
-int delay_ms(int ms) {
+int delay_ms() {
   int *t = 0;
-  *t = ms;
+  *t = 2;
   while (*t > 0) {}
   return 0;
 }
 
 int lcd_out4(int rs, int val) {
   char *p = 0x1d;
-  *p = (val << 4) | (rs << 2) | 1;
-  delay_ms(1);
+  *p = (val << 4) | rs | 1;
+  delay_ms();
   *p = *p & 0xfe;
-  delay_ms(2);
-  return 0;
+  return delay_ms();
 }
 
 int lcd_out8(int rs, int val) {
   lcd_out4(rs, val >> 4);
-  lcd_out4(rs, val);
-  return 0;
+  return lcd_out4(rs, val);
 }
 
 int main() {
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 2);
-
-  // ここから 4 ビットモード
-  lcd_out8(0, 0x28); // function set: 4bit, 2lines, 5x7dots
-  lcd_out8(0, 0x0f); // display on/off: display on, cursor on, blink on
-  lcd_out8(0, 0x06); // entry mode set: increment, with display shift
-  lcd_out8(0, 0x01); // clear display
-
-  lcd_out8(1, 'O');
-  lcd_out8(1, 'S');
-  lcd_out8(1, 'C');
-  lcd_out8(1, '2');
-  lcd_out8(1, '0');
-  lcd_out8(1, '2');
-  lcd_out8(1, '3');
-
+  int i;
+  lcd_out8(0, 0x80);
+  for (i = 0; i < 13; i++) {
+    lcd_out8(4, "OSC2023 Tokyo"[i]);
+  }
+  lcd_out8(0, 0xc0);
+  for (i = 0; i < 12; i++) {
+    lcd_out8(4, "Cybozu Booth"[i]);
+  }
   return 1;
 }
