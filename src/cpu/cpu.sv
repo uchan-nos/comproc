@@ -25,51 +25,94 @@ wr_data   メモリへの書き込みデータ
           mem_byt とビットの有効範囲は rd_data と同じ
 
 
-オペコードの構成
+命令リスト（即値有り）
 
-値の範囲    役割
------------------------
-00h - 7fh   PUSH imm15
-80h - 8fh   PUSH/POP 系命令
-90h - 9fh   メモリアクセス命令
-a0h - afh   ジャンプ命令
-b0h - b0h   2 項算術論理演算
-b1h - b1h   単項算術論理演算
-c0h - cfh   スタックフレーム命令
-feh - ffh   無効命令
-
-
-命令リスト（算術論理演算以外）
-
-mnemonic    code  説明
+mnemonic        15     87      0  説明
 ------------------------------------
-PUSH imm15  00h   imm15 を stack にプッシュ
-POP         81h   stack をポップ
-DUP 0/1     82h   stack[0/1] を stack にプッシュ
-LD imm8     90h   mem[imm8] から読んだ値を stack にプッシュ
-LDD         91h   stack からアドレスをポップし、mem[addr] を stack にプッシュ
-ST imm8     94h   stack からポップした値を mem[imm8] に書く
-STA         95h   stack からアドレスと値をポップしメモリに書き、アドレスをプッシュ
-                  stack[0] = addr, stack[1] = data
-STD         96h   stack からアドレスと値をポップしメモリに書き、値をプッシュ
-LD.1 imm8   98h   byte version
-LDD.1       99h   byte version
-ST.1 imm8   9ch   byte version
-STA.1       9dh   byte version
-STD.1       9eh   byte version
-JMP imm9    a0h   pc+imm9 にジャンプ
-JZ imm9     a2h   stack から値をポップし、0 なら pc+imm9 にジャンプ
-JNZ imm9    a4h   stack から値をポップし、0 以外なら pc+imm9 にジャンプ
-CALL imm9   a6h   コールスタックに pc+2 をプッシュし、pc+imm9 にジャンプ
-RET         a8h   コールスタックからアドレスをポップし、ジャンプ
-PUSHBP      c020h bp を stack にプッシュ
-PUSHFP      c021h fp を stack にプッシュ
-POPFP       c100h stack から値をポップし fp に書く
-ENTER       c221h bp を mem[fp] に書き、bp に fp を書く
-LEAVE       c320h fp に bp を書き、bp に mem[bp] を書く
+PUSH imm15     |0     imm15     | imm15 を stack にプッシュ
+JMP imm12      |1000   imm11   0| pc+imm12 にジャンプ
+CALL imm12     |1000   imm11   1| コールスタックに pc+2 をプッシュし、pc+imm12 にジャンプ
+JZ imm12       |1001   imm11   0| stack から値をポップし、0 なら pc+imm12 にジャンプ
+JNZ imm12      |1001   imm11   1| stack から値をポップし、1 なら pc+imm12 にジャンプ
+LD X+imm10     |1010xx  imm9   0| mem[X+imm10] から読んだ値を stack にプッシュ
+ST X+imm10     |1011xx  imm9   0| stack からポップした値を mem[X+imm10] に書く
+PUSH X+imm10   |1100xx  imm10   | X+imm10 を stack にプッシュ
+                                  X の選択: 0=stack[0], 1=fp, 2=ip, 3=cstack[0]
+ADD FP,imm10   |110100  imm10   | fp += imm10
+SUB FP,imm10   |110101  imm10   | fp -= imm10
+               |11011xxxxxxxxxxx| 予約
+               |1110xxxxxxxxxxxx| 予約
+
+
+命令リスト（即値なし）
+
+mnemonic    15     87      0  説明
+------------------------------------
+POP        |1111000000001111| stack をポップ
+                              stack[0] に ALU-B をロードするので、ALU=0fh
+POP 1      |1111000000000000| stack[1] 以降をポップ（stack[0] を保持）
+                              stack[0] に ALU-A をロードするので、ALU=00h
+INC        |1111000000000001| stack[0]++
+INC2       |1111000000000010| stack[0] += 2
+NOT        |1111000000000100| stack[0] = ~stack[0]
+
+AND        |1111000000010000| stack[0] &= stack[1]
+OR         |1111000000010001| stack[0] |= stack[1]
+XOR        |1111000000010010| stack[0] ^= stack[1]
+SHR        |1111000000010100| stack[0] >>= stack[1]（符号なしシフト）
+SAR        |1111000000010101| stack[0] >>= stack[1]（符号付きシフト）
+SHL        |1111000000010110| stack[0] <<= stack[1]
+JOIN       |1111000000010111| stack[0] |= (stack[1] << 8)
+
+ADD        |1111000000100000| stack[0] += stack[1]
+SUB        |1111000000100001| stack[0] -= stack[1]
+MUL        |1111000000100010| stack[0] *= stack[1]
+LT         |1111000000101000| stack[0] = stack[0] < stack[1]
+EQ         |1111000000101001| stack[0] = stack[0] == stack[1]
+NEQ        |1111000000101010| stack[0] = stack[0] != stack[1]
+
+DUP        |1111000001000000| stack[0] を stack にプッシュ
+DUP 1      |1111000001000001| stack[1] を stack にプッシュ
+LDD        |1111000010000000| stack からアドレスをポップし、mem[addr] を stack にプッシュ
+STD        |1111000010000010| stack から値とアドレスをポップしメモリに書き、値をプッシュ
+STA        |1111000010000011| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
+                              stack[0] = data, stack[1] = addr
+LDD.1      |1111000011000000| byte version
+STD.1      |1111000011000010| byte version
+STA.1      |1111000011000011| byte version
+RET        |1111000100000000| コールスタックからアドレスをポップし、ジャンプ
+CPOP FP    |1111000100000010| コールスタックから値をポップし FP に書く
+CPUSH FP   |1111000100000011| コールスタックに FP をプッシュ
+
+
+ALU 機能
+
+番号  名前  説明
+----------------
+00h   A     A
+01h   INC   A + 1
+02h   INC2  A + 2
+03h   INC3  A + 3
+04h   NOT   ~A
+0fh   B     B
+10h   AND   A & B
+11h   OR    A | B
+12h   XOR   A ^ B
+14h   SHR   A >> B
+15h   SAR   A >> B (符号付きシフト)
+16h   SHL   A << B
+17h   JOIN  A | (B << 8)
+20h   ADD   A + B
+21h   SUB   A - B
+22h   MUL   A * B
+28h   LT    A < B
+29h   EQ    A == B
+2ah   NEQ   A != B
+30h   IF    cond ? A : B
 
 
 制御線の構成
+TODO: 新しい ISA に対応した説明に修正する
 
 名前    説明
 -----------------------
@@ -91,30 +134,9 @@ load_fp fp にロードする値の選択
 imm8=insn[7:0] 即値、ALU 機能選択
 
 
-ALU 機能
-
-番号  名前  説明
-----------------
-00h         stack[0]
-01h         stack[1]
-02h   ADD   stack[0] + stack[1]
-03h   SUB   stack[0] - stack[1]
-04h   MUL   stack[0] * stack[1]
-05h   JOIN  stack[0] | (stack[1] << 8)
-08h   LT    stack[0] < stack[1]
-09h   EQ    stack[0] == stack[1]
-0ah   NEQ   stack[0] != stack[1]
-10h   AND   stack[0] & stack[1]
-11h   XOR   stack[0] ^ stack[1]
-12h   OR    stack[0] | stack[1]
-13h   NOT   ~stack[0]
-14h   SHR   stack[0] >> stack[1]
-15h   SHL   stack[0] << stack[1]
-16h   SAR   stack[0] >> stack[1] (符号付きシフト)
-20h         BP
-
 
 メモリマップ
+TODO: 新しい ISA に対応した説明に修正する
 
 addr      説明
 ---------------
@@ -145,6 +167,7 @@ addr      説明
 
 
 信号タイミング
+TODO: 新しい ISA に対応した説明に修正する
 ../../doc/signal-timing-design/cpu-mem-timing.png
 
 タイミング図生成ツール
@@ -160,6 +183,7 @@ mem_wr  ____~~________________
 */
 
 /*
+TODO: 新しい ISA に対応した説明に修正する
 3->0  命令フェッチ
 0     デコード
 0->1  メモリ読み込み（データ）
