@@ -9,6 +9,8 @@
 #include "token.h"
 #include "type.h"
 
+#define INDENT "\t"
+
 char *src;
 void Locate(char *p) {
   char *start = p, *end = p;
@@ -47,11 +49,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
   case kNodeInteger:
     if ((node->token->value.as_int >> 15) == 0) {
-      printf("push %d\n", node->token->value.as_int);
+      printf(INDENT "push %d\n", node->token->value.as_int);
     } else {
-      printf("push %d\n", node->token->value.as_int >> 8);
-      printf("push %d\n", node->token->value.as_int & 0xff);
-      printf("join\n");
+      printf(INDENT "push %d\n", node->token->value.as_int >> 8);
+      printf(INDENT "push %d\n", node->token->value.as_int & 0xff);
+      printf(INDENT "join\n");
     }
     break;
   case kNodeId:
@@ -72,24 +74,24 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
                       sym->name->len, sym->name->raw);
               exit(1);
             }
-            printf("pushbp\n");
-            printf("push 0x%x\n", sym->offset);
-            printf("add\n");
+            printf(INDENT "pushbp\n");
+            printf(INDENT "push 0x%x\n", sym->offset);
+            printf(INDENT "add\n");
           } else {
-            printf("pushbp\n");
-            printf("push 0x%x\n", sym->offset);
-            printf("add\n");
+            printf(INDENT "pushbp\n");
+            printf(INDENT "push 0x%x\n", sym->offset);
+            printf(INDENT "add\n");
             if (!lval) {
               if (SizeofType(sym->type) == 1) {
-                printf("ldd.1\n");
+                printf(INDENT "ldd.1\n");
               } else {
-                printf("ldd\n");
+                printf(INDENT "ldd\n");
               }
             }
           }
           break;
         case kSymFunc:
-          printf("push %.*s\n", sym->name->len, sym->name->raw);
+          printf(INDENT "push %.*s\n", sym->name->len, sym->name->raw);
           break;
         }
       } else {
@@ -107,29 +109,29 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         node->lhs->type->kind == kTypeArray)) {
       size_t element_size = SizeofType(node->lhs->type->base);
       if (element_size > 1) {
-        printf("push %d\n", (int)element_size);
-        printf("mul\n");
+        printf(INDENT "push %d\n", (int)element_size);
+        printf(INDENT "mul\n");
       }
     }
-    printf("add\n");
+    printf(INDENT "add\n");
     node->type = node->lhs->type;
     break;
   case kNodeSub:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("sub\n");
+    printf(INDENT "sub\n");
     node->type = node->lhs->type;
     break;
   case kNodeMul:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("mul\n");
+    printf(INDENT "mul\n");
     node->type = node->lhs->type;
     break;
   case kNodeAssign:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 1);
-    printf("%s%s\n",
+    printf(INDENT "%s%s\n",
            lval ? "sta" : "std",
            SizeofType(node->lhs->type) == 1 ? ".1" : "");
     node->type = node->lhs->type;
@@ -137,37 +139,37 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeLT:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("lt\n");
+    printf(INDENT "lt\n");
     break;
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'
       Generate(ctx, node->lhs, 0);
-      printf("push 1\n");
-      printf("dup 1\n");
+      printf(INDENT "push 1\n");
+      printf(INDENT "dup 1\n");
       printf(node->kind == kNodeInc ? "add\n" : "sub\n");
       Generate(ctx, node->lhs, 1);
-      printf("sta.%d\n", (int)SizeofType(node->lhs->type));
-      printf("pop\n");
+      printf(INDENT "sta.%d\n", (int)SizeofType(node->lhs->type));
+      printf(INDENT "pop\n");
       node->type = node->lhs->type;
     } else { // 前置インクリメント '++ exp'
-      printf("push 1\n");
+      printf(INDENT "push 1\n");
       Generate(ctx, node->rhs, 0);
-      printf(node->kind == kNodeInc ? "add\n" : "sub\n");
+      printf(node->kind == kNodeInc ? INDENT "add\n" : INDENT "sub\n");
       Generate(ctx, node->rhs, 1);
-      printf("std.%d\n", (int)SizeofType(node->rhs->type));
+      printf(INDENT "std.%d\n", (int)SizeofType(node->rhs->type));
       node->type = node->rhs->type;
     }
     break;
   case kNodeEq:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("eq\n");
+    printf(INDENT "eq\n");
     break;
   case kNodeNEq:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("neq\n");
+    printf(INDENT "neq\n");
     break;
   case kNodeRef:
     Generate(ctx, node->rhs, 1);
@@ -178,9 +180,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     } else {
       Generate(ctx, node->rhs, 0);
       if (SizeofType(node->rhs->type->base) == 1) {
-        printf("ldd.1\n");
+        printf(INDENT "ldd.1\n");
       } else {
-        printf("ldd\n");
+        printf(INDENT "ldd\n");
       }
     }
     assert(node->rhs->type->base);
@@ -191,13 +193,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_false = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       Generate(ctx, node->lhs, 0);
-      printf("jz L_%d\n", label_false);
+      printf(INDENT "jz L_%d\n", label_false);
       Generate(ctx, node->rhs, 0);
-      printf("jz L_%d\n", label_false);
-      printf("push 1\n");
-      printf("jmp L_%d\n", label_end);
+      printf(INDENT "jz L_%d\n", label_false);
+      printf(INDENT "push 1\n");
+      printf(INDENT "jmp L_%d\n", label_end);
       printf("L_%d:\n", label_false);
-      printf("push 0\n");
+      printf(INDENT "push 0\n");
       printf("L_%d:\n", label_end);
     }
     break;
@@ -206,45 +208,45 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_true = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       Generate(ctx, node->lhs, 0);
-      printf("jnz l%d\n", label_true);
+      printf(INDENT "jnz l%d\n", label_true);
       Generate(ctx, node->rhs, 0);
-      printf("jnz l%d\n", label_true);
-      printf("push 0\n");
-      printf("jmp l%d\n", label_end);
+      printf(INDENT "jnz l%d\n", label_true);
+      printf(INDENT "push 0\n");
+      printf(INDENT "jmp l%d\n", label_end);
       printf("l%d:\n", label_true);
-      printf("push 1\n");
+      printf(INDENT "push 1\n");
       printf("l%d:\n", label_end);
     }
     break;
   case kNodeString:
     ctx->strings[ctx->num_strings] = node->token;
-    printf("push STR_%d\n", ctx->num_strings);
+    printf(INDENT "push STR_%d\n", ctx->num_strings);
     ctx->num_strings++;
     break;
   case kNodeAnd:
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
-    printf("and\n");
+    printf(INDENT "and\n");
     break;
   case kNodeXor:
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
-    printf("xor\n");
+    printf(INDENT "xor\n");
     break;
   case kNodeOr:
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
-    printf("or\n");
+    printf(INDENT "or\n");
     break;
   case kNodeNot:
     Generate(ctx, node->rhs, 0);
-    printf("not\n");
+    printf(INDENT "not\n");
     break;
   case kNodeRShift:
   case kNodeLShift:
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
-    printf("%s\n", node->kind == kNodeRShift ? "sar" : "shl");
+    printf(INDENT "%s\n", node->kind == kNodeRShift ? "sar" : "shl");
     break;
   case kNodeCall:
     {
@@ -262,7 +264,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         Generate(ctx, args[num_args - 1 - i], 0);
       }
       if (node->lhs->kind == kNodeId) {
-        printf("call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
+        printf(INDENT "call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
       } else {
         fprintf(stderr, "not implemented call of non-id expression\n");
         Locate(node->lhs->token->raw);
@@ -279,7 +281,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
       AppendSymbol(ctx->syms, func_sym);
       printf("%.*s:\n", func_sym->name->len, func_sym->name->raw);
-      printf("enter\n");
+      printf(INDENT "enter\n");
       ctx->lvar_offset = 2;
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
@@ -287,17 +289,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         sym->type = param->type;
         assert(sym->type);
         AppendSymbol(ctx->syms, sym);
-        printf("pushbp\n");
-        printf("push 0x%x\n", sym->offset);
-        printf("add\n");
-        printf("std\n");
-        printf("pop\n");
+        printf(INDENT "pushbp\n");
+        printf(INDENT "push 0x%x\n", sym->offset);
+        printf(INDENT "add\n");
+        printf(INDENT "std\n");
+        printf(INDENT "pop\n");
         ctx->lvar_offset += 2;
       }
-      printf("pushbp\n");
-      printf("push 0x%x\n", ctx->lvar_offset);
-      printf("add\n");
-      printf("popfp\n");
+      printf(INDENT "pushbp\n");
+      printf(INDENT "push 0x%x\n", ctx->lvar_offset);
+      printf(INDENT "add\n");
+      printf(INDENT "popfp\n");
       Generate(ctx, node->rhs, 0);
     }
     break;
@@ -305,7 +307,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
       if (n->kind <= kNodeExprEnd) {
-        printf("pop\n");
+        printf(INDENT "pop\n");
       }
     }
     break;
@@ -313,8 +315,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     if (node->lhs) {
       Generate(ctx, node->lhs, 0);
     }
-    printf("leave\n");
-    printf("ret\n");
+    printf(INDENT "leave\n");
+    printf(INDENT "ret\n");
     break;
   case kNodeDefVar:
     {
@@ -327,22 +329,22 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       ctx->lvar_offset += stk_size;
       AppendSymbol(ctx->syms, sym);
-      printf("pushfp\n");
-      printf("push 0x%x\n", (unsigned int)stk_size);
-      printf("add\n");
-      printf("popfp\n");
+      printf(INDENT "pushfp\n");
+      printf(INDENT "push 0x%x\n", (unsigned int)stk_size);
+      printf(INDENT "add\n");
+      printf(INDENT "popfp\n");
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
-        printf("pushbp\n");
-        printf("push 0x%x\n", sym->offset);
-        printf("add\n");
+        printf(INDENT "pushbp\n");
+        printf(INDENT "push 0x%x\n", sym->offset);
+        printf(INDENT "add\n");
         if (SizeofType(sym->type) == 1) {
-          printf("sta.1\n");
+          printf(INDENT "sta.1\n");
         } else {
-          printf("sta\n");
+          printf(INDENT "sta\n");
         }
-        printf("pop\n");
+        printf(INDENT "pop\n");
       }
     }
     break;
@@ -351,10 +353,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_else = node->rhs ? GenLabel(ctx) : -1;
       int label_end = GenLabel(ctx);
       Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", node->rhs ? label_else : label_end);
+      printf(INDENT "jz L_%d\n", node->rhs ? label_else : label_end);
       Generate(ctx, node->lhs, 0);
       if (node->rhs) {
-        printf("jmp L_%d\n", label_end);
+        printf(INDENT "jmp L_%d\n", label_end);
         printf("L_%d:\n", label_else);
         Generate(ctx, node->rhs, 0);
       }
@@ -372,18 +374,18 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lcontinue = label_next;
 
       Generate(ctx, node->lhs, 0);
-      printf("pop\n");
+      printf(INDENT "pop\n");
       printf("L_%d:\n", label_cond);
       Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", label_end);
+      printf(INDENT "jz L_%d\n", label_end);
       Generate(ctx, node->rhs, 0);
       if (node->rhs->kind <= kNodeExprEnd) {
-        printf("pop\n");
+        printf(INDENT "pop\n");
       }
       printf("L_%d:\n", label_next);
       Generate(ctx, node->lhs->next, 0);
-      printf("pop\n");
-      printf("jmp L_%d\n", label_cond);
+      printf(INDENT "pop\n");
+      printf(INDENT "jmp L_%d\n", label_cond);
       printf("L_%d:\n", label_end);
 
       ctx->jump_labels = old_labels;
@@ -400,19 +402,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       printf("L_%d:\n", label_cond);
       Generate(ctx, node->cond, 0);
-      printf("jz L_%d\n", label_end);
+      printf(INDENT "jz L_%d\n", label_end);
       Generate(ctx, node->rhs, 0);
-      printf("jmp L_%d\n", label_cond);
+      printf(INDENT "jmp L_%d\n", label_cond);
       printf("L_%d:\n", label_end);
 
       ctx->jump_labels = old_labels;
     }
     break;
   case kNodeBreak:
-    printf("jmp L_%d\n", ctx->jump_labels.lbreak);
+    printf(INDENT "jmp L_%d\n", ctx->jump_labels.lbreak);
     break;
   case kNodeContinue:
-    printf("jmp L_%d\n", ctx->jump_labels.lcontinue);
+    printf(INDENT "jmp L_%d\n", ctx->jump_labels.lcontinue);
     break;
   case kNodeTypeSpec:
   case kNodePList:
@@ -432,12 +434,12 @@ int main(void) {
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}
   };
-  printf("push 0x20\n");
-  printf("popfp\n");
-  printf("call main\n");
-  printf("st 0x1e\n");
+  printf(INDENT "push 0x20\n");
+  printf(INDENT "popfp\n");
+  printf(INDENT "call main\n");
+  printf(INDENT "st 0x1e\n");
   printf("fin:\n");
-  printf("jmp fin\n");
+  printf(INDENT "jmp fin\n");
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
       Generate(&gen_ctx, n, 0);
@@ -446,7 +448,7 @@ int main(void) {
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
-    printf("STR_%d: \ndb ", i);
+    printf("STR_%d: \n" INDENT "db", i);
     for (int i = 1; i < tk_str->len - 1; i++) {
       if (tk_str->raw[i] == '\\') {
         printf("0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
@@ -455,7 +457,7 @@ int main(void) {
         printf("0x%02x,", tk_str->raw[i]);
       }
     }
-    printf("0\n");
+    printf(INDENT "0\n");
   }
 
   return 0;
