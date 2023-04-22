@@ -37,9 +37,9 @@ JNZ simm12     |1001   simm11  1| stack から値をポップし、1 なら pc+s
 LD X+simm10    |1010xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
 ST X+simm10    |1011xx  simm9  0| stack からポップした値を mem[X+simm10] に書く
 PUSH X+simm10  |1100xx  simm10  | X+simm10 を stack にプッシュ
-                                 X の選択: 0=stack[0], 1=fp, 2=ip, 3=cstack[0]
-ADD FP,simm10  |110100  uimm10  | fp += uimm10
-SUB FP,simm10  |110101  uimm10  | fp -= uimm10
+                                  X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
+ADD FP,simm10  |110100  simm10  | fp += simm10
+               |110101xxxxxxxxxx| 予約
                |11011xxxxxxxxxxx| 予約
                |1110xxxxxxxxxxxx| 予約
 
