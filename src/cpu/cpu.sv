@@ -29,17 +29,17 @@ wr_data   メモリへの書き込みデータ
 
 mnemonic        15     87      0  説明
 ------------------------------------
-PUSH imm15     |0     imm15     | imm15 を stack にプッシュ
-JMP imm12      |1000   imm11   0| pc+imm12 にジャンプ
-CALL imm12     |1000   imm11   1| コールスタックに pc+2 をプッシュし、pc+imm12 にジャンプ
-JZ imm12       |1001   imm11   0| stack から値をポップし、0 なら pc+imm12 にジャンプ
-JNZ imm12      |1001   imm11   1| stack から値をポップし、1 なら pc+imm12 にジャンプ
-LD X+imm10     |1010xx  imm9   0| mem[X+imm10] から読んだ値を stack にプッシュ
-ST X+imm10     |1011xx  imm9   0| stack からポップした値を mem[X+imm10] に書く
-PUSH X+imm10   |1100xx  imm10   | X+imm10 を stack にプッシュ
-                                  X の選択: 0=stack[0], 1=fp, 2=ip, 3=cstack[0]
-ADD FP,imm10   |110100  imm10   | fp += imm10
-SUB FP,imm10   |110101  imm10   | fp -= imm10
+PUSH uimm15    |0    uimm15     | uimm15 を stack にプッシュ
+JMP simm12     |1000   simm11  0| pc+simm12 にジャンプ
+CALL simm12    |1000   simm11  1| コールスタックに pc+2 をプッシュし、pc+simm12 にジャンプ
+JZ simm12      |1001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
+JNZ simm12     |1001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
+LD X+simm10    |1010xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
+ST X+simm10    |1011xx  simm9  0| stack からポップした値を mem[X+simm10] に書く
+PUSH X+simm10  |1100xx  simm10  | X+simm10 を stack にプッシュ
+                                 X の選択: 0=stack[0], 1=fp, 2=ip, 3=cstack[0]
+ADD FP,simm10  |110100  uimm10  | fp += uimm10
+SUB FP,simm10  |110101  uimm10  | fp -= uimm10
                |11011xxxxxxxxxxx| 予約
                |1110xxxxxxxxxxxx| 予約
 
