@@ -44,7 +44,7 @@ logic [7:0] cpu_io_lcd;
 logic [7:0] cpu_io_led;
 
 // 継続代入
-assign led_row = led_on(counter) << row_index;
+assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
 
 assign lcd_e  = cpu_io_lcd[0];
