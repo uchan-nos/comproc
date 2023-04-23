@@ -8,5 +8,16 @@ then
   exit 1
 fi
 
-bin=$(cat "$file" | ./build.sh)
+case "$file" in
+  *\.c)
+    bin=$(cat "$file" | ./build.sh)
+    ;;
+  *\.asm)
+    bin=$(cat "$file" | ../assembler/uasm)
+    ;;
+  *)
+    bin=$(cat "$file")
+    ;;
+esac
+
 ./send.sh $bin
