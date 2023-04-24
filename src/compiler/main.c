@@ -448,7 +448,7 @@ int main(void) {
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
-    printf("STR_%d: \n" INDENT "db", i);
+    printf("STR_%d: \n" INDENT "db ", i);
     for (int i = 1; i < tk_str->len - 1; i++) {
       if (tk_str->raw[i] == '\\') {
         printf("0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
