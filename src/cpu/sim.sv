@@ -6,7 +6,7 @@ localparam STDERR = 'h8000_0002;
 localparam CLOCK_HZ = 10_000;
 localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
-logic [9:0] mem_addr;
+logic [`ADDR_WIDTH-1:0] mem_addr;
 logic [15:0] rd_data, wr_data;
 logic mem_wr;
 logic mem_byt;

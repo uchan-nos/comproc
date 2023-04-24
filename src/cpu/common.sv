@@ -1,1 +1,1 @@
-`define ADDR_WIDTH 10
+`define ADDR_WIDTH 12
