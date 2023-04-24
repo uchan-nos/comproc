@@ -7,6 +7,6 @@
 **/compiler/*.o
 **/assembler/uasm
 **/assembler/*.o
-**/cpu/sim.exe
+**/cpu/*.exe
 .*.swp
 .*.d
