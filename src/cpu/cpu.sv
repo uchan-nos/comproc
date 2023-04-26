@@ -48,67 +48,49 @@ ADD FP,simm10  |110100  simm10  | fp += simm10
 
 mnemonic    15     87      0  説明
 ------------------------------------
-POP        |1111000000001111| stack をポップ
+POP        |1111000001001111| stack をポップ
                               stack[0] に ALU-B をロードするので、ALU=0fh
-POP 1      |1111000000000000| stack[1] 以降をポップ（stack[0] を保持）
+POP 1      |1111000001000000| stack[1] 以降をポップ（stack[0] を保持）
                               stack[0] に ALU-A をロードするので、ALU=00h
-INC        |1111000000000001| stack[0]++
-INC2       |1111000000000010| stack[0] += 2
-NOT        |1111000000000100| stack[0] = ~stack[0]
+INC        |1111000001000001| stack[0]++
+INC2       |1111000001000010| stack[0] += 2
+NOT        |1111000001000100| stack[0] = ~stack[0]
 
-AND        |1111000000010000| stack[0] &= stack[1]
-OR         |1111000000010001| stack[0] |= stack[1]
-XOR        |1111000000010010| stack[0] ^= stack[1]
-SHR        |1111000000010100| stack[0] >>= stack[1]（符号なしシフト）
-SAR        |1111000000010101| stack[0] >>= stack[1]（符号付きシフト）
-SHL        |1111000000010110| stack[0] <<= stack[1]
-JOIN       |1111000000010111| stack[0] |= (stack[1] << 8)
+AND        |1111000001010000| stack[0] &= stack[1]
+OR         |1111000001010001| stack[0] |= stack[1]
+XOR        |1111000001010010| stack[0] ^= stack[1]
+SHR        |1111000001010100| stack[0] >>= stack[1]（符号なしシフト）
+SAR        |1111000001010101| stack[0] >>= stack[1]（符号付きシフト）
+SHL        |1111000001010110| stack[0] <<= stack[1]
+JOIN       |1111000001010111| stack[0] |= (stack[1] << 8)
 
-ADD        |1111000000100000| stack[0] += stack[1]
-SUB        |1111000000100001| stack[0] -= stack[1]
-MUL        |1111000000100010| stack[0] *= stack[1]
-LT         |1111000000101000| stack[0] = stack[0] < stack[1]
-EQ         |1111000000101001| stack[0] = stack[0] == stack[1]
-NEQ        |1111000000101010| stack[0] = stack[0] != stack[1]
+ADD        |1111000001100000| stack[0] += stack[1]
+SUB        |1111000001100001| stack[0] -= stack[1]
+MUL        |1111000001100010| stack[0] *= stack[1]
+LT         |1111000001101000| stack[0] = stack[0] < stack[1]
+EQ         |1111000001101001| stack[0] = stack[0] == stack[1]
+NEQ        |1111000001101010| stack[0] = stack[0] != stack[1]
 
-DUP        |1111000001000000| stack[0] を stack にプッシュ
-DUP 1      |1111000001000001| stack[1] を stack にプッシュ
-LDD        |1111000010000000| stack からアドレスをポップし、mem[addr] を stack にプッシュ
-STD        |1111000010000010| stack から値とアドレスをポップしメモリに書き、値をプッシュ
-STA        |1111000010000011| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
-                              stack[0] = data, stack[1] = addr
-LDD.1      |1111000011000000| byte version
-STD.1      |1111000011000010| byte version
-STA.1      |1111000011000011| byte version
-RET        |1111000100000000| コールスタックからアドレスをポップし、ジャンプ
-CPOP FP    |1111000100000010| コールスタックから値をポップし FP に書く
-CPUSH FP   |1111000100000011| コールスタックに FP をプッシュ
+DUP        |1111000010000000| stack[0] を stack にプッシュ
+DUP 1      |1111000010001111| stack[1] を stack にプッシュ
+RET        |1111010001000001| コールスタックからアドレスをポップし、ジャンプ
+CPOP FP    |1111010001000010| コールスタックから値をポップし FP に書く
+CPUSH FP   |1111010010000010| コールスタックに FP をプッシュ
+LDD        |1111100011000000| stack からアドレスをポップし、mem[addr] を stack にプッシュ
+STD        |1111100001000100| stack から値とアドレスをポップしメモリに書き、値をプッシュ
+STA        |1111100001000110| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
+                              stack[1] = data, stack[0] = addr
+LDD.1      |1111100011000001| byte version
+STD.1      |1111100001000101| byte version
+STA.1      |1111100001000111| byte version
 
 
-ALU 機能
+即値無し命令の構造
 
-番号  名前  説明
-----------------
-00h   A     A
-01h   INC   A + 1
-02h   INC2  A + 2
-03h   INC3  A + 3
-04h   NOT   ~A
-0fh   B     B
-10h   AND   A & B
-11h   OR    A | B
-12h   XOR   A ^ B
-14h   SHR   A >> B
-15h   SAR   A >> B (符号付きシフト)
-16h   SHL   A << B
-17h   JOIN  A | (B << 8)
-20h   ADD   A + B
-21h   SUB   A - B
-22h   MUL   A * B
-28h   LT    A < B
-29h   EQ    A == B
-2ah   NEQ   A != B
-30h   IF    cond ? A : B
+ 15  12 11 10 9  8    7     6   5    0
+| 1111 |  00 | 00 | Push | Pop |  ALU |  stack だけを使う演算系命令
+| 1111 |  01 | 00 | Push | Pop | Func |  cstack を使う命令
+| 1111 |  10 | 00 | Push | Pop | Func |  メモリを読み書きする命令
 
 
 制御線の構成
