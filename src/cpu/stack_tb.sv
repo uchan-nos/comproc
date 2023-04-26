@@ -2,7 +2,7 @@ module stack_tb;
 
 localparam DEPTH = 3;
 
-logic rst, clk, pop, push;
+logic rst, clk, pop, push, load;
 logic [15:0] data_in, data_out;
 logic [15:0] data_raw[0:DEPTH-1];
 
@@ -21,6 +21,7 @@ initial begin
   clk <= 1;
   pop <= 0;
   push <= 1;
+  load <= 1;
   data_in <= 16'hCAFE;
 
   #13
@@ -29,12 +30,14 @@ initial begin
 
   @(posedge clk)
     push <= 0;
+    load <= 0;
     data_in <= 16'hDEAD;
   @(negedge clk)
     if (data_out !== 16'hCAFE) $error("data_out must be 0xCAFE");
 
   @(posedge clk)
     push <= 1;
+    load <= 1;
   @(negedge clk)
     if (data_out !== 16'hCAFE) $error("data_out must be 0xCAFE");
 
@@ -46,11 +49,16 @@ initial begin
   @(posedge clk)
     push <= 0;
     pop <= 1;
+    load <= 1;
+    data_in <= 16'hFACE;
   @(negedge clk)
     if (data_out !== 16'hBEEF) $error("data_out must be 0xBEEF");
 
+  @(posedge clk)
+    load <= 0;
+
   @(negedge clk)
-    if (data_out !== 16'hDEAD) $error("data_out must be 0xDEAD");
+    if (data_out !== 16'hFACE) $error("data_out must be 0xFACE");
 
   @(posedge clk)
     pop <= 0;
@@ -59,6 +67,7 @@ initial begin
 
   @(posedge clk)
     push <= 1;
+    load <= 1;
     data_in <= 16'h0001;
   @(negedge clk)
     if (data_out !== 16'hCAFE) $error("data_out must be 0xCAFE");
@@ -76,6 +85,7 @@ initial begin
   @(posedge clk)
     push <= 0;
     pop <= 1;
+    load <= 0;
   @(negedge clk)
     if (data_out !== 16'h0003) $error("data_out must be 0x0003");
 
@@ -94,12 +104,11 @@ initial begin
   @(posedge clk)
     push <= 1;
     pop <= 0;
+    load <= 1;
     data_in <= 16'hFACE;
 
-  // push & pop のとき、スタック先頭の値が入れ替わることをテスト
   @(posedge clk)
-    push <= 1;
-    pop <= 1;
+    push <= 0;
     data_in <= 16'hAAAA;
   @(negedge clk)
     if (data_out !== 16'hFACE) $error("data_out must be 0xFACE");
@@ -107,13 +116,11 @@ initial begin
   @(posedge clk)
     push <= 0;
     pop <= 1;
-    data_in <= 16'hBBBB;
+    load <= 0;
   @(negedge clk)
-    // FACE が AAAA に置き換わったことを確認
     if (data_out !== 16'hAAAA) $error("data_out must be 0xAAAA");
 
   @(negedge clk)
-    // FACE が残っていないことを確認
     if (data_out !== 16'h0000) $error("data_out must be 0x0000");
 
   $finish;
