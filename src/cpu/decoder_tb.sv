@@ -54,10 +54,7 @@ initial begin
   $monitor("%d: imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
            $time, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_fp, load_ip, byt, wr, alu_sel);
 
-  // test_sig imm  mask   src  alu  wr lo po pu fp ip by wr
-  //                       _a      stk1 ad p sh        t
-
-  insn <= 16'h0BEF; // push uimm15
+  insn <= 16'h0BEF;     // push uimm15
   #1 test_sig(1,        // imm,
               16'h7fff, // imm_mask
               `src_x,   // src_a
@@ -72,7 +69,7 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'h8020; // jmp ip+0x20
+  #1 insn <= 16'h8020;  // jmp ip+0x20
   #1 test_sig(1,        // imm,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
@@ -87,7 +84,7 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'hB430; // st fp+0x30
+  #1 insn <= 16'hB430;  // st fp+0x30
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
@@ -102,7 +99,7 @@ initial begin
               1         // wr
             );
 
-  #1 insn <= 16'hF050; // and
+  #1 insn <= 16'hF050;  // and
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
