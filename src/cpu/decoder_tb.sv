@@ -78,7 +78,7 @@ initial begin
               `src_ip,  // src_a
               6'h20,    // alu
               `x,       // wr_stk1
-              0,        // load
+              `x,       // load
               0,        // pop
               0,        // push
               0,        // load_stk
@@ -94,7 +94,7 @@ initial begin
               `src_fp,  // src_a
               6'h20,    // alu
               0,        // wr_stk1
-              0,        // load
+              `x,       // load
               1,        // pop
               0,        // push
               0,        // load_stk
@@ -113,7 +113,7 @@ initial begin
               0,        // load
               1,        // pop
               0,        // push
-              0,        // load_stk
+              1,        // load_stk
               0,        // load_fp
               0,        // load_ip
               `x,       // byt
@@ -142,7 +142,7 @@ initial begin
               `src_stk0,// src_a
               6'h00,    // alu
               1,        // wr_stk1
-              0,        // load
+              `x,       // load
               1,        // pop
               0,        // push
               0,        // load_stk
