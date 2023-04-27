@@ -1,7 +1,7 @@
 module decoder_tb;
 
 logic [15:0] insn;
-logic imm, wr_stk1, load, pop, push, load_fp, load_ip, byt, wr;
+logic imm, wr_stk1, load, pop, push, load_stk, load_fp, load_ip, byt, wr;
 logic [15:0] imm_mask;
 logic [1:0] src_a;
 logic [5:0] alu_sel;
@@ -20,6 +20,7 @@ task test_sig(
   input e_load,
   input e_pop,
   input e_push,
+  input e_load_stk,
   input e_load_fp,
   input e_load_ip,
   input e_byt,
@@ -36,6 +37,7 @@ begin
   `test_sig1(load);
   `test_sig1(pop);
   `test_sig1(push);
+  `test_sig1(load_stk);
   `test_sig1(load_fp);
   `test_sig1(load_ip);
   `test_sig1(byt);
@@ -63,6 +65,7 @@ initial begin
               0,        // load
               0,        // pop
               1,        // push
+              1,        // load_stk
               0,        // load_fp
               0,        // load_ip
               `x,       // byt
@@ -78,6 +81,7 @@ initial begin
               0,        // load
               0,        // pop
               0,        // push
+              0,        // load_stk
               0,        // load_fp
               1,        // load_ip
               `x,       // byt
@@ -93,6 +97,7 @@ initial begin
               0,        // load
               1,        // pop
               0,        // push
+              0,        // load_stk
               0,        // load_fp
               0,        // load_ip
               0,        // byt
@@ -108,10 +113,43 @@ initial begin
               0,        // load
               1,        // pop
               0,        // push
+              0,        // load_stk
               0,        // load_fp
               0,        // load_ip
               `x,       // byt
               0         // wr
+            );
+
+  #1 insn <= 16'hF8C0;  // std
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_stk0,// src_a
+              6'h00,    // alu
+              1,        // wr_stk1
+              0,        // load
+              1,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // byt
+              1         // wr
+            );
+
+  #1 insn <= 16'hF846;  // sta
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_stk0,// src_a
+              6'h00,    // alu
+              1,        // wr_stk1
+              0,        // load
+              1,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // byt
+              1         // wr
             );
 
 end
