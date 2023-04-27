@@ -29,7 +29,7 @@ begin
   `test_sig1(imm);
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
     $error("imm_mask must be 0x%04x", e_imm_mask);
-  if (e_src_a  !== 6'hxx  && src_a  !== e_src_a)
+  if (e_src_a  !== 2'hx  && src_a  !== e_src_a)
     $error("src_a must be %d", e_src_a);
   if (e_alu_sel  !== 6'hxx  && alu_sel  !== e_alu_sel)
     $error("alu_sel must be 0x%02x", e_alu_sel);
@@ -53,8 +53,8 @@ endtask
 `define src_x    2'hx
 
 initial begin
-  $monitor("%d: imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
-           $time, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_fp, load_ip, byt, wr, alu_sel);
+  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
+           $time, insn, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_fp, load_ip, byt, wr, alu_sel);
 
   insn <= 16'h0BEF;     // push uimm15
   #1 test_sig(1,        // imm,
@@ -120,7 +120,23 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'hF8C0;  // std
+  #1 insn <= 16'hF8C0;  // ldd
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_stk0,// src_a
+              6'h00,    // alu
+              0,        // wr_stk1
+              1,        // load
+              0,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // byt
+              0         // wr
+            );
+
+  #1 insn <= 16'hF840;  // std
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
