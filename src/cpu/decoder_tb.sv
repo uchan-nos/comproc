@@ -53,8 +53,8 @@ endtask
 `define src_x    2'hx
 
 initial begin
-  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
-           $time, insn, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_fp, load_ip, byt, wr, alu_sel);
+  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d load_stk=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
+           $time, insn, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_stk, load_fp, load_ip, byt, wr, alu_sel);
 
   insn <= 16'h0BEF;     // push uimm15
   #1 test_sig(1,        // imm,
