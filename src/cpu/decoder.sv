@@ -7,14 +7,16 @@ module decoder(
   output [1:0] src_a,
   output [5:0] alu_sel,
   output wr_stk1,
-  output load,
   output pop,
   output push,
   output load_stk,
   output load_fp,
   output load_ip,
+  output cpop,
+  output cpush,
   output byt,
-  output wr
+  output rd_mem,
+  output wr_mem
 );
 
 `define src_stk0 2'h0
@@ -28,14 +30,16 @@ assign imm_mask = calc_imm_mask(insn[15:12]);
 assign src_a = calc_src_a(insn);
 assign alu_sel = calc_alu_sel(insn);
 assign wr_stk1 = insn[15:12] === 4'hf & insn[3];
-assign load = calc_load(insn);
 assign pop = calc_pop(insn);
 assign push = calc_push(insn);
 assign load_stk = calc_load_stk(insn);
 assign load_fp = calc_load_fp(insn);
 assign load_ip = calc_load_ip(insn);
+assign cpop = calc_cpop(insn);
+assign cpush = calc_cpush(insn);
 assign byt = insn[0];
-assign wr = calc_wr(insn);
+assign rd_mem = calc_rd_mem(insn);
+assign wr_mem = calc_wr_mem(insn);
 
 function [15:0] calc_imm_mask(input [3:0] op);
 begin
@@ -63,11 +67,14 @@ endfunction
 
 function [1:0] calc_src_a_no_imm(input [15:0] insn);
 begin
-  casex ({insn[11:10], insn[7:6]})
-    4'b0110: calc_src_a_no_imm = `src_fp;
-    4'b01xx: calc_src_a_no_imm = `src_cstk;
-    default: calc_src_a_no_imm = `src_stk0;
-  endcase
+  if (insn[11])
+    casex (insn[3:0])
+      4'b00x0: calc_src_a_no_imm = `src_cstk;
+      4'b0011: calc_src_a_no_imm = `src_fp;
+      default: calc_src_a_no_imm = `src_stk0;
+    endcase
+  else
+    calc_src_a_no_imm = `src_stk0;
 end
 endfunction
 
@@ -82,12 +89,12 @@ begin
 end
 endfunction
 
-function calc_load(input [15:0] insn);
+function calc_rd_mem(input [15:0] insn);
 begin
   casex (insn[15:12])
-    4'b10xx: calc_load = 1'b1;
-    4'b1111: calc_load = insn[11] & (insn[3:2] === 2'b10);
-    default: calc_load = 1'b0;
+    4'b10xx: calc_rd_mem = 1'b1;
+    4'b1111: calc_rd_mem = insn[11] & (insn[3:2] === 2'b10);
+    default: calc_rd_mem = 1'b0;
   endcase
 end
 endfunction
@@ -145,12 +152,34 @@ begin
 end
 endfunction
 
-function calc_wr(input [15:0] insn);
+function calc_cpop(input [15:0] insn);
+begin
+  if (insn[15:11] === 5'b11111)
+    casex (insn[3:0])
+      4'b00x0: calc_cpop = 1'b1;
+      default: calc_cpop = 1'b0;
+    endcase
+  else
+    calc_cpop = 1'b0;
+end
+endfunction
+
+function calc_cpush(input [15:0] insn);
 begin
   casex (insn[15:12])
-    4'b1011: calc_wr = 1'b1;
-    4'b1111: calc_wr = insn[11] & insn[3:2] === 2'b11;
-    default: calc_wr = 1'b0;
+    4'b1000: calc_cpush = ((insn[15:12] === 4'b1000) & insn[0]);
+    4'b1111: calc_cpush = (insn[11] & (insn[3:0] === 4'b0011));
+    default: calc_cpush = 1'b0;
+  endcase
+end
+endfunction
+
+function calc_wr_mem(input [15:0] insn);
+begin
+  casex (insn[15:12])
+    4'b1011: calc_wr_mem = 1'b1;
+    4'b1111: calc_wr_mem = insn[11] & insn[3:2] === 2'b11;
+    default: calc_wr_mem = 1'b0;
   endcase
 end
 endfunction

@@ -1,7 +1,7 @@
 module decoder_tb;
 
 logic [15:0] insn;
-logic imm, wr_stk1, load, pop, push, load_stk, load_fp, load_ip, byt, wr;
+logic imm, wr_stk1, pop, push, load_stk, load_fp, load_ip, cpop, cpush, byt, rd_mem, wr_mem;
 logic [15:0] imm_mask;
 logic [1:0] src_a;
 logic [5:0] alu_sel;
@@ -17,14 +17,16 @@ task test_sig(
   input [1:0] e_src_a,
   input [5:0] e_alu_sel,
   input e_wr_stk1,
-  input e_load,
   input e_pop,
   input e_push,
   input e_load_stk,
   input e_load_fp,
   input e_load_ip,
+  input e_cpop,
+  input e_cpush,
   input e_byt,
-  input e_wr);
+  input e_rd_mem,
+  input e_wr_mem);
 begin
   `test_sig1(imm);
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
@@ -34,14 +36,16 @@ begin
   if (e_alu_sel  !== 6'hxx  && alu_sel  !== e_alu_sel)
     $error("alu_sel must be 0x%02x", e_alu_sel);
   `test_sig1(wr_stk1);
-  `test_sig1(load);
   `test_sig1(pop);
   `test_sig1(push);
   `test_sig1(load_stk);
   `test_sig1(load_fp);
   `test_sig1(load_ip);
+  `test_sig1(cpop);
+  `test_sig1(cpush);
   `test_sig1(byt);
-  `test_sig1(wr);
+  `test_sig1(rd_mem);
+  `test_sig1(wr_mem);
 end
 endtask
 
@@ -53,8 +57,12 @@ endtask
 `define src_x    2'hx
 
 initial begin
-  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d wr_stk1=%d load=%d pop=%d push=%d load_stk=%d fp=%d ip=%d byt=%d wr=%d alu=%02x",
-           $time, insn, imm, imm_mask, src_a, wr_stk1, load, pop, push, load_stk, load_fp, load_ip, byt, wr, alu_sel);
+  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d alu=%02x wr_stk1=%d",
+           $time, insn, imm, imm_mask, src_a, alu_sel, wr_stk1,
+           " pop=%d push=%d load_stk=%d fp=%d ip=%d cpop=%d cpush=%d",
+           pop, push, load_stk, load_fp, load_ip, cpop, cpush,
+           " byt=%d rd=%d wr=%d",
+           byt, rd_mem, wr_mem);
 
   insn <= 16'h0BEF;     // push uimm15
   #1 test_sig(1,        // imm,
@@ -62,14 +70,16 @@ initial begin
               `src_x,   // src_a
               6'h0f,    // alu
               `x,       // wr_stk1
-              0,        // load
               0,        // pop
               1,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               `x,       // byt
-              0         // wr
+              0,        // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'h8020;  // jmp ip+0x20
@@ -78,14 +88,34 @@ initial begin
               `src_ip,  // src_a
               6'h20,    // alu
               `x,       // wr_stk1
-              `x,       // load
               0,        // pop
               0,        // push
               0,        // load_stk
               0,        // load_fp
               1,        // load_ip
+              0,        // cpop
+              0,        // cpush
               `x,       // byt
-              0         // wr
+              `x,       // rd_mem
+              0         // wr_mem
+            );
+
+  #1 insn <= 16'h8ff1;  // call ip+0xff0
+  #1 test_sig(1,        // imm,
+              16'h0ffe, // imm_mask
+              `src_ip,  // src_a
+              6'h20,    // alu
+              `x,       // wr_stk1
+              0,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              1,        // load_ip
+              0,        // cpop
+              1,        // cpush
+              `x,       // byt
+              `x,       // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'hB438;  // st fp+0x38
@@ -94,14 +124,16 @@ initial begin
               `src_fp,  // src_a
               6'h20,    // alu
               0,        // wr_stk1
-              `x,       // load
               1,        // pop
               0,        // push
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               0,        // byt
-              1         // wr
+              `x,       // rd_mem
+              1         // wr_mem
             );
 
   #1 insn <= 16'hF001;  // inc
@@ -110,14 +142,16 @@ initial begin
               `src_stk0,// src_a
               6'h01,    // alu
               `x,       // wr_stk1
-              0,        // load
               0,        // pop
               0,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               `x,       // byt
-              0         // wr
+              0,        // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'hF050;  // and
@@ -126,14 +160,16 @@ initial begin
               `src_stk0,// src_a
               6'h10,    // alu
               `x,       // wr_stk1
-              0,        // load
               1,        // pop
               0,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               `x,       // byt
-              0         // wr
+              0,        // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'hF08F;  // dup 1
@@ -142,14 +178,34 @@ initial begin
               2'hx,     // src_a
               6'h0f,    // alu
               `x,       // wr_stk1
-              0,        // load
               0,        // pop
               1,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               `x,       // byt
-              0         // wr
+              0,        // rd_mem
+              0         // wr_mem
+            );
+
+  #1 insn <= 16'hF800;  // ret
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_cstk,// src_a
+              6'h00,    // alu
+              `x,       // wr_stk1
+              0,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              1,        // load_ip
+              1,        // cpop
+              0,        // cpush
+              0,        // byt
+              `x,       // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'hF808;  // ldd
@@ -158,14 +214,16 @@ initial begin
               `src_stk0,// src_a
               6'h00,    // alu
               `x,       // wr_stk1
-              1,        // load
               0,        // pop
               0,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               0,        // byt
-              0         // wr
+              1,        // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'hF80C;  // sta
@@ -174,14 +232,16 @@ initial begin
               `src_stk0,// src_a
               6'h00,    // alu
               1,        // wr_stk1
-              0,        // load
               1,        // pop
               0,        // push
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               0,        // byt
-              1         // wr
+              0,        // rd_mem
+              1         // wr_mem
             );
 
   #1 insn <= 16'hF80E;  // std
@@ -190,14 +250,16 @@ initial begin
               `src_stk0,// src_a
               6'h00,    // alu
               1,        // wr_stk1
-              `x,       // load
               1,        // pop
               0,        // push
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              0,        // cpop
+              0,        // cpush
               0,        // byt
-              1         // wr
+              `x,       // rd_mem
+              1         // wr_mem
             );
 
 end
