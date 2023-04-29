@@ -88,7 +88,7 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'hB430;  // st fp+0x30
+  #1 insn <= 16'hB438;  // st fp+0x38
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
@@ -102,6 +102,22 @@ initial begin
               0,        // load_ip
               0,        // byt
               1         // wr
+            );
+
+  #1 insn <= 16'hF001;  // inc
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_stk0,// src_a
+              6'h01,    // alu
+              `x,       // wr_stk1
+              0,        // load
+              0,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              `x,       // byt
+              0         // wr
             );
 
   #1 insn <= 16'hF050;  // and
@@ -120,12 +136,28 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'hF8C0;  // ldd
+  #1 insn <= 16'hF08F;  // dup 1
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              2'hx,     // src_a
+              6'h0f,    // alu
+              `x,       // wr_stk1
+              0,        // load
+              0,        // pop
+              1,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              `x,       // byt
+              0         // wr
+            );
+
+  #1 insn <= 16'hF808;  // ldd
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               6'h00,    // alu
-              0,        // wr_stk1
+              `x,       // wr_stk1
               1,        // load
               0,        // pop
               0,        // push
@@ -136,23 +168,7 @@ initial begin
               0         // wr
             );
 
-  #1 insn <= 16'hF840;  // std
-  #1 test_sig(0,        // imm,
-              16'hxxxx, // imm_mask
-              `src_stk0,// src_a
-              6'h00,    // alu
-              1,        // wr_stk1
-              `x,       // load
-              1,        // pop
-              0,        // push
-              0,        // load_stk
-              0,        // load_fp
-              0,        // load_ip
-              0,        // byt
-              1         // wr
-            );
-
-  #1 insn <= 16'hF846;  // sta
+  #1 insn <= 16'hF80C;  // sta
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
@@ -162,6 +178,22 @@ initial begin
               1,        // pop
               0,        // push
               1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // byt
+              1         // wr
+            );
+
+  #1 insn <= 16'hF80E;  // std
+  #1 test_sig(0,        // imm,
+              16'hxxxx, // imm_mask
+              `src_stk0,// src_a
+              6'h00,    // alu
+              1,        // wr_stk1
+              `x,       // load
+              1,        // pop
+              0,        // push
+              0,        // load_stk
               0,        // load_fp
               0,        // load_ip
               0,        // byt
