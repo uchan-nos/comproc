@@ -23,6 +23,9 @@ signals_tb.exe: signals_tb.sv signals.sv common.sv signalizer.sv decoder.sv
 clkdiv_tb.exe: clkdiv_tb.sv clkdiv.sv
 	iverilog -g2012 -o $@ $^
 
+cdtimer_tb.exe: cdtimer_tb.sv cdtimer.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: uart
 uart:
 	TARGET=uart ./test.sh
@@ -33,10 +36,11 @@ clean:
 
 .PHONY: test_modules
 test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
-	signals_tb.exe clkdiv_tb.exe
-	./stack_tb.exe
-	./alu_tb.exe
-	./decoder_tb.exe
-	./signalizer_tb.exe
-	./signals_tb.exe
-	./clkdiv_tb.exe
+	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe
+	@./test_module.sh stack_tb.exe
+	@./test_module.sh alu_tb.exe
+	@./test_module.sh decoder_tb.exe
+	@./test_module.sh signalizer_tb.exe
+	@./test_module.sh signals_tb.exe
+	@./test_module.sh clkdiv_tb.exe
+	@./test_module.sh cdtimer_tb.exe
