@@ -64,7 +64,7 @@ initial begin
            " byt=%d rd=%d wr=%d",
            byt, rd_mem, wr_mem);
 
-  insn <= 16'h0BEF;     // push uimm15
+  insn <= 16'h8BEF;     // push uimm15
   #1 test_sig(1,        // imm,
               16'h7fff, // imm_mask
               `src_x,   // src_a
@@ -82,7 +82,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'h8020;  // jmp ip+0x20
+  #1 insn <= 16'h0020;  // jmp ip+0x20
   #1 test_sig(1,        // imm,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
@@ -100,7 +100,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'h8ff1;  // call ip+0xff0
+  #1 insn <= 16'h0ff1;  // call ip+0xff0
   #1 test_sig(1,        // imm,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
@@ -118,7 +118,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hB438;  // st fp+0x38
+  #1 insn <= 16'h3438;  // st fp+0x38
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
@@ -136,7 +136,7 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'hF001;  // inc
+  #1 insn <= 16'h7001;  // inc
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
@@ -154,7 +154,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hF050;  // and
+  #1 insn <= 16'h7050;  // and
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
@@ -172,7 +172,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hF08F;  // dup 1
+  #1 insn <= 16'h708F;  // dup 1
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               2'hx,     // src_a
@@ -190,7 +190,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hF800;  // ret
+  #1 insn <= 16'h7800;  // ret
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_cstk,// src_a
@@ -208,7 +208,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hF808;  // ldd
+  #1 insn <= 16'h7808;  // ldd
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
@@ -226,7 +226,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'hF80C;  // sta
+  #1 insn <= 16'h780C;  // sta
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
@@ -244,7 +244,7 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'hF80E;  // std
+  #1 insn <= 16'h780E;  // std
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a

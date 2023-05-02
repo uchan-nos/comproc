@@ -29,68 +29,69 @@ wr_data   メモリへの書き込みデータ
 
 mnemonic        15     87      0  説明
 ------------------------------------
-PUSH uimm15    |0    uimm15     | uimm15 を stack にプッシュ
-JMP simm12     |1000   simm11  0| pc+simm12 にジャンプ
-CALL simm12    |1000   simm11  1| コールスタックに pc+2 をプッシュし、pc+simm12 にジャンプ
-JZ simm12      |1001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
-JNZ simm12     |1001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
-LD X+simm10    |1010xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
-ST X+simm10    |1011xx  simm9  0| stack からポップした値を mem[X+simm10] に書く
-PUSH X+simm10  |1100xx  simm10  | X+simm10 を stack にプッシュ
+PUSH uimm15    |1    uimm15     | uimm15 を stack にプッシュ
+JMP simm12     |0000   simm11  0| pc+simm12 にジャンプ
+CALL simm12    |0000   simm11  1| コールスタックに pc+2 をプッシュし、pc+simm12 にジャンプ
+JZ simm12      |0001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
+JNZ simm12     |0001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
+LD X+simm10    |0010xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
+ST X+simm10    |0011xx  simm9  0| stack からポップした値を mem[X+simm10] に書く
+PUSH X+simm10  |0100xx  simm10  | X+simm10 を stack にプッシュ
                                   X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
-ADD FP,simm10  |110100  simm10  | fp += simm10
-               |110101xxxxxxxxxx| 予約
-               |11011xxxxxxxxxxx| 予約
-               |1110xxxxxxxxxxxx| 予約
+ADD FP,simm10  |010100  simm10  | fp += simm10
+               |010101xxxxxxxxxx| 予約
+               |01011xxxxxxxxxxx| 予約
+               |0110xxxxxxxxxxxx| 予約
+               |0111xxxxxxxxxxxx| 即値なし命令（別表）
 
 
 命令リスト（即値なし）
 
 mnemonic    15     87      0  説明
 ------------------------------------
-NOP        |1111000000000000| stack[0] に ALU-A をロードするので、ALU=00h
-POP        |1111000001001111| stack をポップ
+NOP        |0111000000000000| stack[0] に ALU-A をロードするので、ALU=00h
+POP        |0111000001001111| stack をポップ
                               stack[0] に ALU-B をロードするので、ALU=0fh
-POP 1      |1111000001000000| stack[1] 以降をポップ（stack[0] を保持）
+POP 1      |0111000001000000| stack[1] 以降をポップ（stack[0] を保持）
                               stack[0] に ALU-A をロードするので、ALU=00h
-INC        |1111000000000001| stack[0]++
-INC2       |1111000000000010| stack[0] += 2
-NOT        |1111000000000100| stack[0] = ~stack[0]
+INC        |0111000000000001| stack[0]++
+INC2       |0111000000000010| stack[0] += 2
+NOT        |0111000000000100| stack[0] = ~stack[0]
 
-AND        |1111000001010000| stack[0] &= stack[1]
-OR         |1111000001010001| stack[0] |= stack[1]
-XOR        |1111000001010010| stack[0] ^= stack[1]
-SHR        |1111000001010100| stack[0] >>= stack[1]（符号なしシフト）
-SAR        |1111000001010101| stack[0] >>= stack[1]（符号付きシフト）
-SHL        |1111000001010110| stack[0] <<= stack[1]
-JOIN       |1111000001010111| stack[0] |= (stack[1] << 8)
+AND        |0111000001010000| stack[0] &= stack[1]
+OR         |0111000001010001| stack[0] |= stack[1]
+XOR        |0111000001010010| stack[0] ^= stack[1]
+SHR        |0111000001010100| stack[0] >>= stack[1]（符号なしシフト）
+SAR        |0111000001010101| stack[0] >>= stack[1]（符号付きシフト）
+SHL        |0111000001010110| stack[0] <<= stack[1]
+JOIN       |0111000001010111| stack[0] |= (stack[1] << 8)
 
-ADD        |1111000001100000| stack[0] += stack[1]
-SUB        |1111000001100001| stack[0] -= stack[1]
-MUL        |1111000001100010| stack[0] *= stack[1]
-LT         |1111000001101000| stack[0] = stack[0] < stack[1]
-EQ         |1111000001101001| stack[0] = stack[0] == stack[1]
-NEQ        |1111000001101010| stack[0] = stack[0] != stack[1]
+ADD        |0111000001100000| stack[0] += stack[1]
+SUB        |0111000001100001| stack[0] -= stack[1]
+MUL        |0111000001100010| stack[0] *= stack[1]
+LT         |0111000001101000| stack[0] = stack[0] < stack[1]
+EQ         |0111000001101001| stack[0] = stack[0] == stack[1]
+NEQ        |0111000001101010| stack[0] = stack[0] != stack[1]
 
-DUP        |1111000010000000| stack[0] を stack にプッシュ
-DUP 1      |1111000010001111| stack[1] を stack にプッシュ
-RET        |1111100000000000| コールスタックからアドレスをポップし、ジャンプ
-CPOP FP    |1111100000000010| コールスタックから値をポップし FP に書く
-CPUSH FP   |1111100000000011| コールスタックに FP をプッシュ
-LDD        |1111100000001000| stack からアドレスをポップし、mem[addr] を stack にプッシュ
-STA        |1111100000001100| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
-STD        |1111100000001110| stack から値とアドレスをポップしメモリに書き、値をプッシュ
+DUP        |0111000010000000| stack[0] を stack にプッシュ
+DUP 1      |0111000010001111| stack[1] を stack にプッシュ
+RET        |0111100000000000| コールスタックからアドレスをポップし、ジャンプ
+CPOP FP    |0111100000000010| コールスタックから値をポップし FP に書く
+CPUSH FP   |0111100000000011| コールスタックに FP をプッシュ
+LDD        |0111100000001000| stack からアドレスをポップし、mem[addr] を stack にプッシュ
+STA        |0111100000001100| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
+STD        |0111100000001110| stack から値とアドレスをポップしメモリに書き、値をプッシュ
                               stack[1] = data, stack[0] = addr
-LDD.1      |1111100000001001| byte version
-STA.1      |1111100000001101| byte version
-STD.1      |1111100000001111| byte version
+LDD.1      |0111100000001001| byte version
+STA.1      |0111100000001101| byte version
+STD.1      |0111100000001111| byte version
 
 
 即値無し命令の構造
 
- 15  12 11  10  8    7     6   5    0
-| 1111 | 0 | 000 | Push | Pop |  ALU |  stack だけを使う演算系命令
-| 1111 | 1 |          Func           |  その他の即値無し命令
+ 15  12 11  10  8    7     6   5  4 3    0
+| 0111 | 0 | 000 | Push | Pop |    ALU    |  stack だけを使う演算系命令
+| 0111 | 1 | 000     0     0    00 | Func |  その他の即値無し命令
 
 
 制御線の構成
