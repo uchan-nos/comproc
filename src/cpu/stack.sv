@@ -27,12 +27,13 @@ module stack#(
   input push,
   input load,
   input [WIDTH-1:0] data_in,
-  output [WIDTH-1:0] data_out,
-  output [WIDTH-1:0] data_raw[0:DEPTH-1]
+  output [WIDTH-1:0] data0,
+  output [WIDTH-1:0] data1
 );
 
 logic [WIDTH-1:0] data[0:DEPTH-1];
-assign data_out = data[0];
+assign data0 = data[0];
+assign data1 = data[1];
 
 integer i;
 
