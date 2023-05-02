@@ -14,6 +14,9 @@ alu_tb.exe: alu_tb.sv alu.sv
 decoder_tb.exe: decoder_tb.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
+signalizer_tb.exe: signalizer_tb.sv signalizer.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: uart
 uart:
 	TARGET=uart ./test.sh
