@@ -27,3 +27,11 @@ uart:
 .PHONY: clean
 clean:
 	rm -f sim.exe
+
+.PHONY: test_modules
+test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe signals_tb.exe
+	./stack_tb.exe
+	./alu_tb.exe
+	./decoder_tb.exe
+	./signalizer_tb.exe
+	./signals_tb.exe
