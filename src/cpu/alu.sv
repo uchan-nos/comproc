@@ -24,7 +24,8 @@ ALU 機能
 28h   LT    A < B
 29h   EQ    A == B
 2ah   NEQ   A != B
-30h   IF    cond ? A : B
+30h   ADDZ  cond ? A : A+B
+31h   ADDNZ cond ? A+B : A
 */
 
 module alu#(
@@ -45,10 +46,11 @@ function [WIDTH-1:0] alu(
   input cond,
   input [5:0] sel);
 begin
-  logic [WIDTH-1:0] sub;
+  logic [WIDTH-1:0] add, sub;
   logic of;
   logic zf;
   logic signed [WIDTH-1:0] sa;
+  add = a + b;
   sub = a - b;
   of = is_overflow(a[15], b[15], sub[15]);
   zf = sub == {WIDTH{1'b0}};
@@ -64,13 +66,14 @@ begin
     6'b010101: alu = sa >>> b;
     6'b010110: alu = a << b;
     6'b010111: alu = a | (b << 8);
-    6'b100000: alu = a + b;
+    6'b100000: alu = add;
     6'b100001: alu = sub;
     6'b100010: alu = a * b;
     6'b101000: alu = sub[15] ^ of;
     6'b101001: alu = {{WIDTH-1{1'b0}}, zf};
     6'b101010: alu = {{WIDTH-1{1'b0}}, ~zf};
-    6'b11xxxx: alu = cond ? a : b;
+    6'b11xxx0: alu = cond ? a : add;
+    6'b11xxx1: alu = cond ? add : a;
     default:   alu = {WIDTH{1'b0}};
   endcase
 end

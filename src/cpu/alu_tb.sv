@@ -77,9 +77,15 @@ initial begin
   #1 if (out !== 16'h0001) $error("out must be 0x0001");
 
   #1 sel <= 6'h30;
-  #1 if (out !== 16'h70FF) $error("out must be 0x70FF");
+  #1 if (out !== 16'h9200) $error("out must be 0x9200"); // 9200 = a+b
 
   #1 cond <= 1'b1;
+  #1 if (out !== 16'h2101) $error("out must be 0x2101");
+
+  #1 sel <= 6'h31;
+  #1 if (out !== 16'h9200) $error("out must be 0x9200"); // 9200 = a+b
+
+  #1 cond <= 1'b0;
   #1 if (out !== 16'h2101) $error("out must be 0x2101");
 end
 

@@ -11,6 +11,168 @@ logic [5:0] alu_sel;
 
 signals signals(.*);
 
+initial begin
+  $monitor("%d: rst=%d phase=%d%d%d%d insn=%04x imm=%d[%04x] src_a=%d%d%d%d alu=%02x",
+           $time, rst, signals.phase_decode, signals.phase_exec,
+           signals.phase_rdmem, signals.phase_fetch, insn, imm, imm_mask,
+           src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, alu_sel,
+           " wr_stk1=%d pop/sh=%d%d load=%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
+           wr_stk1, pop, push, load_stk, load_fp, load_ip,
+           cpop, cpush, byt, rd_mem, wr_mem
+           , " insn_cpush=%d", signals.insn_cpush
+         );
+
+  rst <= 1;
+  clk <= 1;
+  insn <= 16'h0000;
+
+  #13
+    rst <= 0;
+    test_sig_fetch;
+
+  @(posedge clk)
+    insn <= 16'h80A5; // PUSH 0xA5
+  @(negedge clk)
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(0);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(1,         // imm
+             16'h7fff,  // imm_mask
+             x,         // src_a_stk0
+             x,         // src_a_fp
+             x,         // src_a_ip
+             x,         // src_a_cstk
+             `ALU_B,    // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             1,         // push
+             1,         // load_stk
+             0,         // load_fp
+             0,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             0,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    test_sig_rdmem;
+
+  @(negedge clk)
+    test_sig_fetch;
+
+  @(posedge clk)
+    insn <= 16'h0234; // JMP 0x234
+  @(negedge clk)
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(0);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(1,         // imm
+             16'h0ffe,  // imm_mask
+             0,         // src_a_stk0
+             0,         // src_a_fp
+             1,         // src_a_ip
+             0,         // src_a_cstk
+             `ALU_ADD,  // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             0,         // push
+             0,         // load_stk
+             0,         // load_fp
+             1,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             0,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    test_sig_rdmem;
+
+  @(negedge clk)
+    test_sig_fetch;
+
+  @(posedge clk)
+    insn <= 16'h0235; // CALL 0x234
+  @(negedge clk)
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(1);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(1,         // imm
+             16'h0ffe,  // imm_mask
+             0,         // src_a_stk0
+             0,         // src_a_fp
+             1,         // src_a_ip
+             0,         // src_a_cstk
+             `ALU_ADD,  // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             0,         // push
+             0,         // load_stk
+             0,         // load_fp
+             1,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             0,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    test_sig_rdmem;
+
+  @(negedge clk)
+    test_sig_fetch;
+
+  @(posedge clk)
+    insn <= 16'h1234; // JZ 0x234
+  @(negedge clk)
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(0);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(1,         // imm
+             16'h0ffe,  // imm_mask
+             0,         // src_a_stk0
+             0,         // src_a_fp
+             1,         // src_a_ip
+             0,         // src_a_cstk
+             `ALU_ADDZ, // alu_sel
+             x,         // wr_stk1
+             1,         // pop
+             0,         // push
+             0,         // load_stk
+             0,         // load_fp
+             1,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             0,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    test_sig_rdmem;
+
+  @(negedge clk)
+    test_sig_fetch;
+
+  $finish;
+end
+
+always #5 begin
+  clk <= ~clk;
+end
+
 `define test_sig1(SIG) \
   if (e_``SIG !== 1'bx && SIG !== e_``SIG) $error("%s must be %d", `"SIG`", e_``SIG);
 
@@ -57,79 +219,9 @@ begin
 end
 endtask
 
-//`define x 1'bx
-logic x;
-assign x = 1'bx;
-
-always #5 begin
-  clk <= ~clk;
-end
-
-initial begin
-  $monitor("%d: rst=%d phase=%d%d%d%d insn=%04x imm=%d[%04x] src_a=%d%d%d%d alu=%02x",
-           $time, rst, signals.phase_decode, signals.phase_exec,
-           signals.phase_rdmem, signals.phase_fetch, insn, imm, imm_mask,
-           src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, alu_sel,
-           " wr_stk1=%d pop/sh=%d%d load=%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
-           wr_stk1, pop, push, load_stk, load_fp, load_ip,
-           cpop, cpush, byt, rd_mem, wr_mem);
-
-  rst <= 1;
-  clk <= 1;
-  insn <= 16'h0000;
-
-  #13
-    rst <= 0;
-    if (~signals.phase_fetch) $error("phase_fetch must be 1");
-    test_sig(x,         // imm
-             16'hxxxx,  // imm_mask
-             0,         // src_a_stk0
-             0,         // src_a_fp
-             1,         // src_a_ip
-             0,         // src_a_cstk
-             `ALU_INC2, // alu_sel
-             x,         // wr_stk1
-             0,         // pop
-             0,         // push
-             0,         // load_stk
-             0,         // load_fp
-             1,         // load_ip
-             0,         // cpop
-             0,         // cpush
-             0,         // byt
-             0,         // rd_mem
-             0          // wr_mem
-           );
-
-  @(posedge clk)
-    insn <= 16'h80A5; // PUSH 0xA5
-  @(negedge clk)
-    if (~signals.phase_decode) $error("phase_decode must be 1");
-
-  @(negedge clk)
-    if (~signals.phase_exec) $error("phase_exec must be 1");
-    test_sig(1,         // imm
-             16'h7fff,  // imm_mask
-             x,         // src_a_stk0
-             x,         // src_a_fp
-             x,         // src_a_ip
-             x,         // src_a_cstk
-             `ALU_B,    // alu_sel
-             x,         // wr_stk1
-             0,         // pop
-             1,         // push
-             1,         // load_stk
-             0,         // load_fp
-             0,         // load_ip
-             0,         // cpop
-             0,         // cpush
-             x,         // byt
-             0,         // rd_mem
-             0          // wr_mem
-           );
-
-  @(negedge clk)
-    if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
+task test_sig_decode(input call);
+begin
+  if (call)
     test_sig(x,         // imm
              16'hxxxx,  // imm_mask
              0,         // src_a_stk0
@@ -144,35 +236,86 @@ initial begin
              0,         // load_fp
              0,         // load_ip
              0,         // cpop
-             0,         // cpush
+             1,         // cpush
              x,         // byt
              0,         // rd_mem
              0          // wr_mem
            );
-
-  @(negedge clk)
-    if (~signals.phase_fetch) $error("phase_fetch must be 1");
+  else
     test_sig(x,         // imm
              16'hxxxx,  // imm_mask
-             0,         // src_a_stk0
-             0,         // src_a_fp
-             1,         // src_a_ip
-             0,         // src_a_cstk
-             `ALU_INC2, // alu_sel
+             x,         // src_a_stk0
+             x,         // src_a_fp
+             x,         // src_a_ip
+             x,         // src_a_cstk
+             6'hxx,     // alu_sel
              x,         // wr_stk1
              0,         // pop
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             1,         // load_ip
+             0,         // load_ip
              0,         // cpop
              0,         // cpush
-             0,         // byt
+             x,         // byt
              0,         // rd_mem
              0          // wr_mem
            );
-
-  $finish;
 end
+endtask
+
+task test_sig_rdmem;
+begin
+  if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
+  test_sig(x,         // imm
+           16'hxxxx,  // imm_mask
+           0,         // src_a_stk0
+           0,         // src_a_fp
+           1,         // src_a_ip
+           0,         // src_a_cstk
+           `ALU_A,    // alu_sel
+           x,         // wr_stk1
+           0,         // pop
+           0,         // push
+           0,         // load_stk
+           0,         // load_fp
+           0,         // load_ip
+           0,         // cpop
+           0,         // cpush
+           x,         // byt
+           x,         // rd_mem
+           0          // wr_mem
+         );
+end
+endtask
+
+task test_sig_fetch;
+begin
+  if (~signals.phase_fetch) $error("phase_fetch must be 1");
+  test_sig(x,         // imm
+           16'hxxxx,  // imm_mask
+           0,         // src_a_stk0
+           0,         // src_a_fp
+           1,         // src_a_ip
+           0,         // src_a_cstk
+           `ALU_INC2, // alu_sel
+           x,         // wr_stk1
+           0,         // pop
+           0,         // push
+           0,         // load_stk
+           0,         // load_fp
+           1,         // load_ip
+           0,         // cpop
+           0,         // cpush
+           0,         // byt
+           0,         // rd_mem
+           0          // wr_mem
+         );
+end
+endtask
+
+//`define x 1'bx
+logic x;
+assign x = 1'bx;
 
 endmodule
