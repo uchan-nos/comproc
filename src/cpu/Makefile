@@ -20,6 +20,9 @@ signalizer_tb.exe: signalizer_tb.sv signalizer.sv
 signals_tb.exe: signals_tb.sv signals.sv common.sv signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
+clkdiv_tb.exe: clkdiv_tb.sv clkdiv.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: uart
 uart:
 	TARGET=uart ./test.sh
@@ -29,9 +32,11 @@ clean:
 	rm -f sim.exe
 
 .PHONY: test_modules
-test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe signals_tb.exe
+test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
+	signals_tb.exe clkdiv_tb.exe
 	./stack_tb.exe
 	./alu_tb.exe
 	./decoder_tb.exe
 	./signalizer_tb.exe
 	./signals_tb.exe
+	./clkdiv_tb.exe
