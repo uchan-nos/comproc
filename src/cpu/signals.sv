@@ -25,9 +25,9 @@ module signals(
 );
 
 assign src_a_stk0 = ~src_a_fp & ~src_a_ip & ~src_a_cstk;
-assign src_a_fp = phase_half & insn_fp;
-assign src_a_ip = ~phase_half | insn_ip;
-assign src_a_cstk = phase_half & insn_cpop;
+assign src_a_fp = phase_half & (insn_src_a === 2'b01);
+assign src_a_ip = ~phase_half | (insn_src_a === 2'b10);
+assign src_a_cstk = phase_half & (insn_src_a === 2'b11);
 assign alu_sel = phase_exec ? insn_alu_sel : phase_fetch ? `ALU_INC2 : `ALU_A;
 assign pop = insn_pop & phase_exec;
 assign push = insn_push & (insn_rd ? phase_rdmem : phase_exec);

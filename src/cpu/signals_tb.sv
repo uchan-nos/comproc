@@ -123,6 +123,29 @@ initial begin
                     0          // wr_mem
                   );
 
+  @(posedge clk)
+    insn <= 16'h3420; // ST FP+0x20
+    test_sig_phases(0,         // call
+                    1,         // imm
+                    16'h03fe,  // imm_mask
+                    0,         // src_a_stk0
+                    1,         // src_a_fp
+                    0,         // src_a_ip
+                    0,         // src_a_cstk
+                    `ALU_ADD,  // alu_sel
+                    0,         // wr_stk1
+                    1,         // pop
+                    0,         // push
+                    0,         // load_stk
+                    0,         // load_fp
+                    0,         // load_ip
+                    0,         // cpop
+                    0,         // cpush
+                    0,         // byt
+                    0,         // rd_mem
+                    1          // wr_mem
+                  );
+
   $finish;
 end
 
