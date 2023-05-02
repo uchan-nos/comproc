@@ -18,7 +18,7 @@ assign phase_fetch  = ~reg1 &  reg2;
 always @(posedge clk, posedge rst) begin
   if (rst) begin
     reg1 <= 1'b0;
-    reg2 <= 1'b0;
+    reg2 <= 1'b1;
   end else begin
     reg1 <= ~reg2;
     reg2 <= reg1;

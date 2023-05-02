@@ -17,6 +17,9 @@ decoder_tb.exe: decoder_tb.sv decoder.sv
 signalizer_tb.exe: signalizer_tb.sv signalizer.sv
 	iverilog -g2012 -o $@ $^
 
+signals_tb.exe: signals_tb.sv signals.sv common.sv signalizer.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: uart
 uart:
 	TARGET=uart ./test.sh
