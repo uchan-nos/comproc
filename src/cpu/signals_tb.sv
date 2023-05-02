@@ -93,7 +93,7 @@ initial begin
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             0,         // load_ip
+             1,         // load_ip
              0,         // cpop
              0,         // cpush
              0,         // byt
@@ -145,7 +145,7 @@ initial begin
              0,         // load_ip
              0,         // cpop
              0,         // cpush
-             0,         // byt
+             x,         // byt
              0,         // rd_mem
              0          // wr_mem
            );
