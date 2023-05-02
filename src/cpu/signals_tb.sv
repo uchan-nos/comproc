@@ -246,6 +246,29 @@ initial begin
     if (~signals.phase_fetch) $error("phase_fetch must be 1");
     test_sig_fetch;
 
+  @(posedge clk)
+    insn <= 16'h7800; // RET
+    test_sig_phases(0,         // call
+                    0,         // imm
+                    16'hxxxx,  // imm_mask
+                    0,         // src_a_stk0
+                    0,         // src_a_fp
+                    0,         // src_a_ip
+                    1,         // src_a_cstk
+                    `ALU_A,    // alu_sel
+                    x,         // wr_stk1
+                    0,         // pop
+                    0,         // push
+                    0,         // load_stk
+                    0,         // load_fp
+                    1,         // load_ip
+                    1,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    x,         // rd_mem
+                    0          // wr_mem
+                  );
+
   $finish;
 end
 
