@@ -31,7 +31,7 @@ assign src_a_cstk = phase_half & (insn_src_a === 2'b11);
 assign alu_sel = phase_exec ? insn_alu_sel : phase_fetch ? `ALU_INC2 : `ALU_A;
 assign pop = insn_pop & phase_exec;
 assign push = insn_push & (insn_rd ? phase_rdmem : phase_exec);
-assign load_stk = insn_stk & (push | pop);
+assign load_stk = insn_stk & (insn_rd ? phase_rdmem : phase_exec);
 assign load_fp = insn_fp & phase_exec;
 assign load_ip = reload_ip | phase_fetch;
 assign cpop = insn_cpop & phase_exec;

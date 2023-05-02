@@ -146,6 +146,106 @@ initial begin
                     1          // wr_mem
                   );
 
+  @(posedge clk)
+    insn <= 16'h704F; // POP
+    test_sig_phases(0,         // call
+                    0,         // imm
+                    16'hxxxx,  // imm_mask
+                    x,         // src_a_stk0
+                    x,         // src_a_fp
+                    x,         // src_a_ip
+                    x,         // src_a_cstk
+                    `ALU_B,    // alu_sel
+                    x,         // wr_stk1
+                    1,         // pop
+                    0,         // push
+                    1,         // load_stk
+                    0,         // load_fp
+                    0,         // load_ip
+                    0,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    0,         // rd_mem
+                    0          // wr_mem
+                  );
+
+  @(posedge clk)
+    insn <= 16'h7004; // NOT
+    test_sig_phases(0,         // call
+                    0,         // imm
+                    16'hxxxx,  // imm_mask
+                    1,         // src_a_stk0
+                    0,         // src_a_fp
+                    0,         // src_a_ip
+                    0,         // src_a_cstk
+                    `ALU_NOT,  // alu_sel
+                    x,         // wr_stk1
+                    0,         // pop
+                    0,         // push
+                    1,         // load_stk
+                    0,         // load_fp
+                    0,         // load_ip
+                    0,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    0,         // rd_mem
+                    0          // wr_mem
+                  );
+
+  @(posedge clk)
+    insn <= 16'h7809; // LDD.1
+  @(negedge clk)
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(0);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(0,         // imm
+             16'hxxxx,  // imm_mask
+             1,         // src_a_stk0
+             0,         // src_a_fp
+             0,         // src_a_ip
+             0,         // src_a_cstk
+             `ALU_A,    // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             0,         // push
+             0,         // load_stk
+             0,         // load_fp
+             0,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             x,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
+    test_sig(0,         // imm
+             16'hxxxx,  // imm_mask
+             0,         // src_a_stk0
+             0,         // src_a_fp
+             1,         // src_a_ip
+             0,         // src_a_cstk
+             `ALU_A,    // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             0,         // push
+             1,         // load_stk
+             0,         // load_fp
+             0,         // load_ip
+             0,         // cpop
+             0,         // cpush
+             1,         // byt
+             1,         // rd_mem
+             0          // wr_mem
+           );
+
+  @(negedge clk)
+    if (~signals.phase_fetch) $error("phase_fetch must be 1");
+    test_sig_fetch;
+
   $finish;
 end
 
