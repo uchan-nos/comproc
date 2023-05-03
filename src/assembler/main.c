@@ -5,7 +5,7 @@
 #include <string.h>
 
 #define MAX_OPERAND 128
-#define ORIGIN 0x200
+#define ORIGIN 0x300
 
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
@@ -296,11 +296,11 @@ int main(void) {
     } else if (strcmp(mnemonic, "xor") == 0) {
       insn[ip >> 1] = 0x7052;
     } else if (strcmp(mnemonic, "shr") == 0) {
-      insn[ip >> 1] = 0x7056;
+      insn[ip >> 1] = 0x7054;
     } else if (strcmp(mnemonic, "sar") == 0) {
       insn[ip >> 1] = 0x7055;
     } else if (strcmp(mnemonic, "shl") == 0) {
-      insn[ip >> 1] = 0x7054;
+      insn[ip >> 1] = 0x7056;
     } else if (strcmp(mnemonic, "join") == 0) {
       insn[ip >> 1] = 0x7057;
     } else if (strcmp(mnemonic, "sub") == 0) {

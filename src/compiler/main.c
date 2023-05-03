@@ -189,8 +189,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_false = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       Generate(ctx, node->lhs, 0);
+      printf(INDENT "push 0\n");
+      printf(INDENT "neq\n");
       printf(INDENT "jz L_%d\n", label_false);
       Generate(ctx, node->rhs, 0);
+      printf(INDENT "push 0\n");
+      printf(INDENT "neq\n");
       printf(INDENT "jz L_%d\n", label_false);
       printf(INDENT "push 1\n");
       printf(INDENT "jmp L_%d\n", label_end);
@@ -337,6 +341,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_else = node->rhs ? GenLabel(ctx) : -1;
       int label_end = GenLabel(ctx);
       Generate(ctx, node->cond, 0);
+      printf(INDENT "push 0\n");
+      printf(INDENT "neq\n");
       printf(INDENT "jz L_%d\n", node->rhs ? label_else : label_end);
       Generate(ctx, node->lhs, 0);
       if (node->rhs) {
@@ -361,6 +367,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       printf(INDENT "pop\n");
       printf("L_%d:\n", label_cond);
       Generate(ctx, node->cond, 0);
+      printf(INDENT "push 0\n");
+      printf(INDENT "neq\n");
       printf(INDENT "jz L_%d\n", label_end);
       Generate(ctx, node->rhs, 0);
       if (node->rhs->kind <= kNodeExprEnd) {
@@ -386,6 +394,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       printf("L_%d:\n", label_cond);
       Generate(ctx, node->cond, 0);
+      printf(INDENT "push 0\n");
+      printf(INDENT "neq\n");
       printf(INDENT "jz L_%d\n", label_end);
       Generate(ctx, node->rhs, 0);
       printf(INDENT "jmp L_%d\n", label_cond);
