@@ -11,6 +11,12 @@
         <File path="src/uart_master/uart_master.v" type="file.verilog" enable="1"/>
         <File path="../../cpu.sv" type="file.verilog" enable="1"/>
         <File path="../../mem.sv" type="file.verilog" enable="1"/>
+        <File path="../../alu.sv" type="file.verilog" enable="1"/>
+        <File path="../../stack.sv" type="file.verilog" enable="1"/>
+        <File path="../../signals.sv" type="file.verilog" enable="1"/>
+        <File path="../../signalizer.sv" type="file.verilog" enable="1"/>
+        <File path="../../decoder.sv" type="file.verilog" enable="1"/>
+        <File path="../../cdtimer.sv" type="file.verilog" enable="1"/>
         <File path="src/port.cst" type="file.cst" enable="1"/>
         <File path="src/comproc.rao" type="file.gao" enable="1"/>
     </FileList>
