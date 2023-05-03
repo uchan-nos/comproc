@@ -6,11 +6,10 @@ module cpu#(
   input rst,
   input clk,
   output [`ADDR_WIDTH-1:0] mem_addr,
-  output logic mem_wr,
-  output mem_byt,
-  input        [15:0] rd_data,
-  output logic [15:0] wr_data,
-  output logic [15:0] stack[0:15]
+  output wr_mem,
+  output byt,
+  input  [15:0] rd_data,
+  output [15:0] wr_data
 );
 
 /*
@@ -189,234 +188,111 @@ fp -> |          |  bp=   | ret addr |        | ret addr |
 
 関数呼び出しによるスタックフレームの変化
 */
-logic [1:0] phase;
-logic [15:0] alu_out;
-logic [15:0] insn;
-logic [`ADDR_WIDTH-1:0] pc;
-logic [`ADDR_WIDTH-1:0] bp, fp;
-logic [15:0] cd_timer;
-logic [15:0] cd_timer_ms;
 
-logic imm, rd, wr, pop, push, byt;
-logic [1:0] load;
-logic [1:0] jmp;
-logic [7:0] imm8;
-logic [8:0] imm9;
-logic [1:0] load_bp, load_fp;
-logic [15:0] rd_mem_reg;
+// CPU コアの信号
+logic imm, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+  load_stk, load_fp, load_ip, load_insn, cpop, cpush, byt, rd_mem, wr_mem;
+logic [15:0] alu_out, src_a, src_b, stack_in, stack0, stack1, cstack0, imm_mask;
+logic [5:0] alu_sel;
 
-//localparam CLK_DIVIDER=32'd2_000_000;
-localparam CLK_DIVIDER=32'd1;
-logic [31:0] clk_div;
+// レジスタ群
+logic [15:0] fp, ip, insn;
+logic mem_addr0_d;
 
-assign {imm, load, rd, wr, pop, push, jmp, byt, load_bp, load_fp} = decode(insn);
-assign imm8 = insn[7:0];
-assign imm9 = insn[8:0];
+// 結線
+assign src_a = src_a_fp ? fp
+               : src_a_ip ? ip
+               : src_a_cstk ? cstack0 : stack0;
+assign src_b = imm ? (insn & imm_mask) : stack1;
+assign stack_in = rd_mem ? byte_format(data_memreg, byt, mem_addr0_d) : alu_out;
+assign mem_addr = alu_out;
+assign wr_data = wr_stk1 ? stack1 : stack0;
 
-assign alu_out = alu(imm, insn, stack[0], stack[1]);
-assign mem_addr = (phase <= 2'd1) ?
-  (insn[15:9] == 7'h53 /* CALL */ ? fp
-   : (insn[15:9] == 7'h54 /* RET */ ? fp - 2
-   : alu_out[`ADDR_WIDTH-1:0])) : pc;
-assign mem_byt = byt;
+// CPU コアモジュール群
+alu alu(
+  .a(src_a),
+  .b(src_b),
+  .cond(stack0[0]),
+  .sel(alu_sel),
+  .out(alu_out)
+);
 
-assign rd_mem_reg = read_mem_or_reg(mem_addr, rd_data, cd_timer);
+stack stack(
+  .rst(rst),
+  .clk(clk),
+  .pop(pop),
+  .push(push),
+  .load(load_stk),
+  .data_in(stack_in),
+  .data0(stack0),
+  .data1(stack1)
+);
 
-integer i;
+stack cstack(
+  .rst(rst),
+  .clk(clk),
+  .pop(cpop),
+  .push(cpush),
+  .load(cpush),
+  .data_in(alu_out),
+  .data0(cstack0)
+);
 
-// 命令フェッチ
+signals signals(
+  .rst(rst),
+  .clk(clk),
+  .insn(insn),
+  .imm(imm),
+  .imm_mask(imm_mask),
+  .src_a_stk0(src_a_stk0),
+  .src_a_fp(src_a_fp),
+  .src_a_ip(src_a_ip),
+  .src_a_cstk(src_a_cstk),
+  .alu_sel(alu_sel),
+  .wr_stk1(wr_stk1),
+  .pop(pop),
+  .push(push),
+  .load_stk(load_stk),
+  .load_fp(load_fp),
+  .load_ip(load_ip),
+  .load_insn(load_insn),
+  .cpop(cpop),
+  .cpush(cpush),
+  .byt(byt),
+  .rd_mem(rd_mem),
+  .wr_mem(wr_mem)
+);
+
+// CPU コアのレジスタ群
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    fp <= 16'd0;
+  else if (load_fp)
+    fp <= alu_out;
+end
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    ip <= 16'h0300;
+  else if (load_ip)
+    ip <= alu_out;
+end
+
 always @(posedge clk, posedge rst) begin
   if (rst)
     insn <= 16'd0;
-  else if (phase == 2'd3)
+  else if (load_insn)
     insn <= rd_data;
 end
 
-// 演算用スタックを更新
 always @(posedge clk, posedge rst) begin
   if (rst)
-    for (i = 0; i < 8; i = i+1) stack[i] <= 8'd0;
-  else if (phase == 2'd1) begin
-    case (load)
-      3'd0: stack[0] <= stack[0];
-      3'd1: stack[0] <= stack[1];
-      3'd2: stack[0] <= alu_out;
-      3'd3: stack[0] <= byte_format(rd_mem_reg, byt, mem_addr & 1);
-      3'd4: stack[0] <= { {16-`ADDR_WIDTH{1'b0}}, pc } + `ADDR_WIDTH'd2;
-    endcase
-
-    if (~pop & push)
-      for (i = 1; i < 8; i = i+1) stack[i] <= stack[i - 1];
-    if (pop & ~push)
-      for (i = 1; i < 7; i = i+1) stack[i] <= stack[i + 1];
-  end
-end
-
-// メモリ書き込み命令だったら mem_wr を有効化する
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    mem_wr <= 1'b0;
-  else if (phase == 2'd0 && wr)
-    mem_wr <= 1'b1;
+    mem_addr0_d <= 1'b0;
   else
-    mem_wr <= 1'b0;
+    mem_addr0_d <= mem_addr[0];
 end
 
-// メモリに書き込むためのデータを wr_data に設定
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    wr_data <= 16'd0;
-  else if (phase == 2'd0)
-    if (insn[15:8] == 8'hc2) // ENTER
-      wr_data <= bp;
-    else if (insn[15:9] == 7'h53) // CALL
-      wr_data <= pc + `ADDR_WIDTH'd2;
-    else
-      if (byt) begin
-        if (mem_addr[0])
-          wr_data[15:8] <= {imm ? stack[0][7:0] : stack[1][7:0]};
-        else
-          wr_data[7:0] <= {imm ? stack[0][7:0] : stack[1][7:0]};
-      end else
-        wr_data <= imm ? stack[0] : stack[1];
-end
-
-// 命令実行フェーズを更新
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    phase <= 2'd2;
-  else if (phase != 2'd3)
-    phase <= phase + 2'd1;
-  else if (clk_div == CLK_DIVIDER - 1)
-    phase <= 2'd0;
-end
-
-// 命令実行が完了したらプログラムカウンタを進める
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    pc <= `ADDR_WIDTH'h200;
-  else if (insn == 16'hffff)
-    ;
-  else if (phase == 2'd1)
-    if ((jmp == 2'd1) ||
-        (jmp == 2'd2 && stack[0] == 16'd0) ||
-        (jmp == 2'd3 && stack[0] != 16'd0)) begin
-      if (imm)
-        pc <= pc + { {`ADDR_WIDTH-10{imm9[8]}}, imm9, 1'b0};
-      else
-        pc <= rd_data;
-    end
-    else
-      pc <= pc + `ADDR_WIDTH'd2;
-end
-
-// スタックフレーム BP 制御
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    bp <= 16'd0;
-  else if (phase == 2'd1)
-    if (insn[15:8] == 8'hc2) // ENTER
-      bp <= fp;
-    else if (insn[15:8] == 8'hc3) // LEAVE
-      bp <= rd_data;
-end
-
-// スタックフレーム FP 制御
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    fp <= `ADDR_WIDTH'd0;
-  else if (phase == 2'd1)
-    case (load_fp)
-      2'd0: fp <= fp;
-      2'd1: fp <= fp + `ADDR_WIDTH'd2;
-      2'd2: fp <= fp - `ADDR_WIDTH'd2;
-      2'd3: fp <= alu_out;
-    endcase
-end
-
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    clk_div <= 32'd0;
-  else if (phase == 2'd3)
-    clk_div <= clk_div + 32'd1;
-  else
-    clk_div <= 32'd0;
-end
-
-// ALU 本体
-function [15:0] alu(
-  input imm,
-  input [15:0] insn,
-  input [15:0] stack0,
-  input [15:0] stack1);
-begin
-  logic [15:0] sub;
-  sub = stack0 - stack1;
-  if (imm)
-    if (insn[15])
-      alu = {8'd0, insn[7:0]};
-    else
-      alu = {1'd0, insn[14:0]};
-  else
-    case (insn[7:0])
-      8'h00: alu = stack0;
-      8'h01: alu = stack1;
-      8'h02: alu = stack0 + stack1;
-      8'h03: alu = stack0 - stack1;
-      8'h04: alu = stack0 * stack1;
-      8'h05: alu = stack0 | (stack1 << 8);
-      8'h08: alu = sub[15] ^ is_overflow(stack0[15], stack1[15], sub[15]);
-      8'h09: alu = stack0 == stack1;
-      8'h0a: alu = stack0 != stack1;
-      8'h10: alu = stack0 & stack1;
-      8'h11: alu = stack0 ^ stack1;
-      8'h12: alu = stack0 | stack1;
-      8'h13: alu = ~stack0;
-      8'h14: alu = stack0 >> stack1;
-      8'h15: alu = stack0 << stack1;
-      8'h16: alu = shiftr_signed(stack0, stack1[3:0]);
-      8'h20: alu = bp;
-      8'h21: alu = fp;
-    endcase
-end
-endfunction
-
-function [13:0] decode(input [15:0] insn);
-begin
-  casex (insn[15:8])
-    //                        i l  rw pp j  b b  f
-    //                        m o  dr ou m  y p  p
-    //                        m a     ps p  t
-    //                          d      h
-    8'b0xxxxxxx: decode = 14'b1_10_00_01_00_0_00_00;
-    8'h81:       decode = 14'b0_01_00_10_00_0_00_00;
-    8'h82:       decode = 14'b0_00_00_01_00_0_00_00 | {insn[0], 11'd0};
-    8'h90:       decode = 14'b1_11_10_01_00_0_00_00;
-    8'h91:       decode = 14'b0_11_10_11_00_0_00_00;
-    8'h94:       decode = 14'b1_01_01_10_00_0_00_00;
-    8'h95:       decode = 14'b0_00_01_10_00_0_00_00;
-    8'h96:       decode = 14'b0_01_01_10_00_0_00_00;
-    8'h98:       decode = 14'b1_11_10_01_00_1_00_00;
-    8'h99:       decode = 14'b0_11_10_11_00_1_00_00;
-    8'h9c:       decode = 14'b1_01_01_10_00_1_00_00;
-    8'h9d:       decode = 14'b0_00_01_10_00_1_00_00;
-    8'h9e:       decode = 14'b0_01_01_10_00_1_00_00;
-    8'b1010000x: decode = 14'b1_00_00_00_01_0_00_00; // JMP
-    8'b1010001x: decode = 14'b1_01_00_10_10_0_00_00; // JZ
-    8'b1010010x: decode = 14'b1_01_00_10_11_0_00_00; // JNZ
-    8'b1010011x: decode = 14'b1_00_01_00_01_0_00_01; // CALL
-    8'b1010100x: decode = 14'b0_00_10_00_01_0_00_10; // RET
-    8'hb0:       decode = 14'b0_10_00_10_00_0_00_00;
-    8'hb1:       decode = 14'b0_10_00_11_00_0_00_00;
-    8'hc0:       decode = 14'b0_10_00_01_00_0_00_00;
-    8'hc1:       decode = 14'b0_01_00_10_00_0_00_11;
-    8'hc2:       decode = 14'b0_00_01_00_00_0_11_00;
-    8'hc3:       decode = 14'b0_00_10_00_00_0_10_11;
-    default:     decode = 14'd0;
-  endcase
-end
-endfunction
-
+// CPU コア用の function 定義
 function [15:0] byte_format(input [15:0] val16, input byt, input addr1);
 begin
   if (~byt)
@@ -430,67 +306,36 @@ begin
 end
 endfunction
 
-function is_overflow(input a, input b, input a_sub_b);
-begin
-  is_overflow = (a & ~b & ~a_sub_b) | (~a & b & a_sub_b);
-end
-endfunction
+// CPU 内蔵周辺機能の信号
+logic cdtimer_to;
+logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
-function [15:0] shiftr_signed(input [15:0] v, input [3:0] n);
-begin
-  case (n)
-    4'd0:  shiftr_signed = v;
-    4'd1:  shiftr_signed = {{ 2{v[15]}}, v[14:1]};
-    4'd2:  shiftr_signed = {{ 3{v[15]}}, v[14:2]};
-    4'd3:  shiftr_signed = {{ 4{v[15]}}, v[14:3]};
-    4'd4:  shiftr_signed = {{ 5{v[15]}}, v[14:4]};
-    4'd5:  shiftr_signed = {{ 6{v[15]}}, v[14:5]};
-    4'd6:  shiftr_signed = {{ 7{v[15]}}, v[14:6]};
-    4'd7:  shiftr_signed = {{ 8{v[15]}}, v[14:7]};
-    4'd8:  shiftr_signed = {{ 9{v[15]}}, v[14:8]};
-    4'd9:  shiftr_signed = {{10{v[15]}}, v[14:9]};
-    4'd10: shiftr_signed = {{11{v[15]}}, v[14:10]};
-    4'd11: shiftr_signed = {{12{v[15]}}, v[14:11]};
-    4'd12: shiftr_signed = {{13{v[15]}}, v[14:12]};
-    4'd13: shiftr_signed = {{14{v[15]}}, v[14:13]};
-    4'd14: shiftr_signed = {{15{v[15]}}, v[14]};
-    4'd15: shiftr_signed = {16{v[15]}};
-  endcase
-end
-endfunction
+// 結線
+assign data_memreg = read_memreg(mem_addr, rd_data, cdtimer_cnt);
 
-function [15:0] read_mem_or_reg(
+// CPU 内蔵周辺機能モジュール群
+cdtimer cdtimer(
+  .rst(rst),
+  .clk(clk),
+  .load(load_cdtimer),
+  .data(wr_data),
+  .counter(cdtimer_cnt),
+  .timeout(cdtimer_to)
+);
+
+// CPU 内蔵周辺機能用の function 定義
+function [15:0] read_memreg(
   input [`ADDR_WIDTH-1:0] addr,
   input [15:0] mem,
-  input [15:0] cd_timer
+  input [15:0] cdtimer
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b000x: read_mem_or_reg = cd_timer;
-    `ADDR_WIDTH'b001x: read_mem_or_reg = 16'd1;
-    `ADDR_WIDTH'b01xx: read_mem_or_reg = 16'd2;
-    `ADDR_WIDTH'b1xxx: read_mem_or_reg = 16'd3;
-    default:           read_mem_or_reg = mem;
+    `ADDR_WIDTH'b0000_0000: read_memreg = cdtimer;
+    `ADDR_WIDTH'b0xxx_xxxx: read_memreg = 16'd0;
+    default:                read_memreg = mem;
   endcase
 end
 endfunction
-
-// カウントダウンタイマ
-always @(posedge clk, posedge rst) begin
-  if (rst) begin
-    cd_timer <= 16'd0;
-    cd_timer_ms <= 16'd0; // 1ms 周期生成用
-  end else if (phase == 2'd1 && wr && mem_addr == `ADDR_WIDTH'h000) begin
-    cd_timer <= wr_data;
-    cd_timer_ms <= 16'd0;
-  end else if (cd_timer > 16'd0) begin
-    if (cd_timer_ms < (CLOCK_HZ/1000) - 1) // Clock = 27MHz
-      cd_timer_ms <= cd_timer_ms + 1;
-    else begin
-      cd_timer <= cd_timer - 1;
-      cd_timer_ms <= 16'd0;
-    end
-  end
-end
 
 endmodule

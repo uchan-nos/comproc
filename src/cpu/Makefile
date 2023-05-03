@@ -26,6 +26,10 @@ clkdiv_tb.exe: clkdiv_tb.sv clkdiv.sv
 cdtimer_tb.exe: cdtimer_tb.sv cdtimer.sv
 	iverilog -g2012 -o $@ $^
 
+cpu_tb.exe: cpu_tb.sv cpu.sv alu.sv stack.sv signals.sv cdtimer.sv \
+	signalizer.sv decoder.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: uart
 uart:
 	TARGET=uart ./test.sh
