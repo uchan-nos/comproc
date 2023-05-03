@@ -135,13 +135,13 @@ test_value 37 'int main() {int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;}
 test_value 03 'int main() {int a[2]; a[1] = 3; return a[1];}'
 test_value 05 'int main() {int a[2]; a[0] = 1; *(a+1) = 4; return *a + a[a[0]];}'
 test_value 0f 'int main() {int a[3]; int *p = a+1; p[0] = 5; p[1] = 3; return a[1] * a[2];}'
-test_value 05 'int main() {int *p=0x1e; int s=0; while(*p!=-2){while(*p==-1){} s+=*p&255; while((*p&0xff00)==0xfe00){}} return s;}' "fe02 ffff fe03 fffe"
+test_value 05 'int main() {int *p=0x82; int s=0; while(*p!=-2){while(*p==-1){} s+=*p&255; while((*p&0xff00)==0xfe00){}} return s;}' "fe02 ffff fe03 fffe"
 test_value 14 'int main() {return (010 >> 1) | (002 << 3);}'
 test_value fe 'int main() {return 0xefff >> 12;}'
 test_value ff 'int main() {return 0x8000 >> 15;}'
 test_value 00 'int main() {return 0x8000 >> 16;}'
 test_value 61 'int main() {int i=0; char *s="a"; while(*s){i+=*s++;} return i;}'
-test_stdout 'hello' 'int main() {int *p=0x1e; char *s="hello"; while(*s){*p=*s++;} *p=4; return 0;}'
+test_stdout 'hello' 'int main() {int *p=0x82; char *s="hello"; while(*s){*p=*s++;} *p=4; return 0;}'
 test_value 03 'int f() { return 2; } int main() { return f() + 1; }'
 test_value 05 'int f(int a, int b) { return a+b; } int main() { return f(2,3); }'
 test_value 08 'int fib(int n) { if(n<3){return 1;}else{return fib(n-1)+fib(n-2);} } int main() { return fib(6); }'
