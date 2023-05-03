@@ -1,3 +1,5 @@
+`include "common.sv"
+
 module decoder_tb;
 
 logic [15:0] insn;
@@ -68,7 +70,7 @@ initial begin
   #1 test_sig(1,        // imm,
               16'h7fff, // imm_mask
               `src_x,   // src_a
-              6'h0f,    // alu
+              `ALU_B,   // alu
               `x,       // wr_stk1
               0,        // pop
               1,        // push
@@ -86,7 +88,7 @@ initial begin
   #1 test_sig(1,        // imm,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
-              6'h20,    // alu
+              `ALU_ADD, // alu
               `x,       // wr_stk1
               0,        // pop
               0,        // push
@@ -104,7 +106,7 @@ initial begin
   #1 test_sig(1,        // imm,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
-              6'h20,    // alu
+              `ALU_ADD, // alu
               `x,       // wr_stk1
               0,        // pop
               0,        // push
@@ -122,7 +124,7 @@ initial begin
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
-              6'h20,    // alu
+              `ALU_ADD, // alu
               0,        // wr_stk1
               1,        // pop
               0,        // push
@@ -140,7 +142,7 @@ initial begin
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_x,   // src_a
-              6'h0f,    // alu
+              `ALU_B,   // alu
               0,        // wr_stk1
               1,        // pop
               0,        // push
@@ -158,7 +160,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
-              6'h01,    // alu
+              `ALU_INC, // alu
               `x,       // wr_stk1
               0,        // pop
               0,        // push
@@ -176,7 +178,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
-              6'h10,    // alu
+              `ALU_AND, // alu
               `x,       // wr_stk1
               1,        // pop
               0,        // push
@@ -194,7 +196,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               2'hx,     // src_a
-              6'h0f,    // alu
+              `ALU_B,   // alu
               `x,       // wr_stk1
               0,        // pop
               1,        // push
@@ -212,7 +214,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_cstk,// src_a
-              6'h00,    // alu
+              `ALU_A,   // alu
               `x,       // wr_stk1
               0,        // pop
               0,        // push
@@ -230,7 +232,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
-              6'h00,    // alu
+              `ALU_A,   // alu
               `x,       // wr_stk1
               0,        // pop
               0,        // push
@@ -248,7 +250,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
-              6'h00,    // alu
+              `ALU_A,   // alu
               1,        // wr_stk1
               1,        // pop
               0,        // push
@@ -266,7 +268,7 @@ initial begin
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
-              6'h00,    // alu
+              `ALU_A,   // alu
               1,        // wr_stk1
               1,        // pop
               0,        // push
