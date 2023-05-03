@@ -111,16 +111,21 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && (cpu_mem_addr & `ADDR_WIDTH'hffe) == `ADDR_WIDTH'h01c)
-    {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h080)
+    if (cpu_mem_byt)
+      cpu_io_led <= cpu_wr_data[7:0];
+    else
+      {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h081)
+    cpu_io_lcd <= cpu_wr_data[15:8];
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
     uart_tx_data <= cpu_wr_data[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;
