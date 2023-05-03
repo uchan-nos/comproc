@@ -17,6 +17,7 @@ module signals(
   output load_stk,
   output load_fp,
   output load_ip,
+  output load_insn,
   output cpop,
   output cpush,
   output byt,
@@ -34,6 +35,7 @@ assign push = insn_push & (insn_rd ? phase_rdmem : phase_exec);
 assign load_stk = insn_stk & (insn_rd ? phase_rdmem : phase_exec);
 assign load_fp = insn_fp & phase_exec;
 assign load_ip = reload_ip | phase_fetch;
+assign load_insn = phase_fetch;
 assign cpop = insn_cpop & phase_exec;
 assign cpush = insn_cpush & phase_decode;
 assign byt = insn_byt & phase_rdmem;

@@ -5,7 +5,7 @@ module signals_tb;
 logic rst, clk;
 logic [15:0] insn;
 logic imm, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, cpop, cpush, byt, rd_mem, wr_mem;
+  load_stk, load_fp, load_ip, load_insn, cpop, cpush, byt, rd_mem, wr_mem;
 logic [15:0] imm_mask;
 logic [5:0] alu_sel;
 
@@ -17,8 +17,8 @@ initial begin
            $time, rst, signals.phase_decode, signals.phase_exec,
            signals.phase_rdmem, signals.phase_fetch, insn, imm, imm_mask,
            src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, alu_sel,
-           " wr_stk1=%d pop/sh=%d%d load=%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
-           wr_stk1, pop, push, load_stk, load_fp, load_ip,
+           " wr_stk1=%d pop/sh=%d%d load=%d%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
+           wr_stk1, pop, push, load_stk, load_fp, load_ip, load_insn,
            cpop, cpush, byt, rd_mem, wr_mem
            , " insn_cpush=%d", signals.insn_cpush
          );
@@ -213,6 +213,7 @@ initial begin
              0,         // load_stk
              0,         // load_fp
              0,         // load_ip
+             0,         // load_insn
              0,         // cpop
              0,         // cpush
              x,         // byt
@@ -235,6 +236,7 @@ initial begin
              1,         // load_stk
              0,         // load_fp
              0,         // load_ip
+             0,         // load_insn
              0,         // cpop
              0,         // cpush
              1,         // byt
@@ -293,6 +295,7 @@ task test_sig(
   input e_load_stk,
   input e_load_fp,
   input e_load_ip,
+  input e_load_insn,
   input e_cpop,
   input e_cpush,
   input e_byt,
@@ -314,6 +317,7 @@ begin
   `test_sig1(load_stk);
   `test_sig1(load_fp);
   `test_sig1(load_ip);
+  `test_sig1(load_insn);
   `test_sig1(cpop);
   `test_sig1(cpush);
   `test_sig1(byt);
@@ -338,6 +342,7 @@ begin
              0,         // load_stk
              0,         // load_fp
              0,         // load_ip
+             0,         // load_insn
              0,         // cpop
              1,         // cpush
              x,         // byt
@@ -358,6 +363,7 @@ begin
              0,         // load_stk
              0,         // load_fp
              0,         // load_ip
+             0,         // load_insn
              0,         // cpop
              0,         // cpush
              x,         // byt
@@ -383,6 +389,7 @@ begin
            0,         // load_stk
            0,         // load_fp
            0,         // load_ip
+           0,         // load_insn
            0,         // cpop
            0,         // cpush
            x,         // byt
@@ -408,6 +415,7 @@ begin
            0,         // load_stk
            0,         // load_fp
            1,         // load_ip
+           1,         // load_insn
            0,         // cpop
            0,         // cpush
            0,         // byt
@@ -446,7 +454,7 @@ begin
     if (~signals.phase_exec) $error("phase_exec must be 1");
     test_sig(e_imm, e_imm_mask, e_src_a_stk0, e_src_a_fp, e_src_a_ip, e_src_a_cstk,
              e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_ip,
-             e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem);
+             0 /* load_insn */, e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem);
 
   @(negedge clk)
     if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
