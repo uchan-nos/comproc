@@ -418,7 +418,7 @@ int main(void) {
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}
   };
-  printf(INDENT "add fp,0x20\n");
+  printf(INDENT "add fp,0x100\n");
   printf(INDENT "call main\n");
   printf(INDENT "st 0x82\n");
   printf("fin:\n");

@@ -41,7 +41,7 @@ void ToLower(char *s) {
 
 struct LabelAddr {
   const char *label;
-  int pc;
+  int ip;
 };
 
 enum BPType {
@@ -52,14 +52,14 @@ enum BPType {
 };
 
 struct Backpatch {
-  int pc;
+  int ip;
   const char *label;
   enum BPType type;
 };
 
 void InitBackpatch(struct Backpatch *bp,
-                   int pc, const char *label, enum BPType type) {
-  bp->pc = pc;
+                   int ip, const char *label, enum BPType type) {
+  bp->ip = ip;
   bp->label = label;
   bp->type = type;
 }
@@ -125,12 +125,12 @@ char *GetOperand(char *mnemonic, char **operands, int n, int i) {
 
 // i 番目のオペランドを long 値として取得（整数変換できなければバックパッチ）
 long GetOperandLong(char *operand, struct Backpatch *backpatches,
-                    int *num_backpatches, int pc, enum BPType bp_type) {
+                    int *num_backpatches, int ip, enum BPType bp_type) {
   char *endptr;
   long value = strtol(operand, &endptr, 0);
 
   if (endptr == operand) {
-    InitBackpatch(backpatches + *num_backpatches, pc, strdup(operand), bp_type);
+    InitBackpatch(backpatches + *num_backpatches, ip, strdup(operand), bp_type);
     (*num_backpatches)++;
     return 0;
   } else if (*endptr) {
@@ -157,7 +157,7 @@ long GetOperandLongNoBP(char *operand) {
 #define GET_STR(i) GetOperand((mnemonic), (operands), (num_opr), (i))
 #define GET_LONG(i, bp_type) GetOperandLong(\
     GetOperand((mnemonic), (operands), (num_opr), (i)), \
-    (backpatches), &(num_backpatches), (pc), (bp_type))
+    (backpatches), &(num_backpatches), (ip), (bp_type))
 #define GET_LONG_NO_BP(i) GetOperandLongNoBP(\
     GetOperand((mnemonic), (operands), (num_opr), (i)))
 
@@ -194,7 +194,7 @@ int main(void) {
   char *operands[MAX_OPERAND];
 
   uint16_t insn[512];
-  int pc = ORIGIN;
+  int ip = ORIGIN;
 
   struct Backpatch backpatches[128];
   int num_backpatches = 0;
@@ -207,7 +207,7 @@ int main(void) {
 
     if (label) {
       labels[num_labels].label = strdup(label);
-      labels[num_labels].pc = pc;
+      labels[num_labels].ip = ip;
       num_labels++;
     }
 
@@ -225,39 +225,39 @@ int main(void) {
 
     if (strcmp(mnemonic, "push") == 0) {
       if (strchr(GET_STR(0), '+') == NULL) {
-        insn[pc >> 1] = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
+        insn[ip >> 1] = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
       } else {
         uint16_t off;
         enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-        insn[pc >> 1] = 0x3000 | (ab << 10) | (0x3ff & off);
+        insn[ip >> 1] = 0x3000 | (ab << 10) | (0x3ff & off);
       }
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_IP_REL12);
-      insn[pc >> 1] = 0x0000;
+                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      insn[ip >> 1] = 0x0000;
     } else if (strcmp(mnemonic, "call") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_IP_REL12);
-      insn[pc >> 1] = 0x0001;
+                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      insn[ip >> 1] = 0x0001;
     } else if (strcmp(mnemonic, "jz") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_IP_REL12);
-      insn[pc >> 1] = 0x1000;
+                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      insn[ip >> 1] = 0x1000;
     } else if (strcmp(mnemonic, "jnz") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
-                    pc, strdup(GET_STR(0)), BP_IP_REL12);
-      insn[pc >> 1] = 0x1001;
+                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      insn[ip >> 1] = 0x1001;
     } else if (strcmp(mnemonic, "ld") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[pc >> 1] = 0x2000 | (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = 0x2000 | (ab << 10) | (0x3fe & off);
     } else if (strcmp(mnemonic, "st") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[pc >> 1] = 0x2001 | (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = 0x2001 | (ab << 10) | (0x3fe & off);
     } else if (strcmp(mnemonic, "add") == 0) {
       if (num_opr == 0) {
-        insn[pc >> 1] = 0x7060;
+        insn[ip >> 1] = 0x7060;
       } else {
         char *base = GET_STR(0);
         if (ExpectFP(base)) {
@@ -265,94 +265,94 @@ int main(void) {
           exit(1);
         }
         uint16_t addend = GET_LONG_NO_BP(1);
-        insn[pc >> 1] = 0x4000 | (0x3ff & addend);
+        insn[ip >> 1] = 0x4000 | (0x3ff & addend);
       }
     } else if (strcmp(mnemonic, "nop") == 0) {
-      insn[pc >> 1] = 0x7000;
+      insn[ip >> 1] = 0x7000;
     } else if (strcmp(mnemonic, "pop") == 0) {
       if (num_opr == 0) {
-        insn[pc >> 1] = 0x704f;
+        insn[ip >> 1] = 0x704f;
       } else {
         long n = GET_LONG_NO_BP(0);
         if (n == 0) {
-          insn[pc >> 1] = 0x704f;
+          insn[ip >> 1] = 0x704f;
         } else if (n == 1) {
-          insn[pc >> 1] = 0x7040;
+          insn[ip >> 1] = 0x7040;
         } else {
           fprintf(stderr, "POP takes 0 or 1: %ld\n", n);
           exit(1);
         }
       }
     } else if (strcmp(mnemonic, "inc") == 0) {
-      insn[pc >> 1] = 0x7001;
+      insn[ip >> 1] = 0x7001;
     } else if (strcmp(mnemonic, "inc2") == 0) {
-      insn[pc >> 1] = 0x7002;
+      insn[ip >> 1] = 0x7002;
     } else if (strcmp(mnemonic, "not") == 0) {
-      insn[pc >> 1] = 0x7004;
+      insn[ip >> 1] = 0x7004;
     } else if (strcmp(mnemonic, "and") == 0) {
-      insn[pc >> 1] = 0x7050;
+      insn[ip >> 1] = 0x7050;
     } else if (strcmp(mnemonic, "or") == 0) {
-      insn[pc >> 1] = 0x7051;
+      insn[ip >> 1] = 0x7051;
     } else if (strcmp(mnemonic, "xor") == 0) {
-      insn[pc >> 1] = 0x7052;
+      insn[ip >> 1] = 0x7052;
     } else if (strcmp(mnemonic, "shr") == 0) {
-      insn[pc >> 1] = 0x7056;
+      insn[ip >> 1] = 0x7056;
     } else if (strcmp(mnemonic, "sar") == 0) {
-      insn[pc >> 1] = 0x7055;
+      insn[ip >> 1] = 0x7055;
     } else if (strcmp(mnemonic, "shl") == 0) {
-      insn[pc >> 1] = 0x7054;
+      insn[ip >> 1] = 0x7054;
     } else if (strcmp(mnemonic, "join") == 0) {
-      insn[pc >> 1] = 0x7057;
+      insn[ip >> 1] = 0x7057;
     } else if (strcmp(mnemonic, "sub") == 0) {
-      insn[pc >> 1] = 0x7061;
+      insn[ip >> 1] = 0x7061;
     } else if (strcmp(mnemonic, "mul") == 0) {
-      insn[pc >> 1] = 0x7062;
+      insn[ip >> 1] = 0x7062;
     } else if (strcmp(mnemonic, "lt") == 0) {
-      insn[pc >> 1] = 0x7068;
+      insn[ip >> 1] = 0x7068;
     } else if (strcmp(mnemonic, "eq") == 0) {
-      insn[pc >> 1] = 0x7069;
+      insn[ip >> 1] = 0x7069;
     } else if (strcmp(mnemonic, "neq") == 0) {
-      insn[pc >> 1] = 0x706a;
+      insn[ip >> 1] = 0x706a;
     } else if (strcmp(mnemonic, "dup") == 0) {
       if (num_opr == 0) {
-        insn[pc >> 1] = 0x7080;
+        insn[ip >> 1] = 0x7080;
       } else {
         long n = GET_LONG_NO_BP(0);
         if (n == 0) {
-          insn[pc >> 1] = 0x7080;
+          insn[ip >> 1] = 0x7080;
         } else if (n == 1) {
-          insn[pc >> 1] = 0x708f;
+          insn[ip >> 1] = 0x708f;
         } else {
           fprintf(stderr, "DUP takes 0 or 1: %ld\n", n);
           exit(1);
         }
       }
     } else if (strcmp(mnemonic, "ret") == 0) {
-      insn[pc >> 1] = 0x7800;
+      insn[ip >> 1] = 0x7800;
     } else if (strcmp(mnemonic, "cpop") == 0) {
       char *target = GET_STR(0);
       if (ExpectFP(target)) {
         fprintf(stderr, "CPOP takes FP: '%s'\n", target);
         exit(1);
       }
-      insn[pc >> 1] = 0x7802;
+      insn[ip >> 1] = 0x7802;
     } else if (strcmp(mnemonic, "cpush") == 0) {
       char *target = GET_STR(0);
       if (ExpectFP(target)) {
         fprintf(stderr, "CPUSH takes FP: '%s'\n", target);
         exit(1);
       }
-      insn[pc >> 1] = 0x7803;
+      insn[ip >> 1] = 0x7803;
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[pc >> 1] = 0x7808;
+      insn[ip >> 1] = 0x7808;
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[pc >> 1] = 0x780c;
+      insn[ip >> 1] = 0x780c;
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[pc >> 1] = 0x780e;
+      insn[ip >> 1] = 0x780e;
     } else if (strcmp(mnemonic, "db") == 0) {
-      pc += DataByte(&insn[pc >> 1], operands, num_opr);
-      if (pc & 1) {
-        pc++;
+      ip += DataByte(&insn[ip >> 1], operands, num_opr);
+      if (ip & 1) {
+        ip++;
       }
       continue;
     } else {
@@ -361,10 +361,10 @@ int main(void) {
     }
 
     if (postfix && strcmp(postfix, "1") == 0) {
-      insn[pc >> 1] |= 0x0001;
+      insn[ip >> 1] |= 0x0001;
     }
 
-    pc += 2;
+    ip += 2;
   }
 
   for (int i = 0; i < num_backpatches; i++) {
@@ -374,20 +374,20 @@ int main(void) {
         continue;
       }
 
-      int ins_pc = backpatches[i].pc;
+      int ins_pc = backpatches[i].ip;
       uint16_t ins = insn[ins_pc >> 1];
       switch (backpatches[i].type) {
       case BP_IP_REL12:
-        ins = (ins & 0xf001u) | ((labels[l].pc - ins_pc) & 0xffeu);
+        ins = (ins & 0xf001u) | ((labels[l].ip - ins_pc - 2) & 0xffeu);
         break;
       case BP_IP_REL10:
-        ins = (ins & 0xfc01u) | ((labels[l].pc - ins_pc) & 0x3feu);
+        ins = (ins & 0xfc01u) | ((labels[l].ip - ins_pc - 2) & 0x3feu);
         break;
       case BP_ABS10:
-        ins = (ins & 0xfc00u) | (labels[l].pc & 0x3ffu);
+        ins = (ins & 0xfc00u) | (labels[l].ip & 0x3ffu);
         break;
       case BP_ABS15:
-        ins = (ins & 0x8000u) | (labels[l].pc & 0x7fffu);
+        ins = (ins & 0x8000u) | (labels[l].ip & 0x7fffu);
         break;
       }
       insn[ins_pc >> 1] = ins;
@@ -399,7 +399,7 @@ int main(void) {
     }
   }
 
-  for (int i = ORIGIN; i < pc; i += 2) {
+  for (int i = ORIGIN; i < ip; i += 2) {
     printf("%04X\n", insn[i >> 1]);
   }
   return 0;
