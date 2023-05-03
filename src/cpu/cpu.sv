@@ -15,13 +15,13 @@ module cpu#(
 /*
 引数の仕様
 
-mem_wr    メモリ書き込み命令のとき 1
-mem_byt   バイトアクセスなら 1
+wr_mem    メモリ書き込み命令のとき 1
+byt       バイトアクセスなら 1
 rd_data   メモリからの読み込みデータ
-          mem_byt=0 なら [15:0] が有効
-          mem_byt=1 なら、mem_addr の最下位ビットに応じて [15:8] か [7:0] が有効
+          byt=0 なら [15:0] が有効
+          byt=1 なら、mem_addr の最下位ビットに応じて [15:8] か [7:0] が有効
 wr_data   メモリへの書き込みデータ
-          mem_byt とビットの有効範囲は rd_data と同じ
+          byt とビットの有効範囲は rd_data と同じ
 
 
 命令リスト（即値有り）
@@ -93,28 +93,43 @@ STD.1      |0111100000001111| byte version
 | 0111 | 1 | 000     0     0    00 | Func |  その他の即値無し命令
 
 
-制御線の構成
-TODO: 新しい ISA に対応した説明に修正する
+信号線の構成
 
-名前    説明
+名前      説明
 -----------------------
-imm     0: insn[7:0] は ALU 機能選択
-        1: insn[7:0] は即値
-load    演算用スタックの先頭にロードする値の選択
-        0: stack[0], 1: stack[1], 2: alu_out, 3: rd_data
-rd      メモリ読み込み
-wr      メモリ書き込み
-pop     演算用スタックから値をポップ
-push    演算用スタックに値をプッシュ
-jmp     ジャンプ条件
-        0: ジャンプしない, 1: 無条件, 2: stack[0] == 0, 3: stack[0] != 0
-load_bp bp にロードする値の選択
-        0/1: bp, 2: rd_data, 3: alu_out
-load_fp fp にロードする値の選択
-        0: fp, 1: fp+2, 2: fp-2, 3: alu_out
+alu_sel   ALU の機能選択
+alu_out   ALU 出力
+src_a     ALU-A 入力（stack[0], FP, IP, cstack[0]）
+src_b     ALU-B 入力（stack[1], insn & imm_mask）
+src_a_X   ALU-A に入力する値の選択
+          4 つの信号線のうち 1 本だけが 1、その他は 0 となる
+imm       0: 即値無し命令（src_b は stack[1] を選択）
+          1: 即値有り命令（src_b は insn & imm_mask を選択）
+wr_stk1   0/1: wr_data に stack[0/1] を出力
+pop/push  stack をポップ/プッシュ
+load_stk  stack[0] に stack_in をロード
+load_fp   FP に alu_out をロード
+load_ip   IP に alu_out をロード
+cpop      cstack をポップ
+cpush     cstack に値をプッシュ
+rd_mem    stack_in に接続する値の選択
+          0: alu_out, 1: rd_data
+wr_mem    メモリに wr_data を書き込む
+stack_in  stack[0] の入力値（alu_out, rd_data）
+imm_mask  insn から即値を取り出すためのビットマスク
 
-imm8=insn[7:0] 即値、ALU 機能選択
+- stack: 演算用スタック
+- cstack: コールスタック（CALL の戻り先アドレスと FP の記憶）
 
+
+レジスタ
+
+名前      説明
+-----------------------
+fp        フレームポインタ（スタックフレームの先頭を指す）
+ip        命令（instruction）ポインタ（次に実行する命令を指す）
+insn      命令（instruction）レジスタ
+addr0_d   mem_addr の最下位ビットを 1 クロック遅延した値
 
 
 メモリマップ
@@ -136,57 +151,20 @@ addr      説明
 081h      キャラクタ LCD
 082h-083h UART 入出力
 
-01ch の説明
+081h の説明
 ビット 0: E
 ビット 1: R/W
 ビット 2: RS
 ビット 4 - 7: DB4 - DB7
 
-01eh-01fh の説明
+082h-083h の説明
 入出力とも、下位 8 ビットが有効
 入力は最後に受信された値が読める（一度読んでもクリアされない）
 入力データは上位 8 ビットを 0xfe とし、下位 8 ビットに有効値を載せる
 
 
 信号タイミング
-TODO: 新しい ISA に対応した説明に修正する
-../../doc/signal-timing-design/cpu-mem-timing.png
-
-タイミング図生成ツール
-https://rawgit.com/osamutake/tchart-coffee/master/bin/editor-offline.html
-
-タイミング図ソースコード
-clock   ~_~_~_~_~_~_~_~_~_~_~_
-phase   X3=X0=X1=X2=X3=X0=X1=X2=X3=X0=X1=
-rw_addr =PC=X=addr==X=PC+1==X=addr==X=PC+2==X=addr==
-rd_data =?Xinsn===Xdata===Xinsn===Xdata===Xinsn===X
-wr_data =?===Xdata=X?===============
-mem_wr  ____~~________________
-*/
-
-/*
-TODO: 新しい ISA に対応した説明に修正する
-3->0  命令フェッチ
-0     デコード
-0->1  メモリ読み込み（データ）
-1->2  メモリ書き込み、PC 更新、演算スタック更新
-2->3  メモリ読み込み（命令）
-*/
-
-/* メモリとスタックフレーム
-          mem                 mem                 mem
-bp -> |  old bp  |        |  old bp  |        |  old bp  |
-      | stack    |        | stack    |        | stack    |
-      |    frame |        |    frame |        |    frame |
-fp -> |          |  bp=   | ret addr |        | ret addr |
-      |          |  fp -> |  old bp  |  bp -> |  old bp  |
-      |          |        |          |        | local    |
-      |          |        |          |        |    vars  |
-      |          |        |          |  fp -> |          |
-
-        初期状態          CALL & ENTER     ローカル変数の配置
-
-関数呼び出しによるスタックフレームの変化
+doc/signal-timing-design に記載
 */
 
 // CPU コアの信号
@@ -197,14 +175,14 @@ logic [5:0] alu_sel;
 
 // レジスタ群
 logic [15:0] fp, ip, insn;
-logic mem_addr0_d;
+logic addr0_d;
 
 // 結線
 assign src_a = src_a_fp ? fp
                : src_a_ip ? ip
                : src_a_cstk ? cstack0 : stack0;
 assign src_b = imm ? (insn & imm_mask) : stack1;
-assign stack_in = rd_mem ? byte_format(data_memreg, byt, mem_addr0_d) : alu_out;
+assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr0_d) : alu_out;
 assign mem_addr = alu_out;
 assign wr_data = wr_stk1 ? stack1 : stack0;
 
@@ -287,9 +265,9 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    mem_addr0_d <= 1'b0;
+    addr0_d <= 1'b0;
   else
-    mem_addr0_d <= mem_addr[0];
+    addr0_d <= mem_addr[0];
 end
 
 // CPU コア用の function 定義
@@ -331,7 +309,7 @@ function [15:0] read_memreg(
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b0000_0000: read_memreg = cdtimer;
+    `ADDR_WIDTH'b0000_0010: read_memreg = cdtimer;
     `ADDR_WIDTH'b0xxx_xxxx: read_memreg = 16'd0;
     default:                read_memreg = mem;
   endcase
