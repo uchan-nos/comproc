@@ -68,10 +68,13 @@ function [5:0] calc_alu_sel(input [15:0] insn);
 begin
   casex (insn)
     16'b1xxx_xxxx_xxxx_xxxx: calc_alu_sel = 6'h0f;
+    16'b0000_xxxx_xxxx_xxxx: calc_alu_sel = 6'h20;
     16'b0001_xxxx_xxxx_xxx0: calc_alu_sel = 6'h30;
     16'b0001_xxxx_xxxx_xxx1: calc_alu_sel = 6'h31;
-    16'b00xx_xxxx_xxxx_xxxx: calc_alu_sel = 6'h20;
-    16'b010x_xxxx_xxxx_xxxx: calc_alu_sel = 6'h20;
+    16'b001x_00xx_xxxx_xxxx: calc_alu_sel = 6'h0f; // X=0
+    16'b001x_xxxx_xxxx_xxxx: calc_alu_sel = 6'h20; // X=fp/ip/cstk
+    16'b010x_00xx_xxxx_xxxx: calc_alu_sel = 6'h0f; // X=0
+    16'b010x_xxxx_xxxx_xxxx: calc_alu_sel = 6'h20; // X=fp/ip/cstk
     16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0];
     default:                 calc_alu_sel = 6'h00;
   endcase

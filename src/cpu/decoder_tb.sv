@@ -136,6 +136,24 @@ initial begin
               1         // wr_mem
             );
 
+  #1 insn <= 16'h3038;  // st 0+0x38
+  #1 test_sig(1,        // imm,
+              16'h03fe, // imm_mask
+              `src_x,   // src_a
+              6'h0f,    // alu
+              0,        // wr_stk1
+              1,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // cpop
+              0,        // cpush
+              0,        // byt
+              `x,       // rd_mem
+              1         // wr_mem
+            );
+
   #1 insn <= 16'h7001;  // inc
   #1 test_sig(0,        // imm,
               16'hxxxx, // imm_mask
