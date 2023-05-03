@@ -9,7 +9,10 @@ module cpu#(
   output wr_mem,
   output byt,
   input  [15:0] rd_data,
-  output [15:0] wr_data
+  output [15:0] wr_data,
+  output [15:0] stack0,
+  output [15:0] stack1,
+  output [5:0] alu_sel
 );
 
 /*
@@ -169,9 +172,8 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic imm, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_insn, cpop, cpush, byt, rd_mem, wr_mem;
-logic [15:0] alu_out, src_a, src_b, stack_in, stack0, stack1, cstack0, imm_mask;
-logic [5:0] alu_sel;
+  load_stk, load_fp, load_ip, load_insn, cpop, cpush, rd_mem;
+logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask;
 
 // レジスタ群
 logic [15:0] fp, ip, insn;
@@ -183,7 +185,7 @@ assign src_a = src_a_fp ? fp
                : src_a_cstk ? cstack0 : stack0;
 assign src_b = imm ? (insn & imm_mask) : stack1;
 assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr0_d) : alu_out;
-assign mem_addr = alu_out;
+assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data = wr_stk1 ? stack1 : stack0;
 
 // CPU コアモジュール群
@@ -289,7 +291,7 @@ logic cdtimer_to;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
 // 結線
-assign data_memreg = read_memreg(mem_addr, rd_data, cdtimer_cnt);
+assign data_memreg = read_memreg(mem_addr, rd_data, data_reg);
 
 // CPU 内蔵周辺機能モジュール群
 cdtimer cdtimer(
