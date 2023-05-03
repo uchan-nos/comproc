@@ -51,11 +51,14 @@ initial begin
   #1 sel <= `ALU_SHR; b <= 16'h4;
   #1 if (out !== 16'h0DEA) $error("out must be 0x0DEA");
 
+  #1 sel <= `ALU_SHL;
+  #1 if (out !== 16'hEAD0) $error("out must be 0xEAD0");
+
   #1 sel <= `ALU_SAR;
   #1 if (out !== 16'hFDEA) $error("out must be 0xFDEA");
 
-  #1 sel <= `ALU_SHL;
-  #1 if (out !== 16'hEAD0) $error("out must be 0xEAD0");
+  #1 b <= 16'd16;
+  #1 if (out !== 16'hFFFF) $error("out must be 0xFFFF");
 
   #1 sel <= `ALU_JOIN; a <= 16'h00FE; b <= 16'h00CA;
   #1 if (out !== 16'hCAFE) $error("out must be 0xCAFE");

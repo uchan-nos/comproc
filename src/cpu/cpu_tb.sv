@@ -66,16 +66,16 @@ initial begin
   #10 // rdmem
     if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
     if (mem_addr !== `ADDR_WIDTH'h33A) $error("mem_addr must be 0x33A");
-    rd_data <= 16'h8003; // PUSH 0x03
+    rd_data <= 16'h8103; // PUSH 0x103
   @(posedge cpu.load_insn)
 
   @(posedge cpu.load_insn)
     rd_data <= 16'h7809; // LDD.1
-    if (cpu.stack0 !== 16'h0003) $error("stack0 must be 0x0003");
+    if (cpu.stack0 !== 16'h0103) $error("stack0 must be 0x0103");
 
   #11 // decode
   #10 // exec
-    if (mem_addr !== 16'h0003) $error("mem_addr must be 0x0003");
+    if (mem_addr !== 16'h0103) $error("mem_addr must be 0x0103");
   #10 // rdmem
     rd_data <= 16'hDEAD;
   @(posedge cpu.load_insn)
@@ -89,6 +89,29 @@ initial begin
   @(posedge cpu.load_insn)
     if (last_wr_addr !== 16'h0004) $error("last_wr_addr must be 0x0004");
     if (last_wr_data !== 16'h00DF) $error("last_wr_data must be 0x00DF");
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h8012; // PUSH 0x12
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h8081; // PUSH 0x81
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h780D; // STA.1
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h7809; // LDD.1
+    if (cpu.stack0 !== 16'h0081) $error("stack0 must be 0x0081");
+    if (last_wr_addr !== 16'h0081) $error("last_wr_addr must be 0x0081");
+    if (last_wr_data !== 16'h1200) $error("last_wr_data must be 0x1200");
+
+  #11 // decode
+  #10 // exec
+    if (mem_addr !== 16'h0081) $error("mem_addr must be 0x0081");
+  #10 // rdmem
+    rd_data <= 16'h1200;
+  @(posedge cpu.load_insn)
+    if (cpu.stack0 !== 16'h0012) $error("stack0 must be 0x0012");
 
   $finish;
 end

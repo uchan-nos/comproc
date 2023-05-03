@@ -174,20 +174,21 @@ doc/signal-timing-design に記載
 // CPU コアの信号
 logic imm, sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_insn, cpop, cpush, rd_mem;
-logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask;
+logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
 
 // レジスタ群
 logic [15:0] fp, ip, insn;
-logic addr0_d;
+logic [`ADDR_WIDTH-1:0] addr_d;
 
 // 結線
 assign src_a = src_a_fp ? fp
                : src_a_ip ? ip
                : src_a_cstk ? cstack0 : stack0;
 assign src_b = imm ? mask_imm(insn, imm_mask, sign) : stack1;
-assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr0_d) : alu_out;
+assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr_d[0]) : alu_out;
 assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
-assign wr_data = wr_stk1 ? stack1 : stack0;
+assign wr_data_raw = wr_stk1 ? stack1 : stack0;
+assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
 
 // CPU コアモジュール群
 alu alu(
@@ -269,9 +270,9 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    addr0_d <= 1'b0;
+    addr_d <= `ADDR_WIDTH'd0;
   else
-    addr0_d <= mem_addr[0];
+    addr_d <= mem_addr;
 end
 
 // CPU コア用の function 定義
@@ -299,14 +300,16 @@ end
 endfunction
 
 // CPU 内蔵周辺機能の信号
-logic cdtimer_to;
+logic cdtimer_to, load_cdtimer;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
 // 結線
-assign data_memreg = read_memreg(mem_addr, rd_data, data_reg);
+assign data_memreg = addr_d >= `ADDR_WIDTH'h080 ? rd_data : data_reg;
+assign data_reg = addr_d[6:0] === 7'h02 ? cdtimer_cnt : 16'd0;
+assign load_cdtimer = wr_mem & mem_addr === `ADDR_WIDTH'h002;
 
 // CPU 内蔵周辺機能モジュール群
-cdtimer cdtimer(
+cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
   .rst(rst),
   .clk(clk),
   .load(load_cdtimer),
@@ -314,20 +317,5 @@ cdtimer cdtimer(
   .counter(cdtimer_cnt),
   .timeout(cdtimer_to)
 );
-
-// CPU 内蔵周辺機能用の function 定義
-function [15:0] read_memreg(
-  input [`ADDR_WIDTH-1:0] addr,
-  input [15:0] mem,
-  input [15:0] cdtimer
-);
-begin
-  casex (addr)
-    `ADDR_WIDTH'b0000_0010: read_memreg = cdtimer;
-    `ADDR_WIDTH'b0xxx_xxxx: read_memreg = 16'd0;
-    default:                read_memreg = mem;
-  endcase
-end
-endfunction
 
 endmodule

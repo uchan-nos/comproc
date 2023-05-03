@@ -55,7 +55,7 @@ initial begin
     uart_out = $fopen(uart_out_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d ip=%02x.%d %04x %-6s mem[%02x]=%04x wr=%04x byt=%d stack{%02x %02x} fp=%04x cstk{%02x %02x} cdt=%04x",
+  $monitor("%d: rst=%d ip=%02x.%d %04x %-6s addr=%03x r=%04x w=%04x byt=%d stack{%02x %02x} fp=%04x cstk{%02x %02x} cdt=%04x",
            $time, rst, cpu.ip, phase_num, cpu.insn, insn_name, mem_addr, rd_data,
            wr_data_mon, byt,
            stack0, stack1, cpu.fp, cpu.cstack.data[0], cpu.cstack.data[1],
@@ -136,8 +136,13 @@ byte_bram mem_hi(
   .rd_data(rd_data_hi)
 );
 
-assign rd_data = mem_addr == `ADDR_WIDTH'h01e ?
+logic [`ADDR_WIDTH-1:0] mem_addr_d;
+assign rd_data = mem_addr_d == `ADDR_WIDTH'h082 ?
                  uart_in[uart_index] : bram_rd_data;
+
+always @(posedge clk) begin
+  mem_addr_d <= mem_addr;
+end
 
 always #5000 begin
   uart_index <= uart_index + 1;
