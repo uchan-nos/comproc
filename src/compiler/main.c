@@ -74,13 +74,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
                       sym->name->len, sym->name->raw);
               exit(1);
             }
-            printf(INDENT "pushbp\n");
-            printf(INDENT "push 0x%x\n", sym->offset);
-            printf(INDENT "add\n");
+            printf(INDENT "push cstack+0x%x\n", sym->offset);
           } else {
-            printf(INDENT "pushbp\n");
-            printf(INDENT "push 0x%x\n", sym->offset);
-            printf(INDENT "add\n");
+            printf(INDENT "push cstack+0x%x\n", sym->offset);
             if (!lval) {
               if (SizeofType(sym->type) == 1) {
                 printf(INDENT "ldd.1\n");
@@ -281,25 +277,18 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
       AppendSymbol(ctx->syms, func_sym);
       printf("%.*s:\n", func_sym->name->len, func_sym->name->raw);
-      printf(INDENT "enter\n");
-      ctx->lvar_offset = 2;
+      printf(INDENT "cpush fp\n");
+      ctx->lvar_offset = 0;
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
         sym->offset = ctx->lvar_offset;
         sym->type = param->type;
         assert(sym->type);
         AppendSymbol(ctx->syms, sym);
-        printf(INDENT "pushbp\n");
-        printf(INDENT "push 0x%x\n", sym->offset);
-        printf(INDENT "add\n");
-        printf(INDENT "std\n");
-        printf(INDENT "pop\n");
+        printf(INDENT "st cstack+0x%x\n", sym->offset);
         ctx->lvar_offset += 2;
       }
-      printf(INDENT "pushbp\n");
-      printf(INDENT "push 0x%x\n", ctx->lvar_offset);
-      printf(INDENT "add\n");
-      printf(INDENT "popfp\n");
+      printf(INDENT "add fp,0x%x\n", ctx->lvar_offset);
       Generate(ctx, node->rhs, 0);
     }
     break;
@@ -315,7 +304,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     if (node->lhs) {
       Generate(ctx, node->lhs, 0);
     }
-    printf(INDENT "leave\n");
+    printf(INDENT "cpop fp\n");
     printf(INDENT "ret\n");
     break;
   case kNodeDefVar:
@@ -329,16 +318,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       ctx->lvar_offset += stk_size;
       AppendSymbol(ctx->syms, sym);
-      printf(INDENT "pushfp\n");
-      printf(INDENT "push 0x%x\n", (unsigned int)stk_size);
-      printf(INDENT "add\n");
-      printf(INDENT "popfp\n");
+      printf(INDENT "add fp,0x%x\n", (unsigned int)stk_size);
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
-        printf(INDENT "pushbp\n");
-        printf(INDENT "push 0x%x\n", sym->offset);
-        printf(INDENT "add\n");
+        printf(INDENT "push cstack+0x%x\n", sym->offset);
         if (SizeofType(sym->type) == 1) {
           printf(INDENT "sta.1\n");
         } else {
@@ -434,10 +418,9 @@ int main(void) {
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}
   };
-  printf(INDENT "push 0x20\n");
-  printf(INDENT "popfp\n");
+  printf(INDENT "add fp,0x20\n");
   printf(INDENT "call main\n");
-  printf(INDENT "st 0x1e\n");
+  printf(INDENT "st 0x82\n");
   printf("fin:\n");
   printf(INDENT "jmp fin\n");
   for (struct Node *n = ast; n; n = n->next) {
