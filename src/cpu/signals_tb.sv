@@ -4,7 +4,7 @@ module signals_tb;
 
 logic rst, clk;
 logic [15:0] insn;
-logic imm, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+logic imm, sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_insn, cpop, cpush, byt, rd_mem, wr_mem;
 logic [15:0] imm_mask;
 logic [5:0] alu_sel;

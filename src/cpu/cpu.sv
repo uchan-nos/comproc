@@ -172,7 +172,7 @@ doc/signal-timing-design に記載
 */
 
 // CPU コアの信号
-logic imm, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+logic imm, sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_insn, cpop, cpush, rd_mem;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask;
 
@@ -184,7 +184,7 @@ logic addr0_d;
 assign src_a = src_a_fp ? fp
                : src_a_ip ? ip
                : src_a_cstk ? cstack0 : stack0;
-assign src_b = imm ? (insn & imm_mask) : stack1;
+assign src_b = imm ? mask_imm(insn, imm_mask, sign) : stack1;
 assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr0_d) : alu_out;
 assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data = wr_stk1 ? stack1 : stack0;
@@ -224,6 +224,7 @@ signals signals(
   .clk(clk),
   .insn(insn),
   .imm(imm),
+  .sign(sign),
   .imm_mask(imm_mask),
   .src_a_stk0(src_a_stk0),
   .src_a_fp(src_a_fp),
@@ -284,6 +285,16 @@ begin
     else
       byte_format = val16 & 16'h00ff;
   end
+end
+endfunction
+
+function [15:0] mask_imm(input [15:0] imm16, input [15:0] imm_mask, input sign);
+begin
+  logic [5:0] sign_bits;
+  logic [15:0] masked;
+  sign_bits = 6'b111111 ^ imm_mask[15:10];
+  masked = imm16 & imm_mask;
+  mask_imm = sign ? (masked | (sign_bits << 10)) : masked;
 end
 endfunction
 

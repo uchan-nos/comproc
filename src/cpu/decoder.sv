@@ -3,6 +3,7 @@
 module decoder(
   input [15:0] insn,
   output imm,
+  output sign,
   output [15:0] imm_mask,
   output [1:0] src_a,
   output [5:0] alu_sel,
@@ -26,6 +27,7 @@ module decoder(
 `define src_x    2'hx
 
 assign imm = insn[15:12] !== 4'h7;
+assign sign = calc_sign(insn);
 assign imm_mask = calc_imm_mask(insn[15:12]);
 assign src_a = calc_src_a(insn);
 assign alu_sel = calc_alu_sel(insn);
@@ -40,6 +42,17 @@ assign cpush = calc_cpush(insn);
 assign byt = insn[14] & insn[0];
 assign rd_mem = calc_rd_mem(insn);
 assign wr_mem = calc_wr_mem(insn);
+
+function [15:0] calc_sign(input [15:0] insn);
+begin
+  casex (insn)
+    16'b000x_xxxx_xxxx_xxxx: calc_sign = insn[11];
+    16'b001x_xxxx_xxxx_xxxx: calc_sign = insn[9];
+    16'b0100_xxxx_xxxx_xxxx: calc_sign = insn[9];
+    default:                 calc_sign = 1'b0;
+  endcase
+end
+endfunction
 
 function [15:0] calc_imm_mask(input [3:0] op);
 begin

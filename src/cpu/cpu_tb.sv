@@ -40,7 +40,14 @@ initial begin
     if (cpu.stack0 !== 16'hFF5A) $error("stack0 must be 0xFF5A");
 
   @(posedge cpu.load_insn)
+    rd_data <= 16'h0FFE; // JMP IP-2
+
+  #11 // decode
+  #10 // exec
+    if (cpu.alu_out !== 16'h306) $error("alu_out must be 0x306");
+  #10 // rdmem
     rd_data <= 16'h1020; // JZ 0x20
+  @(posedge cpu.load_insn)
     if (cpu.stack0 !== 16'h0001) $error("stack0 must be 0x0001");
     if (cpu.stack1 !== 16'hFF5A) $error("stack1 must be 0xFF5A");
 

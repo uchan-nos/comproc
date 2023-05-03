@@ -3,7 +3,8 @@
 module decoder_tb;
 
 logic [15:0] insn;
-logic imm, wr_stk1, pop, push, load_stk, load_fp, load_ip, cpop, cpush, byt, rd_mem, wr_mem;
+logic imm, sign, wr_stk1, pop, push, load_stk, load_fp, load_ip,
+  cpop, cpush, byt, rd_mem, wr_mem;
 logic [15:0] imm_mask;
 logic [1:0] src_a;
 logic [5:0] alu_sel;
@@ -15,6 +16,7 @@ decoder decoder(.*);
 
 task test_sig(
   input e_imm,
+  input e_sign,
   input [15:0] e_imm_mask,
   input [1:0] e_src_a,
   input [5:0] e_alu_sel,
@@ -31,6 +33,7 @@ task test_sig(
   input e_wr_mem);
 begin
   `test_sig1(imm);
+  `test_sig1(sign);
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
     $error("imm_mask must be 0x%04x", e_imm_mask);
   if (e_src_a  !== 2'hx  && src_a  !== e_src_a)
@@ -59,8 +62,8 @@ endtask
 `define src_x    2'hx
 
 initial begin
-  $monitor("%d: insn=%04x imm=%d mask=%04x src_a=%d alu=%02x wr_stk1=%d",
-           $time, insn, imm, imm_mask, src_a, alu_sel, wr_stk1,
+  $monitor("%d: insn=%04x imm=%d sign=%d mask=%04x src_a=%d alu=%02x wr_stk1=%d",
+           $time, insn, imm, sign, imm_mask, src_a, alu_sel, wr_stk1,
            " pop=%d push=%d load_stk=%d fp=%d ip=%d cpop=%d cpush=%d",
            pop, push, load_stk, load_fp, load_ip, cpop, cpush,
            " byt=%d rd=%d wr=%d",
@@ -68,6 +71,7 @@ initial begin
 
   insn <= 16'h8BEF;     // push uimm15
   #1 test_sig(1,        // imm,
+              0,        // sign,
               16'h7fff, // imm_mask
               `src_x,   // src_a
               `ALU_B,   // alu
@@ -86,6 +90,7 @@ initial begin
 
   #1 insn <= 16'h0020;  // jmp ip+0x20
   #1 test_sig(1,        // imm,
+              0,        // sign,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
               `ALU_ADD, // alu
@@ -104,6 +109,7 @@ initial begin
 
   #1 insn <= 16'h0ff1;  // call ip+0xff0
   #1 test_sig(1,        // imm,
+              1,        // sign,
               16'h0ffe, // imm_mask
               `src_ip,  // src_a
               `ALU_ADD, // alu
@@ -122,6 +128,7 @@ initial begin
 
   #1 insn <= 16'h2c20;  // ld cstack+0x20
   #1 test_sig(1,        // imm,
+              0,        // sign,
               16'h03fe, // imm_mask
               `src_cstk,// src_a
               `ALU_ADD, // alu
@@ -140,6 +147,7 @@ initial begin
 
   #1 insn <= 16'h2439;  // st fp+0x38
   #1 test_sig(1,        // imm,
+              0,        // sign,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
               `ALU_ADD, // alu
@@ -158,6 +166,7 @@ initial begin
 
   #1 insn <= 16'h2039;  // st 0+0x38
   #1 test_sig(1,        // imm,
+              0,        // sign,
               16'h03fe, // imm_mask
               `src_x,   // src_a
               `ALU_B,   // alu
@@ -195,6 +204,7 @@ initial begin
 
   #1 insn <= 16'h7001;  // inc
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               `ALU_INC, // alu
@@ -213,6 +223,7 @@ initial begin
 
   #1 insn <= 16'h7050;  // and
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               `ALU_AND, // alu
@@ -231,6 +242,7 @@ initial begin
 
   #1 insn <= 16'h708F;  // dup 1
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               2'hx,     // src_a
               `ALU_B,   // alu
@@ -249,6 +261,7 @@ initial begin
 
   #1 insn <= 16'h7800;  // ret
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_cstk,// src_a
               `ALU_A,   // alu
@@ -267,6 +280,7 @@ initial begin
 
   #1 insn <= 16'h7808;  // ldd
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               `ALU_A,   // alu
@@ -285,6 +299,7 @@ initial begin
 
   #1 insn <= 16'h780C;  // sta
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               `ALU_A,   // alu
@@ -303,6 +318,7 @@ initial begin
 
   #1 insn <= 16'h780E;  // std
   #1 test_sig(0,        // imm,
+              `x,       // sign,
               16'hxxxx, // imm_mask
               `src_stk0,// src_a
               `ALU_A,   // alu
