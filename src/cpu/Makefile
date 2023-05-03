@@ -2,7 +2,8 @@
 sim: sim.exe
 	TARGET=sim ./test.sh
 
-sim.exe: sim.sv cpu.sv mem.sv
+sim.exe: sim.sv cpu.sv mem.sv alu.sv stack.sv signals.sv cdtimer.sv \
+	signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
 stack_tb.exe: stack_tb.sv stack.sv
@@ -40,7 +41,7 @@ clean:
 
 .PHONY: test_modules
 test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
-	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe
+	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe cpu_tb.exe
 	@./test_module.sh stack_tb.exe
 	@./test_module.sh alu_tb.exe
 	@./test_module.sh decoder_tb.exe
@@ -48,3 +49,4 @@ test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
 	@./test_module.sh signals_tb.exe
 	@./test_module.sh clkdiv_tb.exe
 	@./test_module.sh cdtimer_tb.exe
+	@./test_module.sh cpu_tb.exe

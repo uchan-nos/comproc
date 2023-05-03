@@ -4,15 +4,16 @@ module cpu_tb;
 
 logic rst, clk, wr_mem, byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, last_wr_addr;
-logic [15:0] rd_data, wr_data, last_wr_data;
+logic [15:0] rd_data, wr_data, stack0, stack1, last_wr_data;
+logic [5:0] alu_sel;
 
 cpu#(.CLOCK_HZ(1000)) cpu(.*);
 
 initial begin
   $monitor("%d: insn=%04x alu[%02x]=%04x rd_data=%04x pop/sh=%d%d",
-           $time, cpu.insn, cpu.alu_sel, cpu.alu_out, rd_data, cpu.pop, cpu.push,
+           $time, cpu.insn, alu_sel, cpu.alu_out, rd_data, cpu.pop, cpu.push,
            " stk=[%04x %04x] fp=%04x ip=%04x last_wr[%02x]=%04x",
-           cpu.stack0, cpu.stack1, cpu.fp, cpu.ip, last_wr_addr, last_wr_data,
+           stack0, stack1, cpu.fp, cpu.ip, last_wr_addr, last_wr_data,
            " phase=%d%d%d%d",
            cpu.signals.phase_decode, cpu.signals.phase_exec,
            cpu.signals.phase_rdmem, cpu.signals.phase_fetch);
@@ -23,8 +24,12 @@ initial begin
 
   #1 rst <= 0;
 
-  if (~cpu.load_insn) $error("load_insn must be 1");
+  if (~cpu.signals.phase_rdmem) $error("CPU must start from rdmem phase");
   if (cpu.ip !== 16'h0300) $error("ip must be 0x0300");
+
+  @(posedge clk)
+  @(negedge clk)
+    if (~cpu.load_insn) $error("load_insn must be 1");
 
   @(posedge cpu.load_insn)
     rd_data <= 16'h7004; // NOT

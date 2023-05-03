@@ -29,6 +29,10 @@ initial begin
 
   #13
     rst <= 0;
+    test_sig_rdmem;
+
+  @(posedge clk)
+  @(negedge clk)
     test_sig_fetch;
 
   @(posedge clk)

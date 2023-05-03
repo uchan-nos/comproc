@@ -27,6 +27,10 @@ initial begin
 
   #13
     rst <= 0;
+    if (phases !== 4'b0010) $error("signalizer must start from 0b0010");
+
+  @(posedge clk)
+  @(negedge clk)
     if (phases !== 4'b0001) $error("phases must be 0b0001");
 
   @(posedge clk)
@@ -47,7 +51,7 @@ initial begin
 
   @(posedge clk)
   @(negedge clk)
-    if (phases !== 4'b1000) $error("phases must be 0b0100");
+    if (phases !== 4'b1000) $error("phases must be 0b1000");
 
   $finish;
 end
