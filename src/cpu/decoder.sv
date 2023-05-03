@@ -37,7 +37,7 @@ assign load_fp = calc_load_fp(insn);
 assign load_ip = calc_load_ip(insn);
 assign cpop = calc_cpop(insn);
 assign cpush = calc_cpush(insn);
-assign byt = insn[0];
+assign byt = insn[14] & insn[0];
 assign rd_mem = calc_rd_mem(insn);
 assign wr_mem = calc_wr_mem(insn);
 
@@ -57,8 +57,7 @@ begin
   casex (insn)
     16'b000x_xxxx_xxxx_xxxx: calc_src_a = `src_ip;
     16'b001x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10];
-    16'b0100_xxxx_xxxx_xxxx: calc_src_a = insn[11:10];
-    16'b0101_xxxx_xxxx_xxxx: calc_src_a = `src_fp;
+    16'b0100_xxxx_xxxx_xxxx: calc_src_a = `src_fp;
     16'b0111_1xxx_xxxx_00x0: calc_src_a = `src_cstk;
     16'b0111_1xxx_xxxx_0011: calc_src_a = `src_fp;
     default:                 calc_src_a = `src_stk0;
@@ -70,15 +69,12 @@ function [5:0] calc_alu_sel(input [15:0] insn);
 begin
   casex (insn)
     16'b1xxx_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_B;
-    16'b0000_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_ADD;
     16'b0001_xxxx_xxxx_xxx0: calc_alu_sel = `ALU_ADDZ;
     16'b0001_xxxx_xxxx_xxx1: calc_alu_sel = `ALU_ADDNZ;
     16'b001x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;   // X=0
-    16'b001x_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_ADD; // X=fp/ip/cstk
-    16'b010x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;   // X=0
-    16'b010x_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_ADD; // X=fp/ip/cstk
     16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0];
-    default:                 calc_alu_sel = `ALU_A;
+    16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;
+    default:                 calc_alu_sel = `ALU_ADD;
   endcase
 end
 endfunction
@@ -86,7 +82,8 @@ endfunction
 function calc_rd_mem(input [15:0] insn);
 begin
   casex (insn)
-    16'b00xx_xxxx_xxxx_xxxx: calc_rd_mem = 1'b1;
+    16'b000x_xxxx_xxxx_xxxx: calc_rd_mem = 1'b1;
+    16'b0010_xxxx_xxxx_xxx0: calc_rd_mem = 1'b1;
     16'b0111_1xxx_xxxx_10xx: calc_rd_mem = 1'b1;
     default:                 calc_rd_mem = 1'b0;
   endcase
@@ -96,7 +93,8 @@ endfunction
 function calc_pop(input [15:0] insn);
 begin
   casex (insn)
-    16'b00x1_xxxx_xxxx_xxxx: calc_pop = 1'b1;
+    16'b0001_xxxx_xxxx_xxxx: calc_pop = 1'b1;
+    16'b0010_xxxx_xxxx_xxx1: calc_pop = 1'b1;
     16'b0111_0xxx_x1xx_xxxx: calc_pop = 1'b1;
     16'b0111_1xxx_xxxx_x1xx: calc_pop = 1'b1;
     default:                 calc_pop = 1'b0;
@@ -108,8 +106,8 @@ function calc_push(input [15:0] insn);
 begin
   casex (insn)
     16'b1xxx_xxxx_xxxx_xxxx: calc_push = 1'b1;
-    16'b0010_xxxx_xxxx_xxxx: calc_push = 1'b1;
-    16'b0100_xxxx_xxxx_xxxx: calc_push = 1'b1;
+    16'b0010_xxxx_xxxx_xxx0: calc_push = 1'b1;
+    16'b0011_xxxx_xxxx_xxxx: calc_push = 1'b1;
     16'b0111_xxxx_1xxx_xxxx: calc_push = 1'b1;
     default:                 calc_push = 1'b0;
   endcase
@@ -129,7 +127,7 @@ endfunction
 function calc_load_fp(input [15:0] insn);
 begin
   casex (insn)
-    16'b0101_xxxx_xxxx_xxxx: calc_load_fp = 1'b1;
+    16'b0100_xxxx_xxxx_xxxx: calc_load_fp = 1'b1;
     16'b0111_1xxx_xxxx_0010: calc_load_fp = 1'b1;
     default:                 calc_load_fp = 1'b0;
   endcase
@@ -168,7 +166,7 @@ endfunction
 function calc_wr_mem(input [15:0] insn);
 begin
   casex (insn)
-    16'b0011_xxxx_xxxx_xxxx: calc_wr_mem = 1'b1;
+    16'b0010_xxxx_xxxx_xxx1: calc_wr_mem = 1'b1;
     16'b0111_1xxx_xxxx_11xx: calc_wr_mem = 1'b1;
     default:                 calc_wr_mem = 1'b0;
   endcase

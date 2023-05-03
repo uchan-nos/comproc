@@ -120,7 +120,25 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'h3438;  // st fp+0x38
+  #1 insn <= 16'h2c20;  // ld cstack+0x20
+  #1 test_sig(1,        // imm,
+              16'h03fe, // imm_mask
+              `src_cstk,// src_a
+              `ALU_ADD, // alu
+              0,        // wr_stk1
+              0,        // pop
+              1,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // cpop
+              0,        // cpush
+              0,        // byt
+              1,        // rd_mem
+              0         // wr_mem
+            );
+
+  #1 insn <= 16'h2439;  // st fp+0x38
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_fp,  // src_a
@@ -138,7 +156,7 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'h3038;  // st 0+0x38
+  #1 insn <= 16'h2039;  // st 0+0x38
   #1 test_sig(1,        // imm,
               16'h03fe, // imm_mask
               `src_x,   // src_a
@@ -154,6 +172,25 @@ initial begin
               0,        // byt
               `x,       // rd_mem
               1         // wr_mem
+            );
+
+  #1 insn <= 16'h4020;  // add fp,0x20
+  #1 test_sig(1,        // imm,
+              0,        // sign,
+              16'h03ff, // imm_mask
+              `src_fp,  // src_a
+              `ALU_ADD, // alu
+              `x,       // wr_stk1
+              0,        // pop
+              0,        // push
+              0,        // load_stk
+              1,        // load_fp
+              0,        // load_ip
+              0,        // cpop
+              0,        // cpush
+              `x,       // byt
+              `x,       // rd_mem
+              0         // wr_mem
             );
 
   #1 insn <= 16'h7001;  // inc

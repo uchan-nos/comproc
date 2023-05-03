@@ -77,7 +77,7 @@ end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
-  if (wr_mem && mem_addr == 10'h01e) begin
+  if (wr_mem && mem_addr == 10'h082) begin
     if (uart_out == 0 || uart_eot != 0) begin
       $fdisplay(STDERR, "%x", wr_data[7:0]);
       $finish;
@@ -152,9 +152,9 @@ always @(posedge clk) begin
       16'b0001_xxxx_xxxx_xxx0: insn_name <= "jz";
       16'b0001_xxxx_xxxx_xxx1: insn_name <= "jnz";
       16'b0010_xxxx_xxxx_xxx0: insn_name <= "ld";
-      16'b0011_xxxx_xxxx_xxx0: insn_name <= "st";
-      16'b0100_xxxx_xxxx_xxxx: insn_name <= "pushi";
-      16'b0101_00xx_xxxx_xxxx: insn_name <= "addfp";
+      16'b0010_xxxx_xxxx_xxx1: insn_name <= "st";
+      16'b0011_xxxx_xxxx_xxxx: insn_name <= "pushi";
+      16'b0100_00xx_xxxx_xxxx: insn_name <= "addfp";
       16'b0111_0000_0000_0000: insn_name <= "nop";
       16'b0111_0000_0100_1111: insn_name <= "pop";
       16'b0111_0000_0100_0000: insn_name <= "pop1";

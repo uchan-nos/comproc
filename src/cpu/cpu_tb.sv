@@ -76,7 +76,7 @@ initial begin
     if (cpu.stack0 !== 16'h00DE) $error("stack0 must be 0x00DE");
 
   @(posedge cpu.load_insn)
-    rd_data <= 16'h3005; // ST 0+5
+    rd_data <= 16'h2005; // ST 0+4
     if (cpu.stack0 !== 16'h00DF) $error("stack0 must be 0x00DF");
 
   @(posedge cpu.load_insn)

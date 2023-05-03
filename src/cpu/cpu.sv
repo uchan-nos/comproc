@@ -37,12 +37,13 @@ CALL simm12    |0000   simm11  1| コールスタックに pc+2 をプッシュ�
 JZ simm12      |0001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
 JNZ simm12     |0001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
 LD X+simm10    |0010xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
-ST X+simm10    |0011xx  simm9  0| stack からポップした値を mem[X+simm10] に書く
-PUSH X+simm10  |0100xx  simm10  | X+simm10 を stack にプッシュ
+ST X+simm10    |0010xx  simm9  1| stack からポップした値を mem[X+simm10] に書く
+PUSH X+simm10  |0011xx  simm10  | X+simm10 を stack にプッシュ
                                   X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
-ADD FP,simm10  |010100  simm10  | fp += simm10
-               |010101xxxxxxxxxx| 予約
-               |01011xxxxxxxxxxx| 予約
+ADD FP,simm10  |010000  simm10  | fp += simm10
+               |010001xxxxxxxxxx| 予約
+               |01001xxxxxxxxxxx| 予約
+               |0101xxxxxxxxxxxx| 予約
                |0110xxxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxx| 即値なし命令（別表）
 

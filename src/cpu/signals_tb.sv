@@ -128,7 +128,7 @@ initial begin
                   );
 
   @(posedge clk)
-    insn <= 16'h3420; // ST FP+0x20
+    insn <= 16'h2421; // ST FP+0x20
     test_sig_phases(0,         // call
                     1,         // imm
                     16'h03fe,  // imm_mask
@@ -148,6 +148,29 @@ initial begin
                     0,         // byt
                     0,         // rd_mem
                     1          // wr_mem
+                  );
+
+  @(posedge clk)
+    insn <= 16'h3FFE; // PUSH CSTACK+0x3FE
+    test_sig_phases(0,         // call
+                    1,         // imm
+                    16'h03fe,  // imm_mask
+                    0,         // src_a_stk0
+                    0,         // src_a_fp
+                    0,         // src_a_ip
+                    1,         // src_a_cstk
+                    `ALU_ADD,  // alu_sel
+                    0,         // wr_stk1
+                    0,         // pop
+                    1,         // push
+                    1,         // load_stk
+                    0,         // load_fp
+                    0,         // load_ip
+                    0,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    0,         // rd_mem
+                    0          // wr_mem
                   );
 
   @(posedge clk)
