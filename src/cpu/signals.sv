@@ -39,8 +39,8 @@ assign load_ip = reload_ip | phase_fetch;
 assign load_insn = phase_fetch;
 assign cpop = insn_cpop & phase_exec;
 assign cpush = insn_cpush & phase_decode;
-assign byt = insn_byt & phase_rdmem;
-assign rd_mem = insn_rd & phase_rdmem;
+assign byt = insn_byt;
+assign rd_mem = phase_rdmem;
 assign wr_mem = insn_wr & phase_exec;
 
 logic phase_decode, phase_exec, phase_rdmem, phase_fetch;

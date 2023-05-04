@@ -445,8 +445,8 @@ begin
            1,         // load_insn
            0,         // cpop
            0,         // cpush
-           0,         // byt
-           0,         // rd_mem
+           x,         // byt
+           x,         // rd_mem
            0          // wr_mem
          );
 end
