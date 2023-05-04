@@ -1,12 +1,12 @@
 int delay_ms(int ms) {
-  int *t = 0;
+  int *t = 2;
   *t = ms;
   while (*t > 0) {}
   return 0;
 }
 
 int led_out(int val) {
-  char *p = 0x1c;
+  char *p = 0x80;
   *p = val;
   delay_ms(500);
   *p = 0;
