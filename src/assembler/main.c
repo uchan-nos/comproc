@@ -193,7 +193,7 @@ int main(void) {
   char *mnemonic;
   char *operands[MAX_OPERAND];
 
-  uint16_t insn[512];
+  uint16_t insn[1024 * 2];
   int ip = ORIGIN;
 
   struct Backpatch backpatches[128];
