@@ -111,16 +111,21 @@ endfunction
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && (cpu_mem_addr & `ADDR_WIDTH'hffe) == `ADDR_WIDTH'h01c)
-    {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h080)
+    if (cpu_mem_byt)
+      cpu_io_led <= cpu_wr_data[7:0];
+    else
+      {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h081)
+    cpu_io_lcd <= cpu_wr_data[15:8];
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
     uart_tx_data <= cpu_wr_data[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h01e)
+  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
     uart_tx_en <= 1'd1;
   else
     uart_tx_en <= 1'd0;
@@ -187,11 +192,11 @@ end
 // recv_addr は命令の受信が完了するたびにインクリメントされる
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    recv_addr <= 10'h200;
+    recv_addr <= `ADDR_WIDTH'h300;
   else if (recv_compl)
-    recv_addr <= 10'h200;
+    recv_addr <= `ADDR_WIDTH'h300;
   else if (recv_data_v)
-    recv_addr <= recv_addr + 10'd2;
+    recv_addr <= recv_addr + `ADDR_WIDTH'd2;
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
@@ -320,10 +325,10 @@ function [15:0] read_mem_or_reg(
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b1_110x: read_mem_or_reg = {io_lcd, io_led};
-    `ADDR_WIDTH'b1_111x: read_mem_or_reg = uart_in;
-    `ADDR_WIDTH'b1_xxxx: read_mem_or_reg = 16'd0;
-    default:             read_mem_or_reg = mem;
+    `ADDR_WIDTH'b1000_000x: read_mem_or_reg = {io_lcd, io_led};
+    `ADDR_WIDTH'b1000_001x: read_mem_or_reg = uart_in;
+    `ADDR_WIDTH'b1xxx_xxxx: read_mem_or_reg = 16'd0;
+    default:                read_mem_or_reg = mem;
   endcase
 end
 endfunction
