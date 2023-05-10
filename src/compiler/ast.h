@@ -89,3 +89,5 @@ struct Node *Primary();
 
 struct Node *TypeSpec();
 struct Node *ParameterList();
+
+void PrintNode(struct Node *n, int indent, const char *key);

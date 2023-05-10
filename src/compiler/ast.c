@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "token.h"
 
@@ -440,4 +441,85 @@ struct Node *ParameterList() {
     param = param->next;
   }
   return plist;
+}
+
+static const char *node_kind_name[] = {
+  "Integer",
+  "Id",
+  "Add",
+  "Sub",
+  "Mul",
+  "Assign",
+  "LT", // <
+  "Inc",
+  "Dec",
+  "Eq",
+  "NEq",
+  "Ref",   // & exp
+  "Deref", // * exp
+  "LAnd",  // &&
+  "LOr",   // ||
+  "String",// string literal
+  "And",   // &
+  "Xor",   // ^
+  "Or",    // |
+  "Not",   // ~
+  "RShift",// >>
+  "LShift",// <<
+  "Call",
+  "ExprEnd",
+  "DefFunc",
+  "Block",
+  "Return",
+  "DefVar",
+  "If",
+  "For",
+  "While",
+  "Break",
+  "Continue",
+  "TypeSpec",
+  "PList",
+};
+
+void PrintNode(struct Node *n, int indent, const char *key) {
+  if (n == NULL) {
+    printf("%*snull\n", indent, "");
+    return;
+  }
+
+  int key_len = key ? strlen(key) : 0;
+
+  printf("%*s", indent, "");
+  if (key) {
+    printf("%s", key);
+  }
+  printf("[%s token='%.*s' type=", node_kind_name[n->kind], n->token->len, n->token->raw);
+  if (n->type) {
+    PrintType(stdout, n->type);
+  } else {
+    printf("null");
+  }
+  if (n->lhs == NULL && n->rhs == NULL && n->cond == NULL) {
+    printf("]\n");
+    if (n->next) {
+      PrintNode(n->next, indent + key_len, NULL);
+    }
+    return;
+  }
+
+  printf("\n");
+  if (n->lhs) {
+    PrintNode(n->lhs, indent + key_len + 1, "lhs=");
+  }
+  if (n->rhs) {
+    PrintNode(n->rhs, indent + key_len + 1, "rhs=");
+  }
+  if (n->cond) {
+    PrintNode(n->cond, indent + key_len + 1, "cond=");
+  }
+  printf("%*s] (%s)\n", indent, "", node_kind_name[n->kind]);
+
+  if (n->next) {
+    PrintNode(n->next, indent + key_len, NULL);
+  }
 }

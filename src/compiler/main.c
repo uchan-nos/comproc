@@ -425,6 +425,12 @@ int main(void) {
   struct Node *ast = Program();
   Expect(kTokenEOF);
 
+  while (ast) {
+    PrintNode(ast, 0, NULL);
+    ast = ast->next;
+  }
+  return 0;
+
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}
   };
