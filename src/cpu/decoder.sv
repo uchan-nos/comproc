@@ -68,11 +68,11 @@ endfunction
 function [1:0] calc_src_a(input [15:0] insn);
 begin
   casex (insn)
-    16'b000x_xxxx_xxxx_xxxx: calc_src_a = `src_ip;
-    16'b001x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10];
-    16'b0100_xxxx_xxxx_xxxx: calc_src_a = `src_fp;
-    16'b0111_1xxx_xxxx_00x0: calc_src_a = `src_cstk;
-    16'b0111_1xxx_xxxx_0011: calc_src_a = `src_fp;
+    16'b000x_xxxx_xxxx_xxxx: calc_src_a = `src_ip;     // JMP, CALL, JZ, JNZ
+    16'b001x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10]; // LD, ST, PUSH
+    16'b0100_xxxx_xxxx_xxxx: calc_src_a = `src_fp;     // ADD FP
+    16'b0111_1xxx_xxxx_00x0: calc_src_a = `src_cstk;   // RET, CPOP FP
+    16'b0111_1xxx_xxxx_0011: calc_src_a = `src_fp;     // CPUSH FP
     default:                 calc_src_a = `src_stk0;
   endcase
 end
@@ -81,12 +81,12 @@ endfunction
 function [5:0] calc_alu_sel(input [15:0] insn);
 begin
   casex (insn)
-    16'b1xxx_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_B;
-    16'b0001_xxxx_xxxx_xxx0: calc_alu_sel = `ALU_ADDZ;
-    16'b0001_xxxx_xxxx_xxx1: calc_alu_sel = `ALU_ADDNZ;
-    16'b001x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;   // X=0
-    16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0];
-    16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;
+    16'b1xxx_xxxx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // PUSH
+    16'b0001_xxxx_xxxx_xxx0: calc_alu_sel = `ALU_ADDZ; // JZ
+    16'b0001_xxxx_xxxx_xxx1: calc_alu_sel = `ALU_ADDNZ;// JNZ
+    16'b001x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // LD etc X=0
+    16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0]; // ALU
+    16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;    // CSTK, MEM
     default:                 calc_alu_sel = `ALU_ADD;
   endcase
 end
@@ -106,10 +106,10 @@ endfunction
 function calc_pop(input [15:0] insn);
 begin
   casex (insn)
-    16'b0001_xxxx_xxxx_xxxx: calc_pop = 1'b1;
-    16'b0010_xxxx_xxxx_xxx1: calc_pop = 1'b1;
-    16'b0111_0xxx_x1xx_xxxx: calc_pop = 1'b1;
-    16'b0111_1xxx_xxxx_x1xx: calc_pop = 1'b1;
+    16'b0001_xxxx_xxxx_xxxx: calc_pop = 1'b1; // JZ, JNZ
+    16'b0010_xxxx_xxxx_xxx1: calc_pop = 1'b1; // ST
+    16'b0111_0xxx_x1xx_xxxx: calc_pop = 1'b1; // ALU pop=1
+    16'b0111_1xxx_xxxx_x1xx: calc_pop = 1'b1; // STA, STD
     default:                 calc_pop = 1'b0;
   endcase
 end
@@ -118,10 +118,10 @@ endfunction
 function calc_push(input [15:0] insn);
 begin
   casex (insn)
-    16'b1xxx_xxxx_xxxx_xxxx: calc_push = 1'b1;
-    16'b0010_xxxx_xxxx_xxx0: calc_push = 1'b1;
-    16'b0011_xxxx_xxxx_xxxx: calc_push = 1'b1;
-    16'b0111_xxxx_1xxx_xxxx: calc_push = 1'b1;
+    16'b1xxx_xxxx_xxxx_xxxx: calc_push = 1'b1; // PUSH
+    16'b0010_xxxx_xxxx_xxx0: calc_push = 1'b1; // LD
+    16'b0011_xxxx_xxxx_xxxx: calc_push = 1'b1; // PUSH
+    16'b0111_xxxx_1xxx_xxxx: calc_push = 1'b1; // ALU push=1
     default:                 calc_push = 1'b0;
   endcase
 end
@@ -130,8 +130,8 @@ endfunction
 function calc_load_stk(input [15:0] insn);
 begin
   casex (insn)
-    16'b0111_0xxx_xxxx_xxxx: calc_load_stk = 1'b1;
-    16'b0111_1xxx_xxxx_1x0x: calc_load_stk = 1'b1;
+    16'b0111_0xxx_xxxx_xxxx: calc_load_stk = 1'b1; // ALU
+    16'b0111_1xxx_xxxx_1x0x: calc_load_stk = 1'b1; // LDD, STA
     default:                 calc_load_stk = calc_push(insn);
   endcase
 end
