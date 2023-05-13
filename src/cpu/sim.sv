@@ -60,6 +60,7 @@ initial begin
            wr_data_mon, byt,
            stack0, stack1, cpu.fp, cpu.cstack.data[0], cpu.cstack.data[1],
            cpu.cdtimer_cnt);
+  $dumpvars(1, cpu, cpu.signals.decoder);
 
   // 各信号の初期値
   rst <= 1;
