@@ -1,26 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
-[*] Fri May 12 11:49:22 2023
+[*] Tue May 23 02:48:50 2023
 [*]
 [dumpfile] "/home/uchan/workspace/github.com/uchan-nos/comproc/src/cpu/dump.vcd"
-[dumpfile_mtime] "Fri May 12 11:42:32 2023"
-[dumpfile_size] 613436
+[dumpfile_mtime] "Tue May 23 02:32:49 2023"
+[dumpfile_size] 634027
 [savefile] "/home/uchan/workspace/github.com/uchan-nos/comproc/src/cpu/cpu-signal-timing.gtkw"
-[timestart] 88
-[size] 952 610
-[pos] 1980 191
-*-6.000000 201 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 204
+[size] 952 612
+[pos] 35653 33094
+*-6.000000 257 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] Simulation.
 [treeopen] Simulation.cpu.
 [treeopen] Simulation.cpu.signals.
 [sst_width] 214
 [signals_width] 134
 [sst_expanded] 1
-[sst_vpaned_height] 154
+[sst_vpaned_height] 155
 @28
 Simulation.cpu.clk
 Simulation.cpu.load_insn
-@23
+@22
 Simulation.cpu.ip[15:0]
 @28
 Simulation.cpu.load_ip
@@ -33,6 +33,10 @@ Simulation.cpu.imm
 Simulation.cpu.alu_sel[5:0]
 Simulation.cpu.alu_out[15:0]
 Simulation.cpu.rd_data[15:0]
+@28
+Simulation.cpu.wr_mem
+Simulation.cpu.wr_stk1
+@22
 Simulation.cpu.insn[15:0]
 Simulation.cpu.stack0[15:0]
 Simulation.cpu.stack1[15:0]
@@ -40,7 +44,7 @@ Simulation.cpu.stack1[15:0]
 Simulation.cpu.pop
 Simulation.cpu.push
 Simulation.cpu.load_stk
-@22
+@23
 Simulation.cpu.fp[15:0]
 @28
 Simulation.cpu.load_fp
