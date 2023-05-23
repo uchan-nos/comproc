@@ -1,4 +1,4 @@
-#!/bin/sh -uex
+#!/bin/sh -ue
 
 bin="$@"
 
