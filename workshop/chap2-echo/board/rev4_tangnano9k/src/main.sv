@@ -18,7 +18,7 @@ logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_tx_en, uart_rx_data_wr;
 
 // 継続代入
-assign led_row = led_on(counter) << row_index;
+assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
 
 always @(posedge sys_clk) begin

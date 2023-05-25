@@ -18,7 +18,8 @@ mv $dst_dir/$src_prj.gprj $dst_dir/$dst_prj.gprj
 
 sed -i "/OUTPUT_BASE_NAME/ s/rev2/rev4/" $dst_dir/impl/project_process_config.json
 sed -i "/assign led_row =/ s/= /= 9'h1ff ^ (/" $dst_dir/src/main.sv
-echo "Please edit: $dst_dir/src/main.sv"
+sed -i "/assign led_row =/ s/;/);/" $dst_dir/src/main.sv
+echo "Please check: $dst_dir/src/main.sv"
 
 cat << EOF > $dst_dir/src/port.cst
 IO_LOC "sys_clk" 52;

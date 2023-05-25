@@ -11,7 +11,7 @@ module main(
 logic rst_n;
 
 // 継続代入
-assign led_row = rst_n ? 9'b000000001 : 9'd0;
+assign led_row = 9'h1ff ^ (rst_n ? 9'b000000001 : 9'd0);
 assign led_col = 8'b10101010;
 
 always @(posedge sys_clk) begin
