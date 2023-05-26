@@ -574,13 +574,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "line %d must be 'add fp, N'\n", gen_ctx.line_add_fp);
         exit(1);
       }
-      line->insn.operands[1].val_int = gen_ctx.lvar_offset;
+      if (gen_ctx.lvar_offset == 0) {
+        line->kind = kAsmLineDeleted;
+      } else {
+        line->insn.operands[1].val_int = gen_ctx.lvar_offset;
+      }
     }
   }
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;
     switch (line->kind) {
+    case kAsmLineDeleted:
+      break; // 何もしない
     case kAsmLineLabel:
       PrintLabel(stdout, &line->label);
       printf(":\n");

@@ -52,6 +52,7 @@ struct Instruction {
 void SetInsnNoOpr(struct Instruction *insn, const char *opcode);
 
 enum AsmLineKind {
+  kAsmLineDeleted,
   kAsmLineInsn,
   kAsmLineLabel,
 };
