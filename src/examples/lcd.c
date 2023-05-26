@@ -1,21 +1,18 @@
-int delay_ms(int ms) {
+void delay_ms(int ms) {
   int *t = 2;
   *t = ms;
   while (*t > 0) {}
-  return 0;
 }
 
-int lcd_out4(int rs, int val) {
+void lcd_out4(int rs, int val) {
   char *p = 0x81;
   *p = (val << 4) | rs | 1;
   delay_ms(2);
   *p = *p & 0xfe;
-  return delay_ms();
 }
 
-int lcd_out8(int rs, int val) {
+void lcd_out8(int rs, int val) {
   lcd_out4(rs, val >> 4);
-  return lcd_out4(rs, val);
 }
 
 int main() {
