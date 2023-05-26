@@ -66,12 +66,8 @@ initial begin
   #10 // rdmem
     if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
     if (mem_addr !== `ADDR_WIDTH'h33A) $error("mem_addr must be 0x33A");
-    rd_data <= 16'h8103; // PUSH 0x103
+    rd_data <= 16'h2103; // LD.1 0x103
   @(posedge cpu.load_insn)
-
-  @(posedge cpu.load_insn)
-    rd_data <= 16'h7809; // LDD.1
-    if (cpu.stack0 !== 16'h0103) $error("stack0 must be 0x0103");
 
   #11 // decode
   #10 // exec
@@ -83,7 +79,7 @@ initial begin
     if (cpu.stack0 !== 16'h00DE) $error("stack0 must be 0x00DE");
 
   @(posedge cpu.load_insn)
-    rd_data <= 16'h2005; // ST 0+4
+    rd_data <= 16'h4005; // ST 0+4
     if (cpu.stack0 !== 16'h00DF) $error("stack0 must be 0x00DF");
 
   @(posedge cpu.load_insn)

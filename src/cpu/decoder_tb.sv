@@ -126,7 +126,45 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'h2c20;  // ld cstack+0x20
+  #1 insn <= 16'h2BCE;  // ld.1 ip-0x32
+  #1 test_sig(1,        // imm,
+              1,        // sign,
+              16'h03ff, // imm_mask
+              `src_ip,  // src_a
+              `ALU_ADD, // alu
+              0,        // wr_stk1
+              0,        // pop
+              1,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // cpop
+              0,        // cpush
+              1,        // byt
+              1,        // rd_mem
+              0         // wr_mem
+            );
+
+  #1 insn <= 16'h3439;  // st.1 fp+0x39
+  #1 test_sig(1,        // imm,
+              0,        // sign,
+              16'h03ff, // imm_mask
+              `src_fp,  // src_a
+              `ALU_ADD, // alu
+              0,        // wr_stk1
+              1,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // cpop
+              0,        // cpush
+              1,        // byt
+              `x,       // rd_mem
+              1         // wr_mem
+            );
+
+  #1 insn <= 16'h4c20;  // ld cstack+0x20
   #1 test_sig(1,        // imm,
               0,        // sign,
               16'h03fe, // imm_mask
@@ -145,7 +183,7 @@ initial begin
               0         // wr_mem
             );
 
-  #1 insn <= 16'h2439;  // st fp+0x38
+  #1 insn <= 16'h4439;  // st fp+0x38
   #1 test_sig(1,        // imm,
               0,        // sign,
               16'h03fe, // imm_mask
@@ -164,7 +202,7 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'h2039;  // st 0+0x38
+  #1 insn <= 16'h4039;  // st 0+0x38
   #1 test_sig(1,        // imm,
               0,        // sign,
               16'h03fe, // imm_mask
@@ -183,7 +221,7 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'h4020;  // add fp,0x20
+  #1 insn <= 16'h6020;  // add fp,0x20
   #1 test_sig(1,        // imm,
               0,        // sign,
               16'h03ff, // imm_mask
