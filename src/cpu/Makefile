@@ -1,7 +1,3 @@
-.PHONY: sim
-sim: sim.exe
-	TARGET=sim ./test.sh
-
 sim.exe: sim.sv cpu.sv mem.sv alu.sv stack.sv signals.sv cdtimer.sv \
 	signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
@@ -31,13 +27,9 @@ cpu_tb.exe: cpu_tb.sv cpu.sv alu.sv stack.sv signals.sv cdtimer.sv \
 	signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
-.PHONY: uart
-uart:
-	TARGET=uart ./test.sh
-
 .PHONY: clean
 clean:
-	rm -f sim.exe
+	rm -f *.exe
 
 .PHONY: test_modules
 test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
