@@ -11,7 +11,7 @@
 #include "type.h"
 
 #define INDENT "\t"
-#define MAX_INSN 4096
+#define MAX_LINE 4096
 
 char *src;
 void Locate(char *p) {
@@ -41,8 +41,8 @@ struct GenContext {
   int num_strings;
   struct Token *strings[4];
   struct JumpLabels jump_labels;
-  int num_insn;
-  struct Instruction insn[MAX_INSN];
+  int num_line;
+  struct AsmLine asm_lines[MAX_LINE];
 };
 
 int GenLabel(struct GenContext *ctx) {
@@ -57,7 +57,9 @@ struct Node *GetLastNode(struct Node *node) {
 }
 
 struct Instruction *Insn(struct GenContext *ctx, const char *opcode) {
-  struct Instruction *i = &ctx->insn[ctx->num_insn++];
+  struct AsmLine *line = &ctx->asm_lines[ctx->num_line++];
+  line->kind = kAsmLineInsn;
+  struct Instruction *i = &line->insn;
   SetInsnNoOpr(i, opcode);
   return i;
 }
@@ -132,29 +134,34 @@ struct Instruction *InsnLabelAutoS(struct GenContext *ctx, const char *opcode, i
   return InsnLabelAuto(ctx, opcode, kLabelAutoS, label);
 }
 
-struct Label *AllocLabelToken(struct Token *t) {
-  struct Label *l = malloc(sizeof(struct Label));
+struct Label *AddLabel(struct GenContext *ctx) {
+  struct AsmLine *line = &ctx->asm_lines[ctx->num_line++];
+  line->kind = kAsmLineLabel;
+  return &line->label;
+}
+
+struct Label *AddLabelToken(struct GenContext *ctx, struct Token *t) {
+  struct Label *l = AddLabel(ctx);
   l->kind = kLabelToken;
   l->token = t;
   return l;
 }
 
-struct Label *AllocLabelStr(const char *s) {
-  struct Label *l = malloc(sizeof(struct Label));
-  l->kind = kLabelStr;
-  l->label_str = s;
-  return l;
-}
-
-struct Label *AllocLabelAutoL(int no) {
-  struct Label *l = malloc(sizeof(struct Label));
+struct Label *AddLabelAutoL(struct GenContext *ctx, int no) {
+  struct Label *l = AddLabel(ctx);
   l->kind = kLabelAutoL;
   l->label_no = no;
   return l;
 }
 
-// label_exit: 出口ラベル。このノードを脱出するためのジャンプ先ラベル。0 で自動生成。
-void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exit) {
+struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
+  struct Label *l = AddLabel(ctx);
+  l->kind = kLabelStr;
+  l->label_str = s;
+  return l;
+}
+
+void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
   case kNodeInteger:
     if ((node->token->value.as_int >> 15) == 0) {
@@ -196,7 +203,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
           }
           break;
         case kSymFunc:
-          //printf(INDENT "push %.*s\n", sym->name->len, sym->name->raw);
           InsnLabelToken(ctx, "push", sym->name);
           break;
         }
@@ -208,8 +214,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
     }
     break;
   case kNodeAdd:
-    Generate(ctx, node->lhs, 0, 0);
-    Generate(ctx, node->rhs, 0, 0);
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
     if (node->lhs->type &&
         (node->lhs->type->kind == kTypePtr ||
         node->lhs->type->kind == kTypeArray)) {
@@ -223,20 +229,20 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
     node->type = node->lhs->type;
     break;
   case kNodeSub:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
     Insn(ctx, "sub");
     node->type = node->lhs->type;
     break;
   case kNodeMul:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
     Insn(ctx, "mul");
     node->type = node->lhs->type;
     break;
   case kNodeAssign:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 1, 0);
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 1);
     if (SizeofType(node->lhs->type) == 1) {
       Insn(ctx, lval ? "sta.1" : "std.1");
     } else {
@@ -245,56 +251,48 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
     node->type = node->lhs->type;
     break;
   case kNodeLT:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
     Insn(ctx, "lt");
     break;
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'
-      Generate(ctx, node->lhs, 0, 0);
+      Generate(ctx, node->lhs, 0);
       InsnInt(ctx, "push", 1);
       InsnInt(ctx, "dup", 1);
-      //printf(node->kind == kNodeInc ? "add\n" : "sub\n");
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
-      Generate(ctx, node->lhs, 1, 0);
-      //printf(INDENT "sta.%d\n", (int)SizeofType(node->lhs->type));
+      Generate(ctx, node->lhs, 1);
       Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta.1" : "sta");
-      //printf(INDENT "pop\n");
       Insn(ctx, "pop");
       node->type = node->lhs->type;
     } else { // 前置インクリメント '++ exp'
-      //printf(INDENT "push 1\n");
       InsnInt(ctx, "push", 1);
-      Generate(ctx, node->rhs, 0, 0);
-      //printf(node->kind == kNodeInc ? INDENT "add\n" : INDENT "sub\n");
+      Generate(ctx, node->rhs, 0);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
-      Generate(ctx, node->rhs, 1, 0);
-      //printf(INDENT "std.%d\n", (int)SizeofType(node->rhs->type));
+      Generate(ctx, node->rhs, 1);
       Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std.1" : "std");
       node->type = node->rhs->type;
     }
     break;
   case kNodeEq:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
-    // printf(INDENT "eq\n");
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
     Insn(ctx, "eq");
     break;
   case kNodeNEq:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
     Insn(ctx, "neq");
-    // printf(INDENT "neq\n");
     break;
   case kNodeRef:
-    Generate(ctx, node->rhs, 1, 0);
+    Generate(ctx, node->rhs, 1);
     break;
   case kNodeDeref:
     if (lval) {
-      Generate(ctx, node->rhs, 0, 0);
+      Generate(ctx, node->rhs, 0);
     } else {
-      Generate(ctx, node->rhs, 0, 0);
+      Generate(ctx, node->rhs, 0);
       Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
     }
     assert(node->rhs->type->base);
@@ -303,81 +301,66 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
   case kNodeLAnd:
     {
       int label_false = GenLabel(ctx);
-      Generate(ctx, node->lhs, 0, 0);
-      // printf(INDENT "push 0\n");
-      // printf(INDENT "neq\n");
-      // printf(INDENT "jz L_%d\n", label_false);
+      int label_end = GenLabel(ctx);
+      Generate(ctx, node->lhs, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
-      Generate(ctx, node->rhs, 0, 0);
-      // printf(INDENT "push 0\n");
-      // printf(INDENT "neq\n");
-      // printf(INDENT "jz L_%d\n", label_false);
+      Generate(ctx, node->rhs, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
-      // printf(INDENT "push 1\n");
-      // printf(INDENT "jmp L_%d\n", label_end);
       InsnInt(ctx, "push", 1);
-      InsnLabelAutoL(ctx, "jmp", label_exit);
-      // printf("L_%d:\n", label_false);
-      // printf(INDENT "push 0\n");
-      // printf("L_%d:\n", label_end);
-      InsnInt(ctx, "push", 0)->label = AllocLabelAutoL(label_false);
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_exit);
+      InsnLabelAutoL(ctx, "jmp", label_end);
+      AddLabelAutoL(ctx, label_false);
+      InsnInt(ctx, "push", 0);
+      AddLabelAutoL(ctx, label_end);
     }
     break;
   case kNodeLOr:
     {
       int label_true = GenLabel(ctx);
-      Generate(ctx, node->lhs, 0, 0);
-      // printf(INDENT "jnz l%d\n", label_true);
+      int label_end = GenLabel(ctx);
+      Generate(ctx, node->lhs, 0);
       InsnLabelAutoL(ctx, "jnz", label_true);
-      Generate(ctx, node->rhs, 0, 0);
-      // printf(INDENT "jnz l%d\n", label_true);
-      // printf(INDENT "push 0\n");
-      // printf(INDENT "jmp l%d\n", label_end);
+      Generate(ctx, node->rhs, 0);
       InsnLabelAutoL(ctx, "jnz", label_true);
       InsnInt(ctx, "push", 0);
-      InsnLabelAutoL(ctx, "jmp", label_exit);
-      // printf("l%d:\n", label_true);
-      // printf(INDENT "push 1\n");
-      // printf("l%d:\n", label_end);
-      InsnInt(ctx, "push", 1)->label = AllocLabelAutoL(label_true);
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_exit);
+      InsnLabelAutoL(ctx, "jmp", label_end);
+      AddLabelAutoL(ctx, label_true);
+      InsnInt(ctx, "push", 1);
+      AddLabelAutoL(ctx, label_end);
     }
     break;
   case kNodeString:
     ctx->strings[ctx->num_strings] = node->token;
-    // printf(INDENT "push STR_%d\n", ctx->num_strings);
     InsnLabelAutoS(ctx, "push", ctx->num_strings);
     ctx->num_strings++;
     break;
   case kNodeAnd:
-    Generate(ctx, node->lhs, 0, 0);
-    Generate(ctx, node->rhs, 0, 0);
-    printf(INDENT "and\n");
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    Insn(ctx, "and");
     break;
   case kNodeXor:
-    Generate(ctx, node->lhs, 0, 0);
-    Generate(ctx, node->rhs, 0, 0);
-    printf(INDENT "xor\n");
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    Insn(ctx, "xor");
     break;
   case kNodeOr:
-    Generate(ctx, node->lhs, 0, 0);
-    Generate(ctx, node->rhs, 0, 0);
-    printf(INDENT "or\n");
+    Generate(ctx, node->lhs, 0);
+    Generate(ctx, node->rhs, 0);
+    Insn(ctx, "or");
     break;
   case kNodeNot:
-    Generate(ctx, node->rhs, 0, 0);
-    printf(INDENT "not\n");
+    Generate(ctx, node->rhs, 0);
+    Insn(ctx, "not");
     break;
   case kNodeRShift:
   case kNodeLShift:
-    Generate(ctx, node->rhs, 0, 0);
-    Generate(ctx, node->lhs, 0, 0);
-    printf(INDENT "%s\n", node->kind == kNodeRShift ? "sar" : "shl");
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
+    Insn(ctx, node->kind == kNodeRShift ? "sar" : "shl");
     break;
   case kNodeCall:
     {
@@ -392,10 +375,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
         args[num_args++] = arg;
       }
       for (int i = 0; i < num_args; i++) {
-        Generate(ctx, args[num_args - 1 - i], 0, 0);
+        Generate(ctx, args[num_args - 1 - i], 0);
       }
       if (node->lhs->kind == kNodeId) {
-        printf(INDENT "call %.*s\n", node->lhs->token->len, node->lhs->token->raw);
+        InsnLabelToken(ctx, "call", node->lhs->token);
       } else {
         fprintf(stderr, "not implemented call of non-id expression\n");
         Locate(node->lhs->token->raw);
@@ -411,9 +394,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
     {
       struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
       AppendSymbol(ctx->syms, func_sym);
-      InsnReg(ctx, "cpush", "fp")->label = AllocLabelToken(func_sym->name);
-      //printf("%.*s:\n", func_sym->name->len, func_sym->name->raw);
-      //printf(INDENT "cpush fp\n");
+      AddLabelToken(ctx, func_sym->name);
+      InsnReg(ctx, "cpush", "fp");
       ctx->lvar_offset = 0;
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
@@ -422,33 +404,29 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
         assert(sym->type);
         AppendSymbol(ctx->syms, sym);
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
-        //printf(INDENT "st cstack+0x%x\n", sym->offset);
         ctx->lvar_offset += 2;
       }
       InsnRegInt(ctx, "add", "fp", ctx->lvar_offset);
-      //printf(INDENT "add fp,0x%x\n", ctx->lvar_offset);
-      Generate(ctx, node->rhs, 0, 0);
+      Generate(ctx, node->rhs, 0);
 
       struct Node *block_last = GetLastNode(node->rhs);
       if (block_last && block_last->kind != kNodeReturn) {
         InsnReg(ctx, "cpop", "fp");
         Insn(ctx, "ret");
-        //printf(INDENT "cpop fp\n");
-        //printf(INDENT "ret\n");
       }
     }
     break;
   case kNodeBlock:
     for (struct Node *n = node->next; n; n = n->next) {
-      Generate(ctx, n, 0, 0);
+      Generate(ctx, n, 0);
       if (n->kind <= kNodeExprEnd) {
-        printf(INDENT "pop\n");
+        Insn(ctx, "pop");
       }
     }
     break;
   case kNodeReturn:
     if (node->lhs) {
-      Generate(ctx, node->lhs, 0, 0);
+      Generate(ctx, node->lhs, 0);
     }
     InsnReg(ctx, "cpop", "fp");
     Insn(ctx, "ret");
@@ -465,12 +443,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
       ctx->lvar_offset += stk_size;
       AppendSymbol(ctx->syms, sym);
       InsnRegInt(ctx, "add", "fp", stk_size);
-      //printf(INDENT "add fp,0x%x\n", (unsigned int)stk_size);
 
       if (node->rhs) {
-        Generate(ctx, node->rhs, 0, 0);
+        Generate(ctx, node->rhs, 0);
         InsnBaseOff(ctx, "push", "cstack", sym->offset);
-        //printf(INDENT "push cstack+0x%x\n", sym->offset);
         if (SizeofType(sym->type) == 1) {
           Insn(ctx, "sta.1");
         } else {
@@ -483,66 +459,46 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
   case kNodeIf:
     {
       int label_else = node->rhs ? GenLabel(ctx) : -1;
-      if (label_exit == 0) {
-        label_exit = GenLabel(ctx);
-      }
-      Generate(ctx, node->cond, 0, 0);
+      int label_end = GenLabel(ctx);
+      Generate(ctx, node->cond, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
-      InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_exit);
-      Generate(ctx, node->lhs, 0, 0);
+      InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_end);
+      Generate(ctx, node->lhs, 0);
       if (node->rhs) {
-        InsnLabelAutoL(ctx, "jmp", label_exit);
-        ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_else);
-        Generate(ctx, node->rhs, 0, 0);
+        InsnLabelAutoL(ctx, "jmp", label_end);
+        AddLabelAutoL(ctx, label_else);
+        Generate(ctx, node->rhs, 0);
       }
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_exit);
+      AddLabelAutoL(ctx, label_end);
     }
     break;
   case kNodeFor:
     {
       int label_cond = GenLabel(ctx);
-      if (label_exit == 0) {
-        label_exit = GenLabel(ctx);
-        fprintf(stderr, "kNodeFor: label_exit is 0. generating new label = %d\n", label_exit);
-      }
+      int label_end = GenLabel(ctx);
       int label_next = GenLabel(ctx);
-      fprintf(stderr, "kNodeFor: label_cond=%d label_exit=%d label_next=%d\n",
-              label_cond, label_exit, label_next);
 
       struct JumpLabels old_labels = ctx->jump_labels;
-      ctx->jump_labels.lbreak = label_exit;
+      ctx->jump_labels.lbreak = label_end;
       ctx->jump_labels.lcontinue = label_next;
 
-      fprintf(stderr, "Generating init node\n");
-      Generate(ctx, node->lhs, 0, 0);
+      Generate(ctx, node->lhs, 0);
       Insn(ctx, "pop");
-      //printf(INDENT "pop\n");
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_cond);
-      fprintf(stderr, "Generating cond node\n");
-      Generate(ctx, node->cond, 0, 0);
-      // printf(INDENT "push 0\n");
-      // printf(INDENT "neq\n");
-      // printf(INDENT "jz L_%d\n", label_end);
+      AddLabelAutoL(ctx, label_cond);
+      Generate(ctx, node->cond, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
-      InsnLabelAutoL(ctx, "jz", label_exit);
-      fprintf(stderr, "Generating body node\n");
-      Generate(ctx, node->rhs, 0, label_next);
+      InsnLabelAutoL(ctx, "jz", label_end);
+      Generate(ctx, node->rhs, 0);
       if (node->rhs->kind <= kNodeExprEnd) {
         Insn(ctx, "pop");
-        // printf(INDENT "pop\n");
       }
-      // printf("L_%d:\n", label_next);
-      //ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_next);
-      fprintf(stderr, "Generating next node\n");
-      Generate(ctx, node->lhs->next, 0, 0);
+      AddLabelAutoL(ctx, label_next);
+      Generate(ctx, node->lhs->next, 0);
       Insn(ctx, "pop");
-      // printf(INDENT "pop\n");
-      // printf(INDENT "jmp L_%d\n", label_cond);
-      // printf("L_%d:\n", label_end);
       InsnLabelAutoL(ctx, "jmp", label_cond);
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_exit);
+      AddLabelAutoL(ctx, label_end);
 
       ctx->jump_labels = old_labels;
     }
@@ -550,38 +506,28 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval, int label_exi
   case kNodeWhile:
     {
       int label_cond = GenLabel(ctx);
-      if (label_exit == 0) {
-        label_exit = GenLabel(ctx);
-      }
+      int label_end = GenLabel(ctx);
 
       struct JumpLabels old_labels = ctx->jump_labels;
-      ctx->jump_labels.lbreak = label_exit;
+      ctx->jump_labels.lbreak = label_end;
       ctx->jump_labels.lcontinue = label_cond;
 
-      // printf("L_%d:\n", label_cond);
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_cond);
-      Generate(ctx, node->cond, 0, 0);
-      // printf(INDENT "push 0\n");
-      // printf(INDENT "neq\n");
-      // printf(INDENT "jz L_%d\n", label_end);
+      AddLabelAutoL(ctx, label_cond);
+      Generate(ctx, node->cond, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
-      InsnLabelAutoL(ctx, "jz", label_exit);
-      Generate(ctx, node->rhs, 0, 0);
-      // printf(INDENT "jmp L_%d\n", label_cond);
-      // printf("L_%d:\n", label_end);
+      InsnLabelAutoL(ctx, "jz", label_end);
+      Generate(ctx, node->rhs, 0);
       InsnLabelAutoL(ctx, "jmp", label_cond);
-      ctx->insn[ctx->num_insn].label = AllocLabelAutoL(label_exit);
+      AddLabelAutoL(ctx, label_end);
 
       ctx->jump_labels = old_labels;
     }
     break;
   case kNodeBreak:
-    // printf(INDENT "jmp L_%d\n", ctx->jump_labels.lbreak);
     InsnLabelAutoL(ctx, "jmp", ctx->jump_labels.lbreak);
     break;
   case kNodeContinue:
-    // printf(INDENT "jmp L_%d\n", ctx->jump_labels.lcontinue);
     InsnLabelAutoL(ctx, "jmp", ctx->jump_labels.lcontinue);
     break;
   case kNodeTypeSpec:
@@ -610,54 +556,54 @@ int main(int argc, char **argv) {
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}, 0, {}
   };
-  //printf(INDENT "add fp,0x100\n");
-  //printf(INDENT "call main\n");
-  //printf(INDENT "st 0x82\n");
   InsnRegInt(&gen_ctx, "add", "fp", 0x100);
   InsnLabelStr(&gen_ctx, "call", "main");
   InsnBaseOff(&gen_ctx, "st", NULL, 0x82);
-  //printf("fin:\n");
-  //printf(INDENT "jmp fin\n");
-  InsnLabelStr(&gen_ctx, "jmp", "fin")->label = AllocLabelStr("fin");
+  AddLabelStr(&gen_ctx, "fin");
+  InsnLabelStr(&gen_ctx, "jmp", "fin");
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
-      Generate(&gen_ctx, n, 0, 0);
+      Generate(&gen_ctx, n, 0);
     }
   }
 
-  for (int i = 0; i < gen_ctx.num_insn; i++) {
-    struct Instruction *insn = gen_ctx.insn + i;
-    if (insn->label) {
-      PrintLabel(stdout, insn->label);
+  for (int i = 0; i < gen_ctx.num_line; i++) {
+    struct AsmLine *line = gen_ctx.asm_lines + i;
+    switch (line->kind) {
+    case kAsmLineLabel:
+      PrintLabel(stdout, &line->label);
       printf(":\n");
-    }
-    printf(INDENT "%s", insn->opcode);
-    for (int opr_i = 0;
-         opr_i < MAX_OPERANDS && insn->operands[opr_i].kind != kOprNone;
-         opr_i++) {
-      struct Operand *opr = insn->operands + opr_i;
-      putchar(" ,"[opr_i > 0]);
-      switch (opr->kind) {
-      case kOprNone:
-        // pass
-      case kOprInt:
-        printf("%d", opr->val_int);
-        break;
-      case kOprLabel:
-        PrintLabel(stdout, &opr->val_label);
-        break;
-      case kOprReg:
-        printf("%s", opr->val_reg);
-        break;
-      case kOprBaseOff:
-        if (opr->val_base_off.base) {
-          printf("%s+", opr->val_base_off.base);
+      break;
+    case kAsmLineInsn:
+      printf(INDENT "%s", line->insn.opcode);
+      for (int opr_i = 0;
+           opr_i < MAX_OPERANDS && line->insn.operands[opr_i].kind != kOprNone;
+           opr_i++) {
+        struct Operand *opr = line->insn.operands + opr_i;
+        putchar(" ,"[opr_i > 0]);
+        switch (opr->kind) {
+        case kOprNone:
+          // pass
+        case kOprInt:
+          printf("%d", opr->val_int);
+          break;
+        case kOprLabel:
+          PrintLabel(stdout, &opr->val_label);
+          break;
+        case kOprReg:
+          printf("%s", opr->val_reg);
+          break;
+        case kOprBaseOff:
+          if (opr->val_base_off.base) {
+            printf("%s+", opr->val_base_off.base);
+          }
+          printf("%d", opr->val_base_off.offset);
+          break;
         }
-        printf("%d", opr->val_base_off.offset);
-        break;
       }
+      printf("\n");
+      break;
     }
-    printf("\n");
   }
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {

@@ -45,9 +45,21 @@ struct Operand {
 };
 
 struct Instruction {
-  struct Label *label; // ラベル省略時は NULL
   const char *opcode;
   struct Operand operands[MAX_OPERANDS];
 };
 
 void SetInsnNoOpr(struct Instruction *insn, const char *opcode);
+
+enum AsmLineKind {
+  kAsmLineInsn,
+  kAsmLineLabel,
+};
+
+struct AsmLine {
+  enum AsmLineKind kind;
+  union {
+    struct Label label;
+    struct Instruction insn;
+  };
+};
