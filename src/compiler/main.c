@@ -416,7 +416,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
   src = malloc(1024);
   size_t src_len = fread(src, 1, 1023, stdin);
   src[src_len] = '\0';
@@ -425,11 +425,13 @@ int main(void) {
   struct Node *ast = Program();
   Expect(kTokenEOF);
 
-  while (ast) {
-    PrintNode(ast, 0, NULL);
-    ast = ast->next;
+  if (argc == 2 && strcmp(argv[1], "--ast") == 0) {
+    while (ast) {
+      PrintNode(ast, 0, NULL);
+      ast = ast->next;
+    }
+    return 0;
   }
-  return 0;
 
   struct GenContext gen_ctx = {
     NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}

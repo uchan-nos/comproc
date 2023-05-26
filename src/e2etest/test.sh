@@ -150,3 +150,4 @@ test_timeout  'int f(int ms){int *p=2; *p=ms; while(*p>0){} return 0;} int main(
 test_value 03 'int main() {char *p=0x80; *p=2; return *p+1; }'
 test_value 04 'int main() {char *p=0x81; *p=1; return *p+3; }'
 test_value 81 'int f(){return 0;} int main() {char *p=0x81; *p=3; f(); return p; }'
+test_value 03 'void f(int *p){*p=2;} int main(){int i; f(&i); return i+1;}'
