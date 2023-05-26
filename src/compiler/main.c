@@ -45,6 +45,13 @@ int GenLabel(struct GenContext *ctx) {
   return ctx->num_label++;
 }
 
+// node->next を辿り、末尾の要素（node->next == NULL となる node）を返す
+struct Node *GetLastNode(struct Node *node) {
+  for (; node->next; node = node->next) {
+  }
+  return node;
+}
+
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
   case kNodeInteger:
@@ -294,6 +301,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       }
       printf(INDENT "add fp,0x%x\n", ctx->lvar_offset);
       Generate(ctx, node->rhs, 0);
+
+      struct Node *block_last = GetLastNode(node->rhs);
+      if (block_last && block_last->kind != kNodeReturn) {
+        printf(INDENT "cpop fp\n");
+        printf(INDENT "ret\n");
+      }
     }
     break;
   case kNodeBlock:
