@@ -37,6 +37,7 @@ struct JumpLabels {
 struct GenContext {
   struct Symbol *syms;
   int lvar_offset;
+  int line_add_fp; // add fp, N 命令が最後に配置された行番号
   int num_label;
   int num_strings;
   struct Token *strings[4];
@@ -406,7 +407,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
         ctx->lvar_offset += 2;
       }
-      InsnRegInt(ctx, "add", "fp", ctx->lvar_offset);
+      ctx->line_add_fp = ctx->num_line;
+      // add fp のオペランド値は、関数定義の処理後に上書きされる
+      InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
       Generate(ctx, node->rhs, 0);
 
       struct Node *block_last = GetLastNode(node->rhs);
@@ -442,7 +445,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       ctx->lvar_offset += stk_size;
       AppendSymbol(ctx->syms, sym);
-      InsnRegInt(ctx, "add", "fp", stk_size);
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
@@ -554,7 +556,7 @@ int main(int argc, char **argv) {
   }
 
   struct GenContext gen_ctx = {
-    NewSymbol(kSymHead, NULL), 2, 0, 0, {}, {-1, -1}, 0, {}
+    NewSymbol(kSymHead, NULL), 2, 0, 0, 0, {}, {-1, -1}, 0, {}
   };
   InsnRegInt(&gen_ctx, "add", "fp", 0x100);
   InsnLabelStr(&gen_ctx, "call", "main");
@@ -564,6 +566,15 @@ int main(int argc, char **argv) {
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
       Generate(&gen_ctx, n, 0);
+      struct AsmLine *line = &gen_ctx.asm_lines[gen_ctx.line_add_fp];
+      if (line->kind != kAsmLineInsn ||
+          strcmp(line->insn.opcode, "add") != 0 ||
+          line->insn.operands[0].kind != kOprReg ||
+          line->insn.operands[1].kind != kOprInt) {
+        fprintf(stderr, "line %d must be 'add fp, N'\n", gen_ctx.line_add_fp);
+        exit(1);
+      }
+      line->insn.operands[1].val_int = gen_ctx.lvar_offset;
     }
   }
 
