@@ -10,6 +10,10 @@
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
 int SplitOpcode(char *line, char **label, char **mnemonic, char **operands, int n) {
+  if (strtok(line, ";#") == NULL) {
+    return -1;
+  }
+
   char *colon = strchr(line, ':');
   if (colon) {
     *label = line;
@@ -27,6 +31,11 @@ int SplitOpcode(char *line, char **label, char **mnemonic, char **operands, int 
       return i;
     }
     operands[i] += strspn(operands[i], " \t");
+    for (char *last = operands[i] + strlen(operands[i]) - 1;
+         last > operands[i] && strchr(" \t", *last) != NULL;
+         last--) {
+      *last = '\0';
+    }
   }
   return n;
 }
