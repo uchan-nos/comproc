@@ -5,6 +5,7 @@
 **/compiler/a.out
 **/compiler/ucc
 **/compiler/*.o
+**/compiler/tests/*.got.asm
 **/assembler/uasm
 **/assembler/*.o
 **/cpu/*.exe

@@ -11,6 +11,10 @@ ucc: $(OBJS)
 clean:
 	rm -f $(OBJS)
 
+.PHONY: test
+test: ucc
+	./test.sh
+
 DEPENDS = $(join $(dir $(OBJS)),$(addprefix .,$(notdir $(OBJS:.o=.d))))
 
 .PHONY: depends
