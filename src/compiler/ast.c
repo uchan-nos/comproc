@@ -36,7 +36,8 @@ struct Node *Program() {
 }
 
 struct Node *FunctionDefinition() {
-  if (Consume(kTokenInt) == NULL) {
+  struct Node *ret_type = TypeSpec();
+  if (ret_type == NULL) {
     return NULL;
   }
 
@@ -47,6 +48,7 @@ struct Node *FunctionDefinition() {
   struct Node *body = Block();
 
   struct Node *func_def = NewNode(kNodeDefFunc, func_name);
+  func_def->lhs = ret_type;
   func_def->rhs = body;
   func_def->cond = params;
   return func_def;
@@ -404,6 +406,8 @@ struct Node *TypeSpec() {
     type = NewType(kTypeInt);
   } else if ((token = Consume(kTokenChar))) {
     type = NewType(kTypeChar);
+  } else if ((token = Consume(kTokenVoid))) {
+    type = NewType(kTypeVoid);
   }
 
   if (!type) {

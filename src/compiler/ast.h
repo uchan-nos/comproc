@@ -57,7 +57,7 @@ struct Node {
   // kNodeIf      then      else      条件式
   // kNodeFor     初期化式  ブロック  条件式    lhs->next は更新式
   // kNodeWhile   NULL      ブロック  条件式
-  // kNodeFuncDef NULL      ブロック  仮引数
+  // kNodeDefFunc 戻り値型  ブロック  仮引数
   // kNodeCall    関数名    引数      NULL
   // kNodePList   変数名    NULL      NULL
   struct Node *lhs, *rhs, *cond;

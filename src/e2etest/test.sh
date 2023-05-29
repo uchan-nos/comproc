@@ -54,7 +54,10 @@ function test_value() {
   src="$2"
   got=$(test_prog "$src" "${3:-}")
 
-  if [ $((0x$want)) -eq $((0x$got)) ]
+  if [ "timeout" = "$got" ]
+  then
+    echo "[FAILED]: $src timed out, want '$want'"
+  elif [ $((0x$want)) -eq $((0x$got)) ]
   then
     echo "[  OK  ]: $src -> '$got'"
   else

@@ -32,6 +32,7 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(while,    kTokenWhile),
   ITEM(break,    kTokenBreak),
   ITEM(continue, kTokenContinue),
+  ITEM(void,     kTokenVoid),
   {NULL, 0, 0},
 };
 static struct ReservedMapItem operator_map[] = {

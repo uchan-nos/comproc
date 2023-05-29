@@ -16,6 +16,7 @@ size_t SizeofType(struct Type *type) {
   case kTypeInt: return 2;
   case kTypePtr: return 2;
   case kTypeArray: return type->len * SizeofType(type->base);
+  case kTypeVoid: return 0;
   }
 
   fprintf(stderr, "unknown type: %d\n", type->kind);
@@ -37,6 +38,9 @@ void PrintType(FILE *out, struct Type *type) {
   case kTypeArray:
     PrintType(out, type->base);
     fprintf(out, "[%d]", type->len);
+    break;
+  case kTypeVoid:
+    fprintf(out, "void");
     break;
   }
 }

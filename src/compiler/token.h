@@ -26,6 +26,7 @@ enum TokenKind {
   kTokenContinue,
   kTokenRShift,
   kTokenLShift,
+  kTokenVoid,
   kTokenEOF,
 };
 

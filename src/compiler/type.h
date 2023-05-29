@@ -8,6 +8,7 @@ enum TypeKind {
   kTypeInt,
   kTypePtr,
   kTypeArray,
+  kTypeVoid,
 };
 
 struct Type {
