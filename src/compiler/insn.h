@@ -64,3 +64,5 @@ struct AsmLine {
     struct Instruction insn;
   };
 };
+
+void OptimizeAsmLines(struct AsmLine *lines, int num_lines);

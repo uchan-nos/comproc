@@ -8,16 +8,11 @@ main:
 	st cstack+0
 	add fp,6
 	push 42
-	push cstack+2
-	sta
-	pop
+	st cstack+2
 	push 2
-	push cstack+4
-	sta
-	pop
+	st cstack+4
 	push 1
-	push cstack+2
-	ldd
+	ld cstack+2
 	sub
 	cpop fp
 	ret

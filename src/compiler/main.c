@@ -582,6 +582,8 @@ int main(int argc, char **argv) {
     }
   }
 
+  OptimizeAsmLines(gen_ctx.asm_lines, gen_ctx.num_line);
+
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;
     switch (line->kind) {

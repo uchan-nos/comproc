@@ -1,5 +1,7 @@
 #include "insn.h"
 
+#include <string.h>
+
 void PrintLabel(FILE *out, struct Label *label) {
   switch (label->kind) {
   case kLabelToken:
@@ -24,34 +26,50 @@ void SetInsnNoOpr(struct Instruction *insn, const char *opcode) {
   }
 }
 
-/*
-void SetInsnInt(struct Instruction *insn, const char *opcode, int operand1) {
-  SetInsnNoOpr(insn, opcode);
-  insn->operands[0].kind = kOprInt;
-  insn->operands[0].val_int = operand1;
+struct Instruction *GetInsn(struct AsmLine *lines, int num_lines, int i) {
+  if (i < num_lines && lines[i].kind == kAsmLineInsn) {
+    return &lines[i].insn;
+  } else {
+    return NULL;
+  }
 }
 
-void SetInsnBaseOff(struct Instruction *insn, const char *opcode,
-                    const char *base, int offset) {
-  SetInsnNoOpr(insn, opcode);
-  insn->operands[0].kind = kOprBaseOff;
-  insn->operands[0].val_base_off.base = base;
-  insn->operands[0].val_base_off.offset = offset;
+#define GET_INSN(i) GetInsn(lines, num_lines, i)
+typedef struct Instruction Insn;
+
+static int CollapsePushAndLoadStore(Insn *insn1, Insn *insn2, Insn *insn3) {
+  if (strcmp(insn1->opcode, "push") != 0 || insn1->operands[0].kind != kOprBaseOff) {
+    return 0;
+  }
+
+  if (insn2 && strcmp(insn2->opcode, "ldd") == 0) {
+    insn1->opcode = "ld";
+    return 1;
+  } else if (insn2 && strcmp(insn2->opcode, "sta") == 0) {
+    insn1->opcode = "st";
+    if (insn3 && strcmp(insn3->opcode, "pop") == 0) {
+      return 2;
+    } else {
+      return 1;
+    }
+  }
+  return 0;
 }
 
-void SetInsnLabel(struct Instruction *insn, const char *opcode,
-                  struct Token *label_token) {
-  SetInsnNoOpr(insn, opcode);
-  insn->operands[0].kind = kOprLabel;
-  insn->operands[0].val_label.kind = kLabelToken;
-  insn->operands[0].val_label.token = label_token;
-}
+void OptimizeAsmLines(struct AsmLine *lines, int num_lines) {
+  for (int i = 0; i < num_lines; i++) {
+    struct Instruction *insn1 = GET_INSN(i);
+    if (insn1 == NULL) {
+      continue;
+    }
 
-void SetInsnAutoLabel(struct Instruction *insn, const char *opcode,
-                      int label_no) {
-  SetInsnNoOpr(insn, opcode);
-  insn->operands[0].kind = kOprLabel;
-  insn->operands[0].val_label.kind = kLabelAuto;
-  insn->operands[0].val_label.label_no = label_no;
+    struct Instruction *insn2 = GET_INSN(i + 1);
+    struct Instruction *insn3 = GET_INSN(i + 2);
+
+    int delete_lines = CollapsePushAndLoadStore(insn1, insn2, insn3);
+    for (int j = 0; j < delete_lines; j++) {
+      lines[i + 1 + j].kind = kAsmLineDeleted;
+    }
+    i += delete_lines;
+  }
 }
-*/
