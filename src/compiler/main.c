@@ -422,9 +422,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeBlock:
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
-      if (n->kind <= kNodeExprEnd) {
-        Insn(ctx, "pop");
-      }
     }
     break;
   case kNodeReturn:
@@ -454,7 +451,6 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         } else {
           Insn(ctx, "sta");
         }
-        Insn(ctx, "pop");
       }
     }
     break;
@@ -486,19 +482,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lcontinue = label_next;
 
       Generate(ctx, node->lhs, 0);
-      Insn(ctx, "pop");
       AddLabelAutoL(ctx, label_cond);
       Generate(ctx, node->cond, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_end);
       Generate(ctx, node->rhs, 0);
-      if (node->rhs->kind <= kNodeExprEnd) {
-        Insn(ctx, "pop");
-      }
       AddLabelAutoL(ctx, label_next);
       Generate(ctx, node->lhs->next, 0);
-      Insn(ctx, "pop");
       InsnLabelAutoL(ctx, "jmp", label_cond);
       AddLabelAutoL(ctx, label_end);
 
