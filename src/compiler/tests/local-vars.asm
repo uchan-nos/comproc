@@ -15,6 +15,9 @@ main:
 	push cstack+4
 	sta
 	pop
-	push 0
+	push 1
+	push cstack+2
+	ldd
+	sub
 	cpop fp
 	ret
