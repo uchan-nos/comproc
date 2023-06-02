@@ -48,7 +48,7 @@ begin
   casex (insn)
     16'b000x_xxxx_xxxx_xxxx: calc_sign = insn[11];
     16'b001x_xxxx_xxxx_xxxx: calc_sign = insn[9];
-    16'b0100_xxxx_xxxx_xxxx: calc_sign = insn[9];
+    16'b010x_xxxx_xxxx_xxxx: calc_sign = insn[9];
     default:                 calc_sign = 1'b0;
   endcase
 end

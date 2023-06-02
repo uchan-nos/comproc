@@ -165,7 +165,7 @@ struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
   case kNodeInteger:
-    if ((node->token->value.as_int >> 15) == 0) {
+    if (node->token->value.as_int <= 0x7ffe) {
       InsnInt(ctx, "push", node->token->value.as_int);
     } else {
       InsnInt(ctx, "push", node->token->value.as_int >> 8);

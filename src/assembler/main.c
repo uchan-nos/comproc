@@ -226,10 +226,15 @@ int main(void) {
     ToLower(mnemonic);
 
     char *sep = strchr(mnemonic, '.');
-    char *postfix = NULL;
+    int postfix = 0;
     if (sep) {
-      postfix = sep + 1;
       *sep = '\0';
+      char *endptr;
+      postfix = strtol(sep + 1, &endptr, 10);
+      if (*endptr != '\0') {
+        fprintf(stderr, "postfix must be an integer: '%s'\n", sep + 1);
+        exit(1);
+      }
     }
 
     if (strcmp(mnemonic, "push") == 0) {
@@ -238,7 +243,7 @@ int main(void) {
       } else {
         uint16_t off;
         enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-        insn[ip >> 1] = 0x3000 | (ab << 10) | (0x3ff & off);
+        insn[ip >> 1] = 0x5000 | (ab << 10) | (0x3ff & off);
       }
     } else if (strcmp(mnemonic, "jmp") == 0) {
       InitBackpatch(backpatches + num_backpatches++,
@@ -259,11 +264,13 @@ int main(void) {
     } else if (strcmp(mnemonic, "ld") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = 0x2000 | (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = postfix == 1 ? 0x2000 : 0x4000;
+      insn[ip >> 1] |= (ab << 10) | (0x3fe & off);
     } else if (strcmp(mnemonic, "st") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = 0x2001 | (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = postfix == 1 ? 0x3000 : 0x4001;
+      insn[ip >> 1] |= (ab << 10) | (0x3fe & off);
     } else if (strcmp(mnemonic, "add") == 0) {
       if (num_opr == 0) {
         insn[ip >> 1] = 0x7060;
@@ -274,7 +281,7 @@ int main(void) {
           exit(1);
         }
         uint16_t addend = GET_LONG_NO_BP(1);
-        insn[ip >> 1] = 0x4000 | (0x3ff & addend);
+        insn[ip >> 1] = 0x6000 | (0x3ff & addend);
       }
     } else if (strcmp(mnemonic, "nop") == 0) {
       insn[ip >> 1] = 0x7000;
@@ -353,11 +360,11 @@ int main(void) {
       }
       insn[ip >> 1] = 0x7803;
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[ip >> 1] = 0x7808;
+      insn[ip >> 1] = 0x7808 | (postfix == 1);
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[ip >> 1] = 0x780c;
+      insn[ip >> 1] = 0x780c | (postfix == 1);
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[ip >> 1] = 0x780e;
+      insn[ip >> 1] = 0x780e | (postfix == 1);
     } else if (strcmp(mnemonic, "db") == 0) {
       ip += DataByte(&insn[ip >> 1], operands, num_opr);
       if (ip & 1) {
@@ -367,10 +374,6 @@ int main(void) {
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
-    }
-
-    if (postfix && strcmp(postfix, "1") == 0) {
-      insn[ip >> 1] |= 0x0001;
     }
 
     ip += 2;
