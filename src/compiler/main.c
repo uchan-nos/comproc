@@ -193,12 +193,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
             }
             InsnBaseOff(ctx, "push", "cstack", sym->offset);
           } else {
-            InsnBaseOff(ctx, "push", "cstack", sym->offset);
-            if (!lval) {
+            if (lval) {
+              InsnBaseOff(ctx, "push", "cstack", sym->offset);
+            } else {
               if (SizeofType(sym->type) == 1) {
+                InsnBaseOff(ctx, "push", "cstack", sym->offset);
                 Insn(ctx, "ldd.1");
               } else {
-                Insn(ctx, "ldd");
+                InsnBaseOff(ctx, "ld", "cstack", sym->offset);
               }
             }
           }
@@ -445,11 +447,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
-        InsnBaseOff(ctx, "push", "cstack", sym->offset);
         if (SizeofType(sym->type) == 1) {
+          InsnBaseOff(ctx, "push", "cstack", sym->offset);
           Insn(ctx, "sta.1");
         } else {
-          Insn(ctx, "sta");
+          InsnBaseOff(ctx, "st", "cstack", sym->offset);
         }
       }
     }
@@ -572,8 +574,6 @@ int main(int argc, char **argv) {
       }
     }
   }
-
-  OptimizeAsmLines(gen_ctx.asm_lines, gen_ctx.num_line);
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;
