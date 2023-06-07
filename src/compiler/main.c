@@ -197,8 +197,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
               InsnBaseOff(ctx, "push", "cstack", sym->offset);
             } else {
               if (SizeofType(sym->type) == 1) {
-                InsnBaseOff(ctx, "push", "cstack", sym->offset);
-                Insn(ctx, "ldd.1");
+                InsnBaseOff(ctx, "ld.1", "cstack", sym->offset);
               } else {
                 InsnBaseOff(ctx, "ld", "cstack", sym->offset);
               }
@@ -448,8 +447,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
         if (SizeofType(sym->type) == 1) {
-          InsnBaseOff(ctx, "push", "cstack", sym->offset);
-          Insn(ctx, "sta.1");
+          InsnBaseOff(ctx, "st.1", "cstack", sym->offset);
         } else {
           InsnBaseOff(ctx, "st", "cstack", sym->offset);
         }
