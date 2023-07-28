@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
+    <meta chatset="utf-8">
     <title>Visualisation</title>
     <!--
     <link rel="stylesheet" type="text/css" href="css/vis.css">
@@ -19,7 +20,7 @@
     <script type="text/javascript">
         let frame = 0;
         function nextFrame() {
-            if (frame == {{ max_frame }}) {
+            if (frame >= {{ max_frame }}) {
                 return;
             }
             frame++;

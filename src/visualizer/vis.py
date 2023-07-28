@@ -1,7 +1,11 @@
 #!/usr/bin/python3
 from collections import namedtuple
 import drawsvg as dw
+import http.server
 import jinja2
+import os.path
+import re
+from urllib.parse import urlparse
 
 
 # Types
@@ -67,9 +71,14 @@ def draw_stack(stack, **args):
     return g
 
 
-def main():
+cpu = CPU()
+max_frame = -1
 
-    cpu = CPU()
+
+def gen_frames():
+    global cpu
+    global max_frame
+    #cpu = CPU()
     with open('../cpu/trace.txt') as trace_file:
         for i, line in enumerate(trace_file):
             t = parse_trace_line(line)
@@ -86,10 +95,41 @@ def main():
             cpu.clk(t)
     max_frame = i
 
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
-    template = env.get_template('vis-template.html')
-    with open('vis.html', 'w') as f:
-        template.stream(max_frame=max_frame).dump(f)
+
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+vis_template = jinja_env.get_template('vis-template.html')
+frame_filepath_pat = re.compile('/vis-[0-9]+.svg')
+
+
+def main():
+    svr = http.server.HTTPServer(('', 8080), HTTPHandler)
+    svr.serve_forever()
+
+
+class HTTPHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        url = urlparse(self.path)
+        if url.path == '/vis.html':
+            with open('vis.html', 'w') as f:
+                vis_src = vis_template.render(max_frame=max_frame)
+            vis_bytes = vis_src.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', len(vis_bytes))
+            self.end_headers()
+            self.wfile.write(vis_bytes)
+        elif frame_filepath_pat.match(url.path):
+            gen_frames()
+            with open(url.path[1:], 'rb') as f:
+                img_dat = f.read()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/svg+xml')
+            self.send_header('Content-Length', len(img_dat))
+            self.end_headers()
+            self.wfile.write(img_dat)
+        else:
+            self.send_response(404)
+
 
 if __name__ == '__main__':
     main()
