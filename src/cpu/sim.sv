@@ -38,6 +38,11 @@ assign phase_num = cpu.signals.phase_decode ? 0
 logic rst, clk;
 cpu#(.CLOCK_HZ(100_000)) cpu(.*);
 
+// 実行トレース機能
+logic trace_enable;
+string trace_file;
+integer trace_fd;
+
 initial begin
   // stdin からテストデータを読む
   while ($fscanf(STDIN, "%x", insn_buf) == 1) begin
@@ -53,6 +58,8 @@ initial begin
     $readmemh(uart_in_file, uart_in);
   if ($value$plusargs("uart_out=%s", uart_out_file))
     uart_out = $fopen(uart_out_file, "w");
+  if ($value$plusargs("trace_file=%s", trace_file))
+    trace_fd = $fopen(trace_file, "w");
 
   // 信号が変化したら自動的に出力する
   $monitor("%d: rst=%d ip=%02x.%d %04x %-6s addr=%03x r=%04x w=%04x byt=%d stack{%02x %02x} fp=%04x cstk{%02x %02x} cdt=%04x",
@@ -91,6 +98,35 @@ always @(posedge clk) begin
   else if ($time > TIMEOUT) begin
     $fdisplay(STDERR, "timeout");
     $finish;
+  end
+end
+
+// トレース情報を出力
+always @(posedge clk) begin
+  if (trace_fd != 0) begin
+    $fdisplay(trace_fd,
+              // メタデータ
+              "%d rst=%d phase=%d ",
+              $stime, rst, phase_num,
+              // レジスタ値
+              "stack0=%x fp=%x ip=%x insn=%x ",
+              stack0, cpu.fp, cpu.ip, cpu.insn,
+              // セレクト信号
+              "alu_sel=%x src_a_sel=%x imm=%x ",
+              cpu.signals.alu_sel, cpu.signals.decoder.src_a, cpu.imm,
+              "rd_mem=%x wr_stk1=%x ",
+              cpu.rd_mem, cpu.wr_stk1,
+              // 制御信号
+              "pop=%x push=%x load_stk=%x load_fp=%x load_ip=%x ",
+              cpu.pop, cpu.push, cpu.load_stk, cpu.load_fp, cpu.load_ip,
+              "cpop=%x cpush=%x ",
+              cpu.cpop, cpu.cpush,
+              // データ値
+              "rd_data=%x wr_data=%x ",
+              rd_data, wr_data,
+              "alu_out=%x src_a=%x src_b=%x stack_in=%x ",
+              cpu.alu_out, cpu.src_a, cpu.src_b, cpu.stack_in
+             );
   end
 end
 
