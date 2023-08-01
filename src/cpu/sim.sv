@@ -109,8 +109,8 @@ always @(posedge clk) begin
               "%d rst=%d phase=%d ",
               $stime, rst, phase_num,
               // レジスタ値
-              "stack0=%x fp=%x ip=%x insn=%x ",
-              stack0, cpu.fp, cpu.ip, cpu.insn,
+              "stack0=%x fp=%x ip=%x insn=%x cstack0=%x ",
+              stack0, cpu.fp, cpu.ip, cpu.insn, cpu.cstack0,
               // セレクト信号
               "alu_sel=%x src_a_sel=%x imm=%x ",
               cpu.signals.alu_sel, cpu.signals.decoder.src_a, cpu.imm,
