@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visualisation</title>
+    <!--
+    <link rel="stylesheet" type="text/css" href="css/vis.css">
+    <script type="text/javascript" src="js/vis.js"></script>
+    -->
+</head>
+<body>
+<p>
+    <img id="frame_img" src="vis-0.svg" alt="Frame 000000">
+</p>
+<p>
+    <input type="button" value="← Prev Frame" onclick="prevFrame();">
+    <input type="button" value="Next Frame →" onclick="nextFrame();">
+</p>
+
+    <script type="text/javascript">
+        let frame = 0;
+        function nextFrame() {
+            if (frame == {{ max_frame }}) {
+                return;
+            }
+            frame++;
+            document.getElementById('frame_img').src = 'vis-' + frame + '.svg';
+        }
+        function prevFrame() {
+            if (frame == 0) {
+                return;
+            }
+            frame--;
+            document.getElementById('frame_img').src = 'vis-' + frame + '.svg';
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.code == 'ArrowLeft') {
+                prevFrame();
+            } else if (event.code == 'ArrowRight') {
+                nextFrame();
+            }
+        });
+    </script>
+</body>
+</html>

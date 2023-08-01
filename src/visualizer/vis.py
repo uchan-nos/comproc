@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from collections import namedtuple
 import drawsvg as dw
+import jinja2
 
 
 # Types
@@ -70,7 +71,7 @@ def main():
 
     cpu = CPU()
     with open('../cpu/trace.txt') as trace_file:
-        for line in trace_file:
+        for i, line in enumerate(trace_file):
             t = parse_trace_line(line)
             print(t.time, t.values['stack0'], cpu.stack[:2], t.values['cstack0'], cpu.cstack[:2])
 
@@ -80,10 +81,15 @@ def main():
             d.append(dw.Rectangle(5, 20, d.width - 10, d.height - 25, fill='none', stroke='gray', stroke_width=1))
             d.append(draw_alu(transform=f'translate({t.time}, 50)'))
             d.append(draw_stack(cpu.stack, transform='translate(10, 30)'))
-            d.save_svg(f'vis-{t.time:06}.svg')
+            d.save_svg(f'vis-{i}.svg')
 
             cpu.clk(t)
- 
+    max_frame = i
+
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    template = env.get_template('vis-template.html')
+    with open('vis.html', 'w') as f:
+        template.stream(max_frame=max_frame).dump(f)
 
 if __name__ == '__main__':
     main()
