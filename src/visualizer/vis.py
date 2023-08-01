@@ -69,7 +69,7 @@ def draw_stack(stack, **args):
 def main():
 
     cpu = CPU()
-    with open('trace.txt') as trace_file:
+    with open('../cpu/trace.txt') as trace_file:
         for line in trace_file:
             t = parse_trace_line(line)
             print(t.time, t.values['stack0'], cpu.stack[:2], t.values['cstack0'], cpu.cstack[:2])
