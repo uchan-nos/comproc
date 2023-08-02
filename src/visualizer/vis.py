@@ -5,7 +5,9 @@ import http.server
 import jinja2
 import os.path
 import re
-from urllib.parse import urlparse
+import subprocess
+import time
+from urllib.parse import urlparse, parse_qs
 
 
 # Types
@@ -79,10 +81,10 @@ def gen_frames():
     global cpu
     global max_frame
     #cpu = CPU()
-    with open('../cpu/trace.txt') as trace_file:
+    print(f'gen_frames: stack = {cpu.stack[0:2]}')
+    with open('trace.txt') as trace_file:
         for i, line in enumerate(trace_file):
             t = parse_trace_line(line)
-            print(t.time, t.values['stack0'], cpu.stack[:2], t.values['cstack0'], cpu.cstack[:2])
 
             d = dw.Drawing(600, 400)
             d.append(dw.Rectangle(0, 0, d.width, d.height, fill='white'))
@@ -97,6 +99,7 @@ def gen_frames():
 
 
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+index_template = jinja_env.get_template('index-template.html')
 vis_template = jinja_env.get_template('vis-template.html')
 frame_filepath_pat = re.compile('/vis-[0-9]+.svg')
 
@@ -105,13 +108,33 @@ def main():
     svr = http.server.HTTPServer(('', 8080), HTTPHandler)
     svr.serve_forever()
 
+def foobar():
+    program = '''\
+push 10
+push 1
+add
+st 0x82
+'''
+    print('program = ' + program)
+    p_asm = subprocess.run(['../assembler/uasm'], input=program, text=True, capture_output=True)
+    print('returncode = ' + str(p_asm.returncode))
+    program_hex = p_asm.stdout
+    print('program_hex = ' + program_hex)
+
 
 class HTTPHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
+        if url.path == '/' or url.path == '/index.html':
+            index_src = index_template.render()
+            index_bytes = index_src.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', len(index_bytes))
+            self.end_headers()
+            self.wfile.write(index_bytes)
         if url.path == '/vis.html':
-            with open('vis.html', 'w') as f:
-                vis_src = vis_template.render(max_frame=max_frame)
+            vis_src = vis_template.render(max_frame=max_frame)
             vis_bytes = vis_src.encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -119,7 +142,7 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(vis_bytes)
         elif frame_filepath_pat.match(url.path):
-            gen_frames()
+            start = time.time()
             with open(url.path[1:], 'rb') as f:
                 img_dat = f.read()
             self.send_response(200)
@@ -127,8 +150,46 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Length', len(img_dat))
             self.end_headers()
             self.wfile.write(img_dat)
+            end = time.time()
+            print(f'elapsed: {end - start} secs')
         else:
             self.send_response(404)
+
+    def do_POST(self):
+        url = urlparse(self.path)
+        if url.path == '/vis.html':
+            content_len = int(self.headers.get('Content-Length'))
+            post_body = self.rfile.read(content_len).decode('utf-8')
+            post_dict = parse_qs(post_body)
+            if 'program' not in post_dict or len(post_dict['program']) != 1:
+                print('bad request')
+                self.send_response(400)
+                self.end_headers()
+                return
+            program = post_dict['program'][0].replace('\r\n', '\n')
+            print('program = ' + repr(program))
+            p_asm = subprocess.run(['../assembler/uasm'], input=program, text=True, capture_output=True)
+            print('returncode = ' + str(p_asm.returncode))
+            program_hex = p_asm.stdout
+            print('program_hex = ' + program_hex)
+            p_sim = subprocess.run(['../cpu/sim.exe', '+trace_file=trace.txt'], input=program_hex, stdout=subprocess.DEVNULL, text=True)
+            if p_sim.returncode != 0:
+                print('simulator failed')
+                self.send_response(500)
+                self.end_headers()
+                return
+
+            global cpu
+            cpu = CPU()
+            gen_frames()
+
+            vis_src = vis_template.render(max_frame=max_frame, program_hex=program_hex)
+            vis_bytes = vis_src.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', len(vis_bytes))
+            self.end_headers()
+            self.wfile.write(vis_bytes)
 
 
 if __name__ == '__main__':
