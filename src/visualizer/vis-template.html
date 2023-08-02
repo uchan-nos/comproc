@@ -23,23 +23,19 @@
 
     <script type="text/javascript">
         let frame = 0;
-        let next_frame_image = new Image();
         let frame_image = document.getElementById('frame_img');
-        next_frame_image.src = 'vis-' + (frame + 1) + '.svg';
         function nextFrame() {
             if (frame >= {{ max_frame }}) {
                 return;
             }
             frame++;
-            frame_image.src = next_frame_image.src;
-            next_frame_image.src = 'vis-' + (frame + 1) + '.svg';
+            frame_image.src = 'vis-' + frame + '.svg';
         }
         function prevFrame() {
             if (frame == 0) {
                 return;
             }
             frame--;
-            next_frame_image.src = frame_image.src;
             frame_image.src = 'vis-' + frame + '.svg';
         }
 
