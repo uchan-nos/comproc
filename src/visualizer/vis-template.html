@@ -14,6 +14,9 @@
 </p>
 <p>
     <input type="button" value="← Prev Frame" onclick="prevFrame();">
+    <input type="number" value="0" size="3" min="0" max="{{ max_frame }}"
+        onchange="onChangeFrameNumber();" id="frame_number">
+    <span> / {{ max_frame }}</span>
     <input type="button" value="Next Frame →" onclick="nextFrame();">
 </p>
 <h3>Machine code</h3>
@@ -24,19 +27,29 @@
     <script type="text/javascript">
         let frame = 0;
         let frame_image = document.getElementById('frame_img');
-        function nextFrame() {
-            if (frame >= {{ max_frame }}) {
+        function jumpToFrame(to) {
+            if (to < 0 || to > {{ max_frame }}) {
                 return;
             }
-            frame++;
+            frame = to;
             frame_image.src = 'vis-' + frame + '.svg';
+            document.getElementById('frame_number').value = frame;
+        }
+        function nextFrame() {
+            jumpToFrame(frame + 1);
         }
         function prevFrame() {
-            if (frame == 0) {
-                return;
+            jumpToFrame(frame - 1);
+        }
+        function onChangeFrameNumber() {
+            let to = parseInt(document.getElementById('frame_number').value);
+            if (to < 0) {
+                to = 0;
+            } else if (to > {{ max_frame }}) {
+                to = {{ max_frame }};
             }
-            frame--;
-            frame_image.src = 'vis-' + frame + '.svg';
+            document.getElementById('frame_number').value = to;
+            jumpToFrame(to);
         }
 
         document.addEventListener('keydown', function(event) {
