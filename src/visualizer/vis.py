@@ -117,6 +117,15 @@ def set_max_frame():
         max_frame = int(m.group(1))
 
 
+def render_vis_html():
+    try:
+        with open('vis.hex') as f:
+            hex = f.read()
+    except FileNotFoundError:
+        hex = 'vis.hex not found'
+    return vis_template.render(max_frame=max_frame, program_hex=hex)
+
+
 def main():
     set_max_frame()
     svr = http.server.HTTPServer(('', 8080), HTTPHandler)
@@ -145,7 +154,7 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
         if url.path == '/' or url.path == '/index.html':
             self.send_html(index_template.render())
         elif url.path == '/vis.html':
-            self.send_html(vis_template.render(max_frame=max_frame))
+            self.send_html(render_vis_html())
         elif frame_filepath_pat.match(url.path):
             self.send_file(url.path[1:], 'image/svg+xml')
         else:
@@ -170,7 +179,10 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             hex = p_asm.stdout
-            p_sim = subprocess.run(['../cpu/sim.exe', '+trace_file=trace.txt'], input=hex, stdout=subprocess.DEVNULL, text=True)
+            with open('vis.hex', 'w') as f:
+                f.write(hex)
+            p_sim = subprocess.run(['../cpu/sim.exe', '+trace_file=trace.txt'],
+                                   input=hex, stdout=subprocess.DEVNULL, text=True)
             if p_sim.returncode != 0:
                 print('sim.exe error: ', p_sim.stderr)
                 self.send_response(500)
@@ -178,9 +190,7 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             gen_frames()
-
-            vis_src = vis_template.render(max_frame=max_frame, program_hex=hex)
-            self.send_html(vis_src)
+            self.send_html(render_vis_html())
 
 
 if __name__ == '__main__':
