@@ -73,17 +73,14 @@ def draw_stack(stack, **args):
     return g
 
 
-cpu = CPU()
-max_frame = -1
-
-
 def gen_frames():
-    global cpu
-    global max_frame
-    #cpu = CPU()
+    cpu = CPU()
     print(f'gen_frames: stack = {cpu.stack[0:2]}')
     with open('trace.txt') as trace_file:
         for i, line in enumerate(trace_file):
+            if i >= 100:
+                break
+
             t = parse_trace_line(line)
 
             d = dw.Drawing(600, 400)
@@ -95,6 +92,8 @@ def gen_frames():
             d.save_svg(f'vis-{i}.svg')
 
             cpu.clk(t)
+
+    global max_frame
     max_frame = i
 
 
@@ -102,94 +101,86 @@ jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
 index_template = jinja_env.get_template('index-template.html')
 vis_template = jinja_env.get_template('vis-template.html')
 frame_filepath_pat = re.compile('/vis-[0-9]+.svg')
+max_frame = -1
+
+
+def set_max_frame():
+    global max_frame
+    # -v: sort numerically, -r: reverse order
+    p = subprocess.run('ls -vr vis-*.svg', shell=True, text=True, capture_output=True)
+    if p.returncode != 0:
+        return
+
+    highest_file = p.stdout.splitlines()[0]
+    m = re.match('vis-([0-9]+).svg', highest_file)
+    if m and m.group(1):
+        max_frame = int(m.group(1))
 
 
 def main():
+    set_max_frame()
     svr = http.server.HTTPServer(('', 8080), HTTPHandler)
     svr.serve_forever()
 
-def foobar():
-    program = '''\
-push 10
-push 1
-add
-st 0x82
-'''
-    print('program = ' + program)
-    p_asm = subprocess.run(['../assembler/uasm'], input=program, text=True, capture_output=True)
-    print('returncode = ' + str(p_asm.returncode))
-    program_hex = p_asm.stdout
-    print('program_hex = ' + program_hex)
-
 
 class HTTPHandler(http.server.BaseHTTPRequestHandler):
+    def send_html(self, html):
+        bin = html.encode('utf-8')
+        self.send_bin(bin, 'text/html; charset=utf-8')
+
+    def send_file(self, path, mime_type):
+        with open(path, 'rb') as f:
+            bin = f.read()
+        self.send_bin(bin, mime_type)
+
+    def send_bin(self, bin, mime_type):
+        self.send_response(200)
+        self.send_header('Content-Type', mime_type)
+        self.send_header('Content-Length', len(bin))
+        self.end_headers()
+        self.wfile.write(bin)
+
     def do_GET(self):
         url = urlparse(self.path)
         if url.path == '/' or url.path == '/index.html':
-            index_src = index_template.render()
-            index_bytes = index_src.encode('utf-8')
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
-            self.send_header('Content-Length', len(index_bytes))
-            self.end_headers()
-            self.wfile.write(index_bytes)
-        if url.path == '/vis.html':
-            vis_src = vis_template.render(max_frame=max_frame)
-            vis_bytes = vis_src.encode('utf-8')
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
-            self.send_header('Content-Length', len(vis_bytes))
-            self.end_headers()
-            self.wfile.write(vis_bytes)
+            self.send_html(index_template.render())
+        elif url.path == '/vis.html':
+            self.send_html(vis_template.render(max_frame=max_frame))
         elif frame_filepath_pat.match(url.path):
-            start = time.time()
-            with open(url.path[1:], 'rb') as f:
-                img_dat = f.read()
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/svg+xml')
-            self.send_header('Content-Length', len(img_dat))
-            self.end_headers()
-            self.wfile.write(img_dat)
-            end = time.time()
-            print(f'elapsed: {end - start} secs')
+            self.send_file(url.path[1:], 'image/svg+xml')
         else:
             self.send_response(404)
 
     def do_POST(self):
         url = urlparse(self.path)
+        content_len = int(self.headers.get('Content-Length'))
+        post_body = self.rfile.read(content_len).decode('utf-8')
+        post_dict = parse_qs(post_body)
+
         if url.path == '/vis.html':
-            content_len = int(self.headers.get('Content-Length'))
-            post_body = self.rfile.read(content_len).decode('utf-8')
-            post_dict = parse_qs(post_body)
             if 'program' not in post_dict or len(post_dict['program']) != 1:
-                print('bad request')
                 self.send_response(400)
                 self.end_headers()
                 return
-            program = post_dict['program'][0].replace('\r\n', '\n')
-            print('program = ' + repr(program))
-            p_asm = subprocess.run(['../assembler/uasm'], input=program, text=True, capture_output=True)
-            print('returncode = ' + str(p_asm.returncode))
-            program_hex = p_asm.stdout
-            print('program_hex = ' + program_hex)
-            p_sim = subprocess.run(['../cpu/sim.exe', '+trace_file=trace.txt'], input=program_hex, stdout=subprocess.DEVNULL, text=True)
+            asm = post_dict['program'][0].replace('\r\n', '\n')
+            p_asm = subprocess.run(['../assembler/uasm'], input=asm, text=True, capture_output=True)
+            if p_asm.returncode != 0:
+                print('uasm error: ', p_asm.stderr)
+                self.send_response(500)
+                self.end_headers()
+                return
+            hex = p_asm.stdout
+            p_sim = subprocess.run(['../cpu/sim.exe', '+trace_file=trace.txt'], input=hex, stdout=subprocess.DEVNULL, text=True)
             if p_sim.returncode != 0:
-                print('simulator failed')
+                print('sim.exe error: ', p_sim.stderr)
                 self.send_response(500)
                 self.end_headers()
                 return
 
-            global cpu
-            cpu = CPU()
             gen_frames()
 
-            vis_src = vis_template.render(max_frame=max_frame, program_hex=program_hex)
-            vis_bytes = vis_src.encode('utf-8')
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
-            self.send_header('Content-Length', len(vis_bytes))
-            self.end_headers()
-            self.wfile.write(vis_bytes)
+            vis_src = vis_template.render(max_frame=max_frame, program_hex=hex)
+            self.send_html(vis_src)
 
 
 if __name__ == '__main__':
