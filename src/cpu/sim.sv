@@ -124,8 +124,8 @@ always @(posedge clk) begin
               // データ値
               "rd_data=%x wr_data=%x ",
               rd_data, wr_data,
-              "alu_out=%x src_a=%x src_b=%x stack_in=%x ",
-              cpu.alu_out, cpu.src_a, cpu.src_b, cpu.stack_in
+              "alu_out=%x src_a=%x src_b=%x stack_in=%x imm_mask=%x ",
+              cpu.alu_out, cpu.src_a, cpu.src_b, cpu.stack_in, cpu.imm_mask
              );
   end
 end
