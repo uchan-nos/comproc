@@ -116,6 +116,28 @@ def gen_text_appender(d):
     return append_text
 
 
+def draw_label_value(t, label, font_size, x, y, **args):
+    g = dw.Group(id='lv-' + label, **args)
+    g.append(dw.Text(label + '=', font_size, x, y, text_anchor='end'))
+    g.append(dw.Text(t.values[label], font_size, x, y, text_anchor='start', font_family='Consolas'))
+    return g
+
+
+stack_x = 150
+stack_y = 100
+fp_y = stack_y+16*4
+ip_y = stack_y+16*7
+cstk_y = stack_y+16*10
+insn_y = 500
+src_a_x = 350
+src_a_y = 100
+src_a_out_y = src_a_y+40
+src_b_y = 220
+src_b_out_y = src_b_y+32
+alu_x = 450
+alu_y = src_a_out_y-16
+
+
 def gen_frames():
     cpu = CPU()
     print(f'gen_frames: stack = {cpu.stack[0:2]}')
@@ -126,21 +148,11 @@ def gen_frames():
 
             t = parse_trace_line(line)
 
-            stack_x = 150
-            stack_y = 100
-            fp_y = 100+16*4
-            ip_y = 100+16*7
-            cstk_y = 100+16*10
-            src_a_x = 350
-            src_a_y = 100
-            src_b_y = 220
-            alu_x = 450
-            insn_y = 500
             d = dw.Drawing(800, 600)
             d.append(dw.Rectangle(0, 0, d.width, d.height, fill='white'))
             d.append(dw.Text('ComProc CPU Visualizer', 12, 5, 15))
             d.append(dw.Rectangle(5, 20, d.width - 10, d.height - 25, fill='none', stroke='gray', stroke_width=1))
-            d.append(draw_alu(transform=f'translate({alu_x}, {src_a_y+40-16})'))
+            d.append(draw_alu(transform=f'translate({alu_x}, {alu_y})'))
             append_text = gen_text_appender(d)
             append_text('Reset: ' + ('enable' if t.values['rst'] == '1' else 'disable'))
             append_text('Phase: ' + phase_names[t.values['phase']])
@@ -154,46 +166,40 @@ def gen_frames():
             d.append(draw_stack('stack', cpu.stack, 16, transform=f'translate(630, 300)'))
             d.append(draw_stack('cstack', cpu.cstack, 16, transform=f'translate(700, 300)'))
 
-            line_args = {'fill': 'none'}
-            src_a_stroke = lambda i: 'red' if t.values['src_a_sel'] == str(i) else 'black'
-            d.append(dw.Path(stroke=src_a_stroke(0), **line_args).M(stack_x+60, stack_y+8)
-                     .H(stack_x+80).V(src_a_y+16).H(src_a_x))
-            d.append(dw.Path(stroke=src_a_stroke(1), **line_args).M(stack_x+60, fp_y+8)
-                     .H(stack_x+80).V(src_a_y+32).H(src_a_x))
-            d.append(dw.Path(stroke=src_a_stroke(2), **line_args).M(stack_x+60, ip_y+8)
-                     .H(stack_x+90).V(src_a_y+48).H(src_a_x))
-            d.append(dw.Path(stroke=src_a_stroke(3), **line_args).M(stack_x+60, cstk_y+8)
-                     .H(stack_x+100).V(src_a_y+64).H(src_a_x))
+            red_stroke = dw.Path(stroke='red', fill='none')
+            black_stroke = dw.Path(stroke='black', fill='none')
+            src_a_stroke = lambda i: red_stroke if t.values['src_a_sel'] == str(i) else black_stroke
+            src_a_stroke(0).M(stack_x+60, stack_y+8).h(20).V(src_a_y+16).H(src_a_x)
+            src_a_stroke(1).M(stack_x+60, fp_y+8).h(20).V(src_a_y+32).H(src_a_x)
+            src_a_stroke(2).M(stack_x+60, ip_y+8).h(30).V(src_a_y+48).H(src_a_x)
+            src_a_stroke(3).M(stack_x+60, cstk_y+8).h(40).V(src_a_y+64).H(src_a_x)
 
-            src_b_stroke = lambda i: 'red' if t.values['imm'] == str(i) else 'black'
-            d.append(dw.Path(stroke=src_b_stroke(0), **line_args).M(stack_x+60, stack_y+16+8)
-                     .H(stack_x+140).V(src_b_y+16).H(src_a_x))
-            d.append(dw.Path(stroke=src_b_stroke(1), **line_args).M(stack_x+60, insn_y+8)
-                     .H(stack_x+140).V(src_b_y+48).H(src_a_x))
+            src_b_stroke = lambda i: red_stroke if t.values['imm'] == str(i) else black_stroke
+            src_b_stroke(0).M(stack_x+60, stack_y+16+8).h(80).V(src_b_y+16).H(src_a_x)
+            src_b_stroke(1).M(stack_x+60, insn_y+8)    .h(80).V(src_b_y+48).H(src_a_x)
 
             try:
                 alu_sel = int(t.values['alu_sel'], 16)
             except ValueError:
                 alu_sel = -1
-            src_a_out_stroke = 'red' if 0 <= alu_sel <= 4 or 16 <= alu_sel else 'black'
-            src_b_out_stroke = 'red' if 15 <= alu_sel else 'black'
-            d.append(dw.Path(stroke=src_a_out_stroke, **line_args).M(src_a_x+30, src_a_y+40).H(alu_x))
-            d.append(dw.Path(stroke=src_b_out_stroke, **line_args).M(src_a_x+30, src_b_y+32)
-                     .H(src_a_x+60).V(src_a_y+40+32).H(alu_x))
+            src_a_out_stroke = red_stroke if 0 <= alu_sel <= 4 or 16 <= alu_sel else black_stroke
+            src_b_out_stroke = red_stroke if 15 <= alu_sel else black_stroke
+            src_a_out_stroke.M(src_a_x+30, src_a_out_y).H(alu_x)
+            src_b_out_stroke.M(src_a_x+30, src_b_out_y).h(30).V(src_a_out_y+32).H(alu_x)
 
-            line_args['stroke'] = 'black'
+            black_stroke.M(alu_x+15, alu_y+80).V(alu_y+64-7.5)
             alu_sel_name = alu_sel_names.get(t.values['alu_sel'], '??')
-            d.append(dw.Path(**line_args).M(alu_x+15, src_a_y+120).V(src_a_y+40-16+64-7.5))
-            d.append(dw.Text(t.values['alu_sel'], 16, alu_x+15, src_a_y+120+16,
+            d.append(dw.Text(t.values['alu_sel'], 16, alu_x+15, alu_y+80+16,
                              text_anchor='end', font_family='Consolas'))
-            d.append(dw.Text(f'({alu_sel_name})', 16, alu_x+20, src_a_y+120+16))
-            d.append(dw.Path(**line_args).M(alu_x+30, src_a_y+40-16+32).H(alu_x+150))
-            d.append(dw.Text('alu_out=', 16, alu_x+120, src_a_y+40-16+32-5, text_anchor='end'))
-            d.append(dw.Text(t.values['alu_out'], 16, alu_x+120, src_a_y+40-16+32-5, font_family='Consolas'))
+            d.append(dw.Text(f'({alu_sel_name})', 16, alu_x+20, alu_y+80+16))
+            d.append(draw_label_value(t, 'alu_out', 16, alu_x+120, alu_y+32-5))
 
-            d.append(dw.Path(**line_args).M(src_a_x+15, src_b_y+80).V(src_b_y+64-7.5))
-            d.append(dw.Text('imm=', 16, src_a_x+30, src_b_y+80+16, text_anchor='end'))
-            d.append(dw.Text(t.values['imm'], 16, src_a_x+30, src_b_y+80+16, font_family='Consolas'))
+            black_stroke.M(alu_x+30, alu_y+32).h(120)
+            black_stroke.M(src_a_x+15, src_b_y+80).V(src_b_y+64-7.5)
+            d.append(draw_label_value(t, 'imm', 16, src_a_x+30, src_b_y+80+16))
+
+            d.append(red_stroke)
+            d.append(black_stroke)
 
             d.save_svg(f'vis-{i}.svg')
 
