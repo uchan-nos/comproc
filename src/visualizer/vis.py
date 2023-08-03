@@ -73,6 +73,15 @@ def draw_stack(stack, **args):
     return g
 
 
+def draw_reg(name, value, **args):
+    g = dw.Group(id='reg-' + name, **args)
+    g.append(dw.Text(name, 16, -5, 8, text_anchor='end', dominant_baseline='middle'))
+    g.append(dw.Rectangle(0, 0, 60, 16, fill='none', stroke='black'))
+    g.append(dw.Text(value, 16, 60//2, 16//2, center=True, font_family='Consolas'))
+    return g
+
+
+
 def gen_text_appender(d):
     j = 0
     def append_text(s):
@@ -101,9 +110,9 @@ def gen_frames():
             append_text = gen_text_appender(d)
             append_text('Reset: ' + ('enable' if t.values['rst'] == '1' else 'disable'))
             append_text('Phase: ' + phase_names[t.values['phase']])
-            append_text('REG[fp]: ' + t.values['fp'])
-            append_text('REG[ip]: ' + t.values['ip'])
-            append_text('REG[insn]: ' + t.values['insn'])
+            d.append(draw_reg('fp', t.values['fp'], transform='translate(50, 200)'))
+            d.append(draw_reg('ip', t.values['ip'], transform='translate(50, 220)'))
+            d.append(draw_reg('insn', t.values['insn'], transform='translate(50, 240)'))
             d.save_svg(f'vis-{i}.svg')
 
             cpu.clk(t)
