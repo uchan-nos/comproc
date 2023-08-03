@@ -73,6 +73,15 @@ def draw_stack(stack, **args):
     return g
 
 
+def gen_text_appender(d):
+    j = 0
+    def append_text(s):
+        nonlocal j
+        d.append(dw.Text(s, 12, 5, 34 + 16*j))
+        j += 1
+    return append_text
+
+
 def gen_frames():
     cpu = CPU()
     print(f'gen_frames: stack = {cpu.stack[0:2]}')
@@ -87,8 +96,14 @@ def gen_frames():
             d.append(dw.Rectangle(0, 0, d.width, d.height, fill='white'))
             d.append(dw.Text('ComProc CPU Visualizer', 12, 5, 15))
             d.append(dw.Rectangle(5, 20, d.width - 10, d.height - 25, fill='none', stroke='gray', stroke_width=1))
-            d.append(draw_alu(transform=f'translate({t.time}, 50)'))
-            d.append(draw_stack(cpu.stack, transform='translate(10, 30)'))
+            d.append(draw_alu(transform=f'translate(300, 50)'))
+            d.append(draw_stack(cpu.stack, transform='translate(150, 50)'))
+            append_text = gen_text_appender(d)
+            append_text('Reset: ' + ('enable' if t.values['rst'] == '1' else 'disable'))
+            append_text('Phase: ' + phase_names[t.values['phase']])
+            append_text('REG[fp]: ' + t.values['fp'])
+            append_text('REG[ip]: ' + t.values['ip'])
+            append_text('REG[insn]: ' + t.values['insn'])
             d.save_svg(f'vis-{i}.svg')
 
             cpu.clk(t)
@@ -102,6 +117,13 @@ index_template = jinja_env.get_template('index-template.html')
 vis_template = jinja_env.get_template('vis-template.html')
 frame_filepath_pat = re.compile('/vis-[0-9]+.svg')
 max_frame = -1
+phase_names = {
+    '0': 'Decode',
+    '1': 'Execute',
+    '2': 'RDMem',
+    '3': 'Fetch',
+    'x': '----'
+}
 
 
 def set_max_frame():
