@@ -234,6 +234,9 @@ int main(void) {
       if (*endptr != '\0') {
         fprintf(stderr, "postfix must be an integer: '%s'\n", sep + 1);
         exit(1);
+      } else if (!(postfix == 0 || postfix == 1)) {
+        fprintf(stderr, "only 0 or 1 is suported as postfix: %d\n", postfix);
+        exit(1);
       }
     }
 
@@ -264,13 +267,13 @@ int main(void) {
     } else if (strcmp(mnemonic, "ld") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = postfix == 1 ? 0x2000 : 0x4000;
-      insn[ip >> 1] |= (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = postfix ? 0x2000 : 0x4000;
+      insn[ip >> 1] |= (ab << 10) | ((0x3fe + postfix) & off);
     } else if (strcmp(mnemonic, "st") == 0) {
       uint16_t off;
       enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = postfix == 1 ? 0x3000 : 0x4001;
-      insn[ip >> 1] |= (ab << 10) | (0x3fe & off);
+      insn[ip >> 1] = postfix ? 0x3000 : 0x4001;
+      insn[ip >> 1] |= (ab << 10) | ((0x3fe + postfix) & off);
     } else if (strcmp(mnemonic, "add") == 0) {
       if (num_opr == 0) {
         insn[ip >> 1] = 0x7060;
@@ -360,11 +363,11 @@ int main(void) {
       }
       insn[ip >> 1] = 0x7803;
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[ip >> 1] = 0x7808 | (postfix == 1);
+      insn[ip >> 1] = 0x7808 | postfix;
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[ip >> 1] = 0x780c | (postfix == 1);
+      insn[ip >> 1] = 0x780c | postfix;
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[ip >> 1] = 0x780e | (postfix == 1);
+      insn[ip >> 1] = 0x780e | postfix;
     } else if (strcmp(mnemonic, "db") == 0) {
       ip += DataByte(&insn[ip >> 1], operands, num_opr);
       if (ip & 1) {
