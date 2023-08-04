@@ -193,10 +193,12 @@ always @(posedge clk) begin
       16'b0000_xxxx_xxxx_xxx1: insn_name <= "call";
       16'b0001_xxxx_xxxx_xxx0: insn_name <= "jz";
       16'b0001_xxxx_xxxx_xxx1: insn_name <= "jnz";
-      16'b0010_xxxx_xxxx_xxx0: insn_name <= "ld";
-      16'b0010_xxxx_xxxx_xxx1: insn_name <= "st";
-      16'b0011_xxxx_xxxx_xxxx: insn_name <= "pushi";
-      16'b0100_00xx_xxxx_xxxx: insn_name <= "addfp";
+      16'b0010_xxxx_xxxx_xxxx: insn_name <= "ld.1";
+      16'b0011_xxxx_xxxx_xxxx: insn_name <= "st.1";
+      16'b0100_xxxx_xxxx_xxx0: insn_name <= "ld";
+      16'b0100_xxxx_xxxx_xxx1: insn_name <= "st";
+      16'b0101_xxxx_xxxx_xxxx: insn_name <= "push";
+      16'b0110_00xx_xxxx_xxxx: insn_name <= "addfp";
       16'b0111_0000_0000_0000: insn_name <= "nop";
       16'b0111_0000_0100_1111: insn_name <= "pop";
       16'b0111_0000_0100_0000: insn_name <= "pop1";
