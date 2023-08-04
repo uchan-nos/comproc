@@ -123,6 +123,99 @@ def draw_label_value(t, label, font_size, x, y, **args):
     return g
 
 
+def get_insn_name(insn):
+    try:
+        insn = int(insn, 16)
+    except ValueError:
+        return '----'
+
+    if insn & 0x8000:
+        return 'PUSH'
+    insn4 = insn & 0xf000
+    insn41 = insn & 0xf001
+    if insn41 == 0x0000:
+        return 'JMP'
+    elif insn41 == 0x0001:
+        return 'CALL'
+    elif insn41 == 0x1000:
+        return 'JZ'
+    elif insn41 == 0x1001:
+        return 'JNZ'
+    elif insn4 == 0x2000:
+        return 'LD.1'
+    elif insn4 == 0x3000:
+        return 'ST.1'
+    elif insn41 == 0x4000:
+        return 'LD'
+    elif insn41 == 0x4001:
+        return 'ST'
+    elif insn4 == 0x5000:
+        return 'PUSH'
+    elif (insn & 0xfc00) == 0x6000:
+        return 'ADDFP'
+    elif insn == 0x7000:
+        return 'NOP'
+    elif insn == 0x704f:
+        return 'POP'
+    elif insn == 0x7040:
+        return 'POP 1'
+    elif insn == 0x7001:
+        return 'INC'
+    elif insn == 0x7002:
+        return 'INC2'
+    elif insn == 0x7004:
+        return 'NOP'
+    elif insn == 0x7050:
+        return 'AND'
+    elif insn == 0x7051:
+        return 'OR'
+    elif insn == 0x7052:
+        return 'XOR'
+    elif insn == 0x7054:
+        return 'SHR'
+    elif insn == 0x7055:
+        return 'SAR'
+    elif insn == 0x7056:
+        return 'SHL'
+    elif insn == 0x7057:
+        return 'JOIN'
+    elif insn == 0x7060:
+        return 'ADD'
+    elif insn == 0x7061:
+        return 'SUB'
+    elif insn == 0x7062:
+        return 'MUL'
+    elif insn == 0x7068:
+        return 'LT'
+    elif insn == 0x7069:
+        return 'EQ'
+    elif insn == 0x706a:
+        return 'NEQ'
+    elif insn == 0x7080:
+        return 'DUP'
+    elif insn == 0x708f:
+        return 'DUP 1'
+    elif insn == 0x7800:
+        return 'RET'
+    elif insn == 0x7802:
+        return 'CPOP FP'
+    elif insn == 0x7803:
+        return 'CPUSH FP'
+    elif insn == 0x7808:
+        return 'LDD'
+    elif insn == 0x780c:
+        return 'STA'
+    elif insn == 0x780e:
+        return 'STD'
+    elif insn == 0x7809:
+        return 'LDD.1'
+    elif insn == 0x780d:
+        return 'STA.1'
+    elif insn == 0x780f:
+        return 'STD.1'
+    return 'UNDEF'
+
+
 stack_x = 350
 stack_y = 150
 stack_mux_x = stack_x-60
@@ -174,6 +267,8 @@ def gen_frames():
             d.append(draw_mux2(transform=f'translate({src_a_x}, {src_b_y})'))
             d.append(draw_stack('stack', cpu.stack, 16, transform=f'translate(640, 320)'))
             d.append(draw_stack('cstack', cpu.cstack, 16, transform=f'translate(710, 320)'))
+
+            d.append(dw.Text(get_insn_name(t.values['insn']), 12, stack_x+30, insn_y+32, text_anchor='middle'))
 
             red_stroke = dw.Path(stroke='red', fill='none')
             black_stroke = dw.Path(stroke='black', fill='none')
@@ -309,12 +404,17 @@ def set_max_frame():
 
 
 def render_vis_html():
-    try:
-        with open('vis.hex') as f:
-            hex = f.read()
-    except FileNotFoundError:
-        hex = 'vis.hex not found'
-    return vis_template.render(max_frame=max_frame, program_hex=hex)
+    def read(filename):
+        try:
+            with open(filename) as f:
+                dat = f.read()
+        except FileNotFoundError:
+            dat = f'filename found'
+        return dat
+
+    asm = read('vis.asm')
+    hex = read('vis.hex')
+    return vis_template.render(max_frame=max_frame, program_asm=asm, program_hex=hex)
 
 
 def main():
@@ -363,6 +463,8 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             asm = post_dict['program'][0].replace('\r\n', '\n')
+            with open('vis.asm', 'w') as f:
+                f.write(asm)
             p_asm = subprocess.run(['../assembler/uasm'], input=asm, text=True, capture_output=True)
             if p_asm.returncode != 0:
                 print('uasm error: ', p_asm.stderr)

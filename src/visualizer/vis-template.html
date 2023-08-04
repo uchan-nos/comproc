@@ -20,9 +20,13 @@
     <input type="button" value="Next Frame →" onclick="nextFrame();">
 </p>
 <h3>Machine code</h3>
-<p>
+<code>
 {{ program_hex }}
-</p>
+</code>
+<h3>Assembly code</h3>
+<pre><code>
+{{ program_asm }}
+</code></pre>
 
     <script type="text/javascript">
         let frame = 0;
