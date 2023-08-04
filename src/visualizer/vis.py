@@ -177,13 +177,15 @@ def gen_frames():
 
             red_stroke = dw.Path(stroke='red', fill='none')
             black_stroke = dw.Path(stroke='black', fill='none')
-            src_a_stroke = lambda i: red_stroke if t.values['src_a_sel'] == str(i) else black_stroke
+            stroke = lambda use: red_stroke if use else black_stroke
+
+            src_a_stroke = lambda i: stroke(t.values['src_a_sel'] == str(i))
             src_a_stroke(0).M(stack_x+60, stack_y+8).h(20).V(src_a_y+16).H(src_a_x)
             src_a_stroke(1).M(stack_x+60, fp_y+8).h(20).V(src_a_y+32).H(src_a_x)
             src_a_stroke(2).M(stack_x+60, ip_y+8).h(30).V(src_a_y+48).H(src_a_x)
             src_a_stroke(3).M(stack_x+60, cstk_y+8).h(40).V(src_a_y+64).H(src_a_x)
 
-            src_b_stroke = lambda i: red_stroke if t.values['imm'] == str(i) else black_stroke
+            src_b_stroke = lambda i: stroke(t.values['imm'] == str(i))
             src_b_stroke(0).M(stack_x+60, stack_y+16+8).h(80).V(src_b_y+16).H(src_a_x)
             src_b_stroke(1).M(stack_x+60, insn_y+8)    .h(80).V(src_b_y+48).H(src_a_x)
             d.append(draw_label_value(t, 'imm_mask', 16, stack_x+60+80+30, insn_y+8+16))
@@ -192,8 +194,8 @@ def gen_frames():
                 alu_sel = int(t.values['alu_sel'], 16)
             except ValueError:
                 alu_sel = -1
-            src_a_out_stroke = red_stroke if 0 <= alu_sel <= 4 or 16 <= alu_sel else black_stroke
-            src_b_out_stroke = red_stroke if 15 <= alu_sel else black_stroke
+            src_a_out_stroke = stroke(0 <= alu_sel <= 4 or 16 <= alu_sel)
+            src_b_out_stroke = stroke(15 <= alu_sel)
             src_a_out_stroke.M(src_a_x+30, src_a_out_y).H(alu_x)
             src_b_out_stroke.M(src_a_x+30, src_b_out_y).h(20).V(src_a_out_y+32).H(alu_x)
 
@@ -209,23 +211,14 @@ def gen_frames():
             load_ip = t.values['load_ip'] == '1'
             cpush = t.values['cpush'] == '1'
 
-            (red_stroke if load_stk or load_fp or load_ip or cpush else black_stroke) \
-                .M(alu_x+30, alu_y+32).h(40).V(50).H(stack_mux_x-50).V(stack_mux_y+16)
-            (red_stroke if load_fp or load_ip or cpush else black_stroke) \
-                .M(stack_mux_x-50, stack_mux_y+16).V(fp_y+8)
-            (red_stroke if load_ip or cpush else black_stroke) \
-                .M(stack_mux_x-50, fp_y+8).V(ip_y+8)
-            (red_stroke if cpush else black_stroke) \
-                .M(stack_mux_x-50, ip_y+8).V(cstk_y+8).H(stack_x)
-            (red_stroke if load_ip else black_stroke) \
-                .M(stack_mux_x-50, ip_y+8).H(stack_x)
-            (red_stroke if load_fp else black_stroke) \
-                .M(stack_mux_x-50, fp_y+8).H(stack_x)
-            (red_stroke if load_stk else black_stroke) \
-                .M(stack_mux_x-50, stack_mux_y+16).H(stack_mux_x)
+            draw_alu_common = lambda use: \
+                stroke(use).M(alu_x+30, alu_y+32).h(40).V(50).H(stack_mux_x-50).V(stack_mux_y+16)
+            draw_alu_common(load_stk).H(stack_mux_x)
+            draw_alu_common(load_fp ).V(fp_y+8).H(stack_x)
+            draw_alu_common(load_ip ).V(ip_y+8).H(stack_x)
+            draw_alu_common(cpush   ).V(cstk_y+8).H(stack_x)
 
-            stack_in_stroke = red_stroke if t.values['load_stk'] == '1' else black_stroke
-            stack_in_stroke.M(stack_mux_x+30, stack_y+8).H(stack_x)
+            stroke(t.values['load_stk'] == '1').M(stack_mux_x+30, stack_y+8).H(stack_x)
 
             stack_rd_mem = t.values['rd_mem'] == '1' and t.values['load_stk'] == '1'
 
@@ -234,17 +227,12 @@ def gen_frames():
 
             d.append(draw_label_value(t, 'rd_data', 16, rd_data_x, rd_data_y-5))
             d.append(draw_label_value(t, 'stack_in', 16, stack_x, stack_y-30))
-            (red_stroke if t.values['phase'] == '3' or stack_rd_mem else black_stroke) \
-                .M(rd_data_x, rd_data_y).h(60)
-            (red_stroke if t.values['phase'] == '3' else black_stroke) \
-                .M(rd_data_x, rd_data_y).h(60).V(insn_y+8).H(stack_x)
-            (red_stroke if stack_rd_mem else black_stroke) \
-                .M(rd_data_x+60, rd_data_y).V(stack_mux_y+48).H(stack_mux_x)
+            stroke(t.values['phase'] == '3' or stack_rd_mem).M(rd_data_x, rd_data_y).h(60)
+            stroke(t.values['phase'] == '3').M(rd_data_x, rd_data_y).h(60).V(insn_y+8).H(stack_x)
+            stroke(stack_rd_mem).M(rd_data_x+60, rd_data_y).V(stack_mux_y+48).H(stack_mux_x)
 
-            (red_stroke if t.values['wr_stk1'] == '0' else black_stroke) \
-                .M(stack_x+60, stack_y+8).h(20).V(wr_mux_y+16).H(alu_x)
-            (red_stroke if t.values['wr_stk1'] == '1' else black_stroke) \
-                .M(stack_x+60, stack_y+8+16).h(80).V(wr_mux_y+48).H(alu_x)
+            stroke(t.values['wr_stk1'] == '0').M(stack_x+60, stack_y+8).h(20).V(wr_mux_y+16).H(alu_x)
+            stroke(t.values['wr_stk1'] == '1').M(stack_x+60, stack_y+8+16).h(80).V(wr_mux_y+48).H(alu_x)
             black_stroke.M(alu_x+15, wr_mux_y+80).V(wr_mux_y+64-7.5)
             d.append(draw_label_value(t, 'wr_stk1', 16, alu_x+45, wr_mux_y+80+16))
             black_stroke.M(alu_x+30, wr_mux_y+32).h(100)
