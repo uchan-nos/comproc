@@ -33,6 +33,10 @@ logic [1:0] phase_num;
 assign phase_num = cpu.signals.phase_decode ? 0
                    : cpu.signals.phase_exec ? 1
                    : cpu.signals.phase_rdmem ? 2 : 3;
+logic [1:0] src_a_sel;
+assign src_a_sel = cpu.src_a_fp ? 2'd1
+                   : cpu.src_a_ip ? 2'd2
+                   : cpu.src_a_cstk ? 2'd3 : 2'd0;
 
 // CPU を接続する
 logic rst, clk;
@@ -113,7 +117,7 @@ always @(posedge clk) begin
               stack0, cpu.fp, cpu.ip, cpu.insn, cpu.cstack0,
               // セレクト信号
               "alu_sel=%x src_a_sel=%x imm=%x ",
-              cpu.signals.alu_sel, cpu.signals.decoder.src_a, cpu.imm,
+              cpu.signals.alu_sel, src_a_sel, cpu.imm,
               "rd_mem=%x wr_stk1=%x ",
               cpu.rd_mem, cpu.wr_stk1,
               // 制御信号
