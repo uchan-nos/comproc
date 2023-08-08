@@ -2,6 +2,7 @@
 
 import argparse
 import serial
+from serial.tools.list_ports import comports
 
 
 def hex_to_bytes(hex_list, unit, byte_order):
@@ -22,8 +23,14 @@ def receive_stdout(filename, ser):
 
 
 def main():
+    devs = comports()
+    if devs:
+        default_dev = devs[0].device
+    else:
+        default_dev = '/dev/ttyUSB0'
+
     p = argparse.ArgumentParser()
-    p.add_argument('--dev', default='/dev/ttyUSB0',
+    p.add_argument('--dev', default=default_dev,
                    help='path to a serial device')
     p.add_argument('--unit', type=int, default=1,
                    help='the number of bytes of a hex value')
