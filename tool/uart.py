@@ -3,6 +3,7 @@
 import argparse
 import serial
 from serial.tools.list_ports import comports
+import sys
 
 
 def hex_to_bytes(hex_list, unit, byte_order):
@@ -40,12 +41,24 @@ def main():
                    help='do not wait for result/stdout')
     p.add_argument('--stdout',
                    help='path to a file to hold bytes received')
-    p.add_argument('hex', nargs='+',
+    p.add_argument('--file',
+                   help='read values from file instead of command arguments')
+    p.add_argument('hex', nargs='*',
                    help='list of hex values to send')
 
     args = p.parse_args()
 
-    bytes_to_send = hex_to_bytes(args.hex, args.unit, 'big')
+    if args.file is not None:
+        with open(args.file) as f:
+            file_data = f.read()
+        hex_list = file_data.split()
+    else:
+        hex_list = args.hex
+    if not hex_list:
+        print('no data to send', file=sys.stderr)
+        sys.exit(1)
+
+    bytes_to_send = hex_to_bytes(hex_list, args.unit, 'big')
     ser = serial.Serial(args.dev, 115200, timeout=args.timeout,
                         bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                         stopbits=serial.STOPBITS_ONE)
