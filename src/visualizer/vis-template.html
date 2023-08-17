@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta chatset="utf-8">
+    <title>Visualisation</title>
+    <!--
+    <link rel="stylesheet" type="text/css" href="css/vis.css">
+    <script type="text/javascript" src="js/vis.js"></script>
+    -->
+</head>
+<body>
+<p>
+    <img id="frame_img" src="vis-0.svg" alt="Frame 000000">
+</p>
+<p>
+    <input type="button" value="← Prev Frame" onclick="prevFrame();">
+    <input type="number" value="0" size="3" min="0" max="{{ max_frame }}"
+        onchange="onChangeFrameNumber();" id="frame_number">
+    <span> / {{ max_frame }}</span>
+    <input type="button" value="Next Frame →" onclick="nextFrame();">
+</p>
+<h3>Machine code</h3>
+<code>
+{{ program_hex }}
+</code>
+<h3>Assembly code</h3>
+<pre><code>
+{{ program_asm }}
+</code></pre>
+
+    <script type="text/javascript">
+        let frame = 0;
+        let frame_image = document.getElementById('frame_img');
+        function jumpToFrame(to) {
+            if (to < 0 || to > {{ max_frame }}) {
+                return;
+            }
+            frame = to;
+            frame_image.src = 'vis-' + frame + '.svg';
+            document.getElementById('frame_number').value = frame;
+        }
+        function nextFrame() {
+            jumpToFrame(frame + 1);
+        }
+        function prevFrame() {
+            jumpToFrame(frame - 1);
+        }
+        function onChangeFrameNumber() {
+            let to = parseInt(document.getElementById('frame_number').value);
+            if (to < 0) {
+                to = 0;
+            } else if (to > {{ max_frame }}) {
+                to = {{ max_frame }};
+            }
+            document.getElementById('frame_number').value = to;
+            jumpToFrame(to);
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.code == 'ArrowLeft') {
+                prevFrame();
+            } else if (event.code == 'ArrowRight') {
+                nextFrame();
+            }
+        });
+    </script>
+</body>
+</html>
