@@ -66,7 +66,7 @@ def draw_alu(**args):
 
 
 def draw_mux2(**args):
-    g = dw.Group(id='alu', **args)
+    g = dw.Group(id='mux2', **args)
     p = dw.Path(fill='none', stroke='black')
     p.M(0, 0).L(0, 64).L(30, 64-15).L(30, 15).Z()
     g.append(p)
@@ -77,7 +77,7 @@ def draw_mux2(**args):
 
 
 def draw_mux4(**args):
-    g = dw.Group(id='alu', **args)
+    g = dw.Group(id='mux4', **args)
     p = dw.Path(fill='none', stroke='black')
     p.M(0, 0).L(0, 80).L(30, 65).L(30, 15).Z()
     g.append(p)
@@ -106,6 +106,12 @@ def draw_reg(name, value, **args):
     return g
 
 
+def draw_byte_format(**args):
+    g = dw.Group(id='byte_format', **args)
+    g.append(dw.Text('byte_format', 16, 15, -5, text_anchor='middle'))
+    g.append(dw.Rectangle(0, 0, 30, 64, fill='none', stroke='black'))
+    return g
+
 
 def gen_text_appender(d):
     j = 0
@@ -116,11 +122,15 @@ def gen_text_appender(d):
     return append_text
 
 
-def draw_label_value(t, label, font_size, x, y, **args):
+def draw_label_value(label, value, font_size, x, y, **args):
     g = dw.Group(id='lv-' + label, **args)
     g.append(dw.Text(label + '=', font_size, x, y, text_anchor='end'))
-    g.append(dw.Text(t.values[label], font_size, x, y, text_anchor='start', font_family='Consolas'))
+    g.append(dw.Text(value, font_size, x, y, text_anchor='start', font_family='Consolas'))
     return g
+
+
+def draw_signal(t, label, font_size, x, y, **args):
+    return draw_label_value(label, t.values[label], font_size, x, y, **args)
 
 
 def get_insn_name(insn):
@@ -232,8 +242,10 @@ src_b_out_y = src_b_y+32
 alu_x = 620
 alu_y = src_a_out_y-16
 wr_mux_y = 70
-rd_data_x = 100
+rd_data_x = 30
 rd_data_y = 200
+byte_format_x = 150
+byte_format_y = stack_mux_y+48-32
 
 
 def gen_frames():
@@ -267,6 +279,7 @@ def gen_frames():
             d.append(draw_mux2(transform=f'translate({src_a_x}, {src_b_y})'))
             d.append(draw_stack('stack', cpu.stack, 16, transform=f'translate(640, 320)'))
             d.append(draw_stack('cstack', cpu.cstack, 16, transform=f'translate(710, 320)'))
+            d.append(draw_byte_format(transform=f'translate({byte_format_x}, {byte_format_y})'))
 
             d.append(dw.Text(get_insn_name(t.values['insn']), 12, stack_x+30, insn_y+32, text_anchor='middle'))
 
@@ -283,7 +296,7 @@ def gen_frames():
             src_b_stroke = lambda i: stroke(t.values['imm'] == str(i))
             src_b_stroke(0).M(stack_x+60, stack_y+16+8).h(80).V(src_b_y+16).H(src_a_x)
             src_b_stroke(1).M(stack_x+60, insn_y+8)    .h(80).V(src_b_y+48).H(src_a_x)
-            d.append(draw_label_value(t, 'imm_mask', 16, stack_x+60+80+30, insn_y+8+16))
+            d.append(draw_signal(t, 'imm_mask', 16, stack_x+60+80+30, insn_y+8+16))
 
             try:
                 alu_sel = int(t.values['alu_sel'], 16)
@@ -299,7 +312,7 @@ def gen_frames():
             d.append(dw.Text(t.values['alu_sel'], 16, alu_x+15, alu_y+80+16,
                              text_anchor='end', font_family='Consolas'))
             d.append(dw.Text(f'({alu_sel_name})', 16, alu_x+20, alu_y+80+16))
-            d.append(draw_label_value(t, 'alu_out', 16, alu_x+120, alu_y+32+16))
+            d.append(draw_signal(t, 'alu_out', 16, alu_x+120, alu_y+32+16))
 
             load_stk = t.values['load_stk'] == '1'
             load_fp = t.values['load_fp'] == '1'
@@ -319,28 +332,38 @@ def gen_frames():
             stack_rd_mem = t.values['rd_mem'] == '1' and t.values['load_stk'] == '1'
 
             black_stroke.M(src_a_x+15, src_a_y+96).V(src_a_y+80-7.5)
-            d.append(draw_label_value(t, 'src_a_sel', 16, src_a_x+35, src_a_y+96+16))
+            d.append(draw_signal(t, 'src_a_sel', 16, src_a_x+35, src_a_y+96+16))
             black_stroke.M(src_a_x+15, src_b_y+80).V(src_b_y+64-7.5)
-            d.append(draw_label_value(t, 'imm', 16, src_a_x+30, src_b_y+80+16))
+            d.append(draw_signal(t, 'imm', 16, src_a_x+30, src_b_y+80+16))
 
-            d.append(draw_label_value(t, 'rd_data', 16, rd_data_x, rd_data_y-5))
-            d.append(draw_label_value(t, 'stack_in', 16, stack_x, stack_y-30))
+            d.append(dw.Text('rd_data', 16, rd_data_x, rd_data_y-5))
+            d.append(dw.Text(t.values['rd_data'], 16, rd_data_x, rd_data_y+16, font_family='Consolas'))
+            #d.append(draw_label_value(t, 'rd_data', 16, rd_data_x, rd_data_y-5))
+            d.append(draw_signal(t, 'stack_in', 16, stack_x, stack_y-30))
             d.append(dw.Path(stroke='black', fill='none', stroke_dasharray='2,2').M(stack_x-10, stack_y-25).v(30))
-            stroke(t.values['phase'] == '3' or stack_rd_mem).M(rd_data_x, rd_data_y).h(60)
-            stroke(t.values['phase'] == '3').M(rd_data_x, rd_data_y).h(60).V(insn_y+8).H(stack_x)
-            stroke(stack_rd_mem).M(rd_data_x+60, rd_data_y).V(stack_mux_y+48).H(stack_mux_x)
+            stroke(t.values['phase'] == '3').M(rd_data_x, rd_data_y).h(80).V(insn_y+8).H(stack_x)
+            stroke(stack_rd_mem).M(rd_data_x, rd_data_y).h(80).V(byte_format_y+48).H(byte_format_x)
+            stroke(stack_rd_mem).M(byte_format_x-50, byte_format_y+16).H(byte_format_x)
+            stroke(stack_rd_mem).M(byte_format_x+30, byte_format_y+32).H(stack_mux_x)
+
+            try:
+                addr_d1 = int(t.values['addr_d'], 16)
+                addr_d1 = str(addr_d1 & 1)
+            except ValueError:
+                addr_d1 = '-'
+            d.append(draw_label_value('addr_d1', addr_d1, 16, byte_format_x-30, byte_format_y+16-5))
 
             stroke(t.values['wr_stk1'] == '0').M(stack_x+60, stack_y+8).h(20).V(wr_mux_y+16).H(alu_x)
             stroke(t.values['wr_stk1'] == '1').M(stack_x+60, stack_y+8+16).h(80).V(wr_mux_y+48).H(alu_x)
             black_stroke.M(alu_x+15, wr_mux_y+80).V(wr_mux_y+64-7.5)
-            d.append(draw_label_value(t, 'wr_stk1', 16, alu_x+45, wr_mux_y+80+16))
+            d.append(draw_signal(t, 'wr_stk1', 16, alu_x+45, wr_mux_y+80+16))
             black_stroke.M(alu_x+30, wr_mux_y+32).h(100)
             d.append(dw.Text('wr_data', 16, alu_x+80, wr_mux_y+32-5))
             d.append(dw.Text(t.values['wr_data'], 16, alu_x+80, wr_mux_y+32+16, font_family='Consolas'))
             #d.append(draw_label_value(t, 'wr_data', 16, alu_x+120, wr_mux_y+32-5))
 
             black_stroke.M(stack_mux_x+15, stack_mux_y+80).V(stack_mux_y+64-7.5)
-            d.append(draw_label_value(t, 'rd_mem', 16, stack_mux_x+40, stack_mux_y+80+16))
+            d.append(draw_signal(t, 'rd_mem', 16, stack_mux_x+40, stack_mux_y+80+16))
 
             d.append(black_stroke)
             d.append(red_stroke)

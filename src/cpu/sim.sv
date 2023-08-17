@@ -126,8 +126,8 @@ always @(posedge clk) begin
               "cpop=%x cpush=%x ",
               cpu.cpop, cpu.cpush,
               // データ値
-              "rd_data=%x wr_data=%x ",
-              rd_data, wr_data,
+              "rd_data=%x wr_data=%x addr_d=%x ",
+              rd_data, wr_data, cpu.addr_d,
               "alu_out=%x src_a=%x src_b=%x stack_in=%x imm_mask=%x ",
               cpu.alu_out, cpu.src_a, cpu.src_b, cpu.stack_in, cpu.imm_mask
              );
