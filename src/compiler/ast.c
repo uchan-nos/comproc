@@ -493,9 +493,8 @@ void PrintNode(struct Node *n, int indent, const char *key) {
     return;
   }
 
-  int key_len = key ? strlen(key) : 0;
-
   printf("%*s", indent, "");
+  indent += key ? strlen(key) : 0;
   if (key) {
     printf("%s", key);
   }
@@ -509,24 +508,24 @@ void PrintNode(struct Node *n, int indent, const char *key) {
   if (n->lhs == NULL && n->rhs == NULL && n->cond == NULL) {
     printf("]\n");
     if (n->next) {
-      PrintNode(n->next, indent + key_len, NULL);
+      PrintNode(n->next, indent, NULL);
     }
     return;
   }
 
   printf("\n");
   if (n->lhs) {
-    PrintNode(n->lhs, indent + key_len + 1, "lhs=");
-  }
-  if (n->rhs) {
-    PrintNode(n->rhs, indent + key_len + 1, "rhs=");
+    PrintNode(n->lhs, indent + 1, "lhs=");
   }
   if (n->cond) {
-    PrintNode(n->cond, indent + key_len + 1, "cond=");
+    PrintNode(n->cond, indent + 1, "cond=");
+  }
+  if (n->rhs) {
+    PrintNode(n->rhs, indent + 1, "rhs=");
   }
   printf("%*s] (%s)\n", indent, "", node_kind_name[n->kind]);
 
   if (n->next) {
-    PrintNode(n->next, indent + key_len, NULL);
+    PrintNode(n->next, indent, NULL);
   }
 }
