@@ -499,7 +499,8 @@ void PrintNode(struct Node *n, int indent, const char *key) {
   if (key) {
     printf("%s", key);
   }
-  printf("[%s token='%.*s' type=", node_kind_name[n->kind], n->token->len, n->token->raw);
+  printf("[%d %s token='%.*s' type=",
+         n->index, node_kind_name[n->kind], n->token->len, n->token->raw);
   if (n->type) {
     PrintType(stdout, n->type);
   } else {
