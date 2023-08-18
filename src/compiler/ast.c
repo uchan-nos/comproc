@@ -487,45 +487,45 @@ static const char *node_kind_name[] = {
   "PList",
 };
 
-void PrintNode(struct Node *n, int indent, const char *key) {
+void PrintNode(FILE *out, struct Node *n, int indent, const char *key) {
   if (n == NULL) {
-    printf("%*snull\n", indent, "");
+    fprintf(out, "%*snull\n", indent, "");
     return;
   }
 
-  printf("%*s", indent, "");
+  fprintf(out, "%*s", indent, "");
   indent += key ? strlen(key) : 0;
   if (key) {
-    printf("%s", key);
+    fprintf(out, "%s", key);
   }
-  printf("[%d %s token='%.*s' type=",
+  fprintf(out, "[%d %s token='%.*s' type=",
          n->index, node_kind_name[n->kind], n->token->len, n->token->raw);
   if (n->type) {
-    PrintType(stdout, n->type);
+    PrintType(out, n->type);
   } else {
-    printf("null");
+    fprintf(out, "null");
   }
   if (n->lhs == NULL && n->rhs == NULL && n->cond == NULL) {
-    printf("]\n");
+    fprintf(out, "]\n");
     if (n->next) {
-      PrintNode(n->next, indent, NULL);
+      PrintNode(out, n->next, indent, NULL);
     }
     return;
   }
 
-  printf("\n");
+  fprintf(out, "\n");
   if (n->lhs) {
-    PrintNode(n->lhs, indent + 1, "lhs=");
+    PrintNode(out, n->lhs, indent + 1, "lhs=");
   }
   if (n->cond) {
-    PrintNode(n->cond, indent + 1, "cond=");
+    PrintNode(out, n->cond, indent + 1, "cond=");
   }
   if (n->rhs) {
-    PrintNode(n->rhs, indent + 1, "rhs=");
+    PrintNode(out, n->rhs, indent + 1, "rhs=");
   }
-  printf("%*s] (%s)\n", indent, "", node_kind_name[n->kind]);
+  fprintf(out, "%*s] (%s)\n", indent, "", node_kind_name[n->kind]);
 
   if (n->next) {
-    PrintNode(n->next, indent, NULL);
+    PrintNode(out, n->next, indent, NULL);
   }
 }

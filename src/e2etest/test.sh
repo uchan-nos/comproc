@@ -31,7 +31,7 @@ function test_prog() {
     uart_out_opt_uart=""
   fi
 
-  bin="$(echo "$src" | ../compiler/ucc | ../assembler/uasm) ffff"
+  bin="$(echo "$src" | ../compiler/ucc -o - - | ../assembler/uasm) ffff"
 
   case $target in
     sim)

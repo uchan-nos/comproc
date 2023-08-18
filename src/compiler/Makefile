@@ -1,5 +1,5 @@
 OBJS   = main.o ast.o insn.o symbol.o token.o type.o
-CFLAGS = -Wall -Wextra -O0 -g -DNODE_COMMENT
+CFLAGS = -Wall -Wextra -O0 -g
 
 .PHONY: all
 all: ucc

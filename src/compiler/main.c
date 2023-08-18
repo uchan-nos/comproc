@@ -44,6 +44,7 @@ struct GenContext {
   struct JumpLabels jump_labels;
   int num_line;
   struct AsmLine asm_lines[MAX_LINE];
+  int print_ast;
 };
 
 int GenLabel(struct GenContext *ctx) {
@@ -170,16 +171,14 @@ struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
   return l;
 }
 
-#ifdef NODE_COMMENT
 #define PRINT_NODE_COMMENT(ctx, n, s) \
   do { \
-    struct AsmLine *l = GenAsmLine((ctx), kAsmLineIndentedComment); \
-    snprintf(l->comment, sizeof(l->comment), \
-             "Node[%d]: %s", (n->index), (s)); \
+    if ((ctx)->print_ast) { \
+      struct AsmLine *l = GenAsmLine((ctx), kAsmLineIndentedComment); \
+      snprintf(l->comment, sizeof(l->comment), \
+              "Node[%d]: %s", (n->index), (s)); \
+    } \
   } while (0)
-#else
-#define PRINT_NODE_COMMENT(ctx, n, s)
-#endif
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
@@ -579,24 +578,69 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 }
 
 int main(int argc, char **argv) {
+  int print_ast = 0;
+  const char *input_filename = NULL;
+  const char *output_filename = "a.s";
+
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--ast") == 0) {
+      print_ast = 1;
+    } else if (strcmp(argv[i], "-o") == 0) {
+      i++;
+      if (i >= argc) {
+        fprintf(stderr, "output file name is not specified\n");
+        exit(1);
+      }
+      output_filename = argv[i];
+    } else if (input_filename) {
+      fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
+      exit(1);
+    } else {
+      input_filename = argv[i];
+    }
+  }
+
+  if (input_filename == NULL) {
+    fprintf(stderr, "no input file\n");
+    exit(1);
+  }
+
+  FILE *input_file = stdin;
+  FILE *output_file = stdout;
+  if (strcmp(input_filename, "-") != 0) {
+    input_file = fopen(input_filename, "r");
+  }
+  if (strcmp(output_filename, "-") != 0) {
+    output_file = fopen(output_filename, "w");
+  }
+
   src = malloc(1024);
-  size_t src_len = fread(src, 1, 1023, stdin);
+  size_t src_len = fread(src, 1, 1023, input_file);
   src[src_len] = '\0';
+  if (input_file != stdin) {
+    fclose(input_file);
+  }
 
   Tokenize(src);
   struct Node *ast = Program();
   Expect(kTokenEOF);
 
-  if (argc == 2 && strcmp(argv[1], "--ast") == 0) {
-    while (ast) {
-      PrintNode(ast, 0, NULL);
-      ast = ast->next;
+  if (print_ast) {
+    char ast_filename[256];
+    if (strcmp(input_filename, "-") == 0) {
+      strcpy(ast_filename, "stdin.ast");
+    } else {
+      snprintf(ast_filename, sizeof(ast_filename), "%s.ast", input_filename);
     }
-    return 0;
+    FILE *ast_file = fopen(ast_filename, "w");
+    for (struct Node *n = ast; n; n = n->next) {
+      PrintNode(ast_file, n, 0, NULL);
+    }
+    fclose(ast_file);
   }
 
   struct GenContext gen_ctx = {
-    NewSymbol(kSymHead, NULL), 2, 0, 0, 0, {}, {-1, -1}, 0, {}
+    NewSymbol(kSymHead, NULL), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast
   };
   InsnRegInt(&gen_ctx, "add", "fp", 0x100);
   InsnLabelStr(&gen_ctx, "call", "main");
@@ -628,56 +672,60 @@ int main(int argc, char **argv) {
     case kAsmLineDeleted:
       break; // 何もしない
     case kAsmLineLabel:
-      PrintLabel(stdout, &line->label);
-      printf(":\n");
+      PrintLabel(output_file, &line->label);
+      fprintf(output_file, ":\n");
       break;
     case kAsmLineInsn:
-      printf(INDENT "%s", line->insn.opcode);
+      fprintf(output_file, INDENT "%s", line->insn.opcode);
       for (int opr_i = 0;
            opr_i < MAX_OPERANDS && line->insn.operands[opr_i].kind != kOprNone;
            opr_i++) {
         struct Operand *opr = line->insn.operands + opr_i;
-        putchar(" ,"[opr_i > 0]);
+        fputc(" ,"[opr_i > 0], output_file);
         switch (opr->kind) {
         case kOprNone:
           // pass
         case kOprInt:
-          printf("%d", opr->val_int);
+          fprintf(output_file, "%d", opr->val_int);
           break;
         case kOprLabel:
-          PrintLabel(stdout, &opr->val_label);
+          PrintLabel(output_file, &opr->val_label);
           break;
         case kOprReg:
-          printf("%s", opr->val_reg);
+          fprintf(output_file, "%s", opr->val_reg);
           break;
         case kOprBaseOff:
           if (opr->val_base_off.base) {
-            printf("%s+", opr->val_base_off.base);
+            fprintf(output_file, "%s+", opr->val_base_off.base);
           }
-          printf("%d", opr->val_base_off.offset);
+          fprintf(output_file, "%d", opr->val_base_off.offset);
           break;
         }
       }
-      printf("\n");
+      fprintf(output_file, "\n");
       break;
     case kAsmLineIndentedComment:
-      printf(INDENT "; %s\n", line->comment);
+      fprintf(output_file, INDENT "; %s\n", line->comment);
       break;
     }
   }
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
-    printf("STR_%d: \n" INDENT "db ", i);
+    fprintf(output_file, "STR_%d: \n" INDENT "db ", i);
     for (int i = 1; i < tk_str->len - 1; i++) {
       if (tk_str->raw[i] == '\\') {
-        printf("0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
+        fprintf(output_file, "0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
         i++;
       } else {
-        printf("0x%02x,", tk_str->raw[i]);
+        fprintf(output_file, "0x%02x,", tk_str->raw[i]);
       }
     }
-    printf(INDENT "0\n");
+    fprintf(output_file, INDENT "0\n");
+  }
+
+  if (output_file != stdout) {
+    fclose(output_file);
   }
 
   return 0;

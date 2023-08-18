@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 #include "token.h"
 #include "type.h"
 
@@ -91,4 +93,4 @@ struct Node *Primary();
 struct Node *TypeSpec();
 struct Node *ParameterList();
 
-void PrintNode(struct Node *n, int indent, const char *key);
+void PrintNode(FILE *out, struct Node *n, int indent, const char *key);

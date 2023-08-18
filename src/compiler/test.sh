@@ -5,7 +5,7 @@ do
   input="$f"
   expect="tests/$(basename $f .c).asm"
   got="$input.got.asm"
-  cat "$input" | ./ucc > "$got"
+  ./ucc -o "$got" "$input"
   if diff -ub "$got" "$expect"
   then
     echo "[  OK  ]: '$input' is compiled expectedly."
