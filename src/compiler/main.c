@@ -582,6 +582,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeTypeSpec:
   case kNodePList:
     break;
+  case kNodeAsm:
+    {
+      struct AsmLine *l = GenAsmLine(ctx, kAsmLineRaw);
+      DecodeStringLiteral(l->raw, sizeof(l->raw), node->lhs->token);
+    }
+    break;
   }
 }
 
@@ -715,19 +721,19 @@ int main(int argc, char **argv) {
     case kAsmLineIndentedComment:
       fprintf(output_file, INDENT "; %s\n", line->comment);
       break;
+    case kAsmLineRaw:
+      fprintf(output_file, "%s\n", line->raw);
+      break;
     }
   }
 
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
+    char buf[256];
+    int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
     fprintf(output_file, "STR_%d: \n" INDENT "db ", i);
-    for (int i = 1; i < tk_str->len - 1; i++) {
-      if (tk_str->raw[i] == '\\') {
-        fprintf(output_file, "0x%02x,", DecodeEscape(tk_str->raw[i + 1]));
-        i++;
-      } else {
-        fprintf(output_file, "0x%02x,", tk_str->raw[i]);
-      }
+    for (int i = 0; i < len; i++) {
+      fprintf(output_file, "0x%02x,", buf[i]);
     }
     fprintf(output_file, INDENT "0\n");
   }

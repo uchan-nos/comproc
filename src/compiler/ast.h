@@ -43,6 +43,7 @@ enum NodeKind {
   kNodeContinue,
   kNodeTypeSpec,
   kNodePList,
+  kNodeAsm, // インラインアセンブラ
 };
 
 struct Node {
@@ -63,6 +64,7 @@ struct Node {
   // kNodeDefFunc 戻り値型  ブロック  仮引数
   // kNodeCall    関数名    引数      NULL
   // kNodePList   変数名    NULL      NULL
+  // kNodeAsm     文字列    NULL      NULL
   struct Node *lhs, *rhs, *cond;
 };
 

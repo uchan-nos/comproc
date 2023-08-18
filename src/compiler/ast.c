@@ -176,6 +176,15 @@ struct Node *Statement() {
     return Block();
   }
 
+  if ((token = Consume(kTokenAsm))) {
+    struct Node *asm_ = NewNode(kNodeAsm, token);
+    Expect('(');
+    asm_->lhs = NewNode(kNodeString, Expect(kTokenString));
+    Expect(')');
+    Expect(';');
+    return asm_;
+  }
+
   struct Node *e = Expression();
   Expect(';');
 

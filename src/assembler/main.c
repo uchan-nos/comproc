@@ -374,6 +374,8 @@ int main(void) {
         ip++;
       }
       continue;
+    } else if (strcmp(mnemonic, "int") == 0) {
+      insn[ip >> 1] = 0x7810;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);

@@ -27,6 +27,7 @@ enum TokenKind {
   kTokenRShift,
   kTokenLShift,
   kTokenVoid,
+  kTokenAsm,
   kTokenEOF,
 };
 
@@ -48,3 +49,4 @@ void Tokenize(char *src);
 struct Token *Consume(int kind);
 struct Token *Expect(int kind);
 char DecodeEscape(char c);
+int DecodeStringLiteral(char *buf, int size, struct Token *tok);

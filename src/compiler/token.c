@@ -33,6 +33,7 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(break,    kTokenBreak),
   ITEM(continue, kTokenContinue),
   ITEM(void,     kTokenVoid),
+  ITEM(asm,      kTokenAsm),
   {NULL, 0, 0},
 };
 static struct ReservedMapItem operator_map[] = {
@@ -242,4 +243,21 @@ char DecodeEscape(char c) {
   case 'r': return '\r';
   default: return c;
   }
+}
+
+int DecodeStringLiteral(char *buf, int size, struct Token *tok) {
+  if (tok->kind != kTokenString) {
+    return -1;
+  }
+
+  int bufi = 0;
+  for (int i = 1; i < tok->len - 1 && bufi < size; i++, bufi++) {
+    if (tok->raw[i] == '\\') {
+      i++;
+      buf[bufi] = DecodeEscape(tok->raw[i]);
+    } else {
+      buf[bufi] = tok->raw[i];
+    }
+  }
+  return bufi;
 }
