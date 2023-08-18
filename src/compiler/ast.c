@@ -9,8 +9,10 @@
 void Locate(char *p);
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token) {
+  static int last_index = 0;
   struct Node *n = malloc(sizeof(struct Node));
   n->kind = kind;
+  n->index = last_index++;
   n->token = token;
   n->next = n->lhs = n->rhs = n->cond = NULL;
   n->type = NULL;

@@ -45,6 +45,7 @@ enum NodeKind {
 
 struct Node {
   enum NodeKind kind;  // ノードの種類
+  int index;           // ノードのインデックス
   struct Token *token; // ノードを代表するトークン
   struct Node *next;   // 線形リスト
   struct Type *type;   // ノードの型

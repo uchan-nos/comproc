@@ -55,6 +55,7 @@ enum AsmLineKind {
   kAsmLineDeleted,
   kAsmLineInsn,
   kAsmLineLabel,
+  kAsmLineIndentedComment,
 };
 
 struct AsmLine {
@@ -62,6 +63,7 @@ struct AsmLine {
   union {
     struct Label label;
     struct Instruction insn;
+    char comment[64];
   };
 };
 

@@ -50,6 +50,16 @@ int GenLabel(struct GenContext *ctx) {
   return ++ctx->num_label; // L_n ラベルは 1 始まり
 }
 
+struct AsmLine *GenAsmLine(struct GenContext *ctx, enum AsmLineKind kind) {
+  if (ctx->num_line >= MAX_LINE) {
+    fprintf(stderr, "too many asm lines\n");
+    exit(1);
+  }
+  struct AsmLine *l = &ctx->asm_lines[ctx->num_line++];
+  l->kind = kind;
+  return l;
+}
+
 // node->next を辿り、末尾の要素（node->next == NULL となる node）を返す
 struct Node *GetLastNode(struct Node *node) {
   for (; node->next; node = node->next) {
@@ -58,8 +68,7 @@ struct Node *GetLastNode(struct Node *node) {
 }
 
 struct Instruction *Insn(struct GenContext *ctx, const char *opcode) {
-  struct AsmLine *line = &ctx->asm_lines[ctx->num_line++];
-  line->kind = kAsmLineInsn;
+  struct AsmLine *line = GenAsmLine(ctx, kAsmLineInsn);
   struct Instruction *i = &line->insn;
   SetInsnNoOpr(i, opcode);
   return i;
@@ -136,8 +145,7 @@ struct Instruction *InsnLabelAutoS(struct GenContext *ctx, const char *opcode, i
 }
 
 struct Label *AddLabel(struct GenContext *ctx) {
-  struct AsmLine *line = &ctx->asm_lines[ctx->num_line++];
-  line->kind = kAsmLineLabel;
+  struct AsmLine *line = GenAsmLine(ctx, kAsmLineLabel);
   return &line->label;
 }
 
@@ -161,6 +169,17 @@ struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
   l->label_str = s;
   return l;
 }
+
+#ifdef NODE_COMMENT
+#define PRINT_NODE_COMMENT(ctx, n, s) \
+  do { \
+    struct AsmLine *l = GenAsmLine((ctx), kAsmLineIndentedComment); \
+    snprintf(l->comment, sizeof(l->comment), \
+             "Node[%d]: %s", (n->index), (s)); \
+  } while (0)
+#else
+#define PRINT_NODE_COMMENT(ctx, n, s)
+#endif
 
 void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   switch (node->kind) {
@@ -216,6 +235,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeAdd:
+    PRINT_NODE_COMMENT(ctx, node, "Add");
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
     if (node->lhs->type &&
@@ -231,18 +251,21 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     node->type = node->lhs->type;
     break;
   case kNodeSub:
+    PRINT_NODE_COMMENT(ctx, node, "Sub");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "sub");
     node->type = node->lhs->type;
     break;
   case kNodeMul:
+    PRINT_NODE_COMMENT(ctx, node, "Mul");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "mul");
     node->type = node->lhs->type;
     break;
   case kNodeAssign:
+    PRINT_NODE_COMMENT(ctx, node, "Assign");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 1);
     if (SizeofType(node->lhs->type) == 1) {
@@ -253,6 +276,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     node->type = node->lhs->type;
     break;
   case kNodeLT:
+    PRINT_NODE_COMMENT(ctx, node, "LT");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "lt");
@@ -260,6 +284,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'
+      PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (postfix))");
       Generate(ctx, node->lhs, 0);
       InsnInt(ctx, "push", 1);
       InsnInt(ctx, "dup", 1);
@@ -269,6 +294,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       Insn(ctx, "pop");
       node->type = node->lhs->type;
     } else { // 前置インクリメント '++ exp'
+      PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
       InsnInt(ctx, "push", 1);
       Generate(ctx, node->rhs, 0);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
@@ -278,11 +304,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeEq:
+    PRINT_NODE_COMMENT(ctx, node, "Eq");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "eq");
     break;
   case kNodeNEq:
+    PRINT_NODE_COMMENT(ctx, node, "NEq");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "neq");
@@ -304,14 +332,17 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       int label_false = GenLabel(ctx);
       int label_end = GenLabel(ctx);
+      PRINT_NODE_COMMENT(ctx, node, "LAnd (eval lhs)");
       Generate(ctx, node->lhs, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
+      PRINT_NODE_COMMENT(ctx, node, "LAnd (eval rhs)");
       Generate(ctx, node->rhs, 0);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
+      PRINT_NODE_COMMENT(ctx, node, "LAnd (true)");
       InsnInt(ctx, "push", 1);
       InsnLabelAutoL(ctx, "jmp", label_end);
       AddLabelAutoL(ctx, label_false);
@@ -323,10 +354,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       int label_true = GenLabel(ctx);
       int label_end = GenLabel(ctx);
+      PRINT_NODE_COMMENT(ctx, node, "LOr (eval lhs)");
       Generate(ctx, node->lhs, 0);
       InsnLabelAutoL(ctx, "jnz", label_true);
+      PRINT_NODE_COMMENT(ctx, node, "LOr (eval rhs)");
       Generate(ctx, node->rhs, 0);
       InsnLabelAutoL(ctx, "jnz", label_true);
+      PRINT_NODE_COMMENT(ctx, node, "LOr (false)");
       InsnInt(ctx, "push", 0);
       InsnLabelAutoL(ctx, "jmp", label_end);
       AddLabelAutoL(ctx, label_true);
@@ -340,32 +374,38 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     ctx->num_strings++;
     break;
   case kNodeAnd:
+    PRINT_NODE_COMMENT(ctx, node, "And");
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
     Insn(ctx, "and");
     break;
   case kNodeXor:
+    PRINT_NODE_COMMENT(ctx, node, "Xor");
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
     Insn(ctx, "xor");
     break;
   case kNodeOr:
+    PRINT_NODE_COMMENT(ctx, node, "Or");
     Generate(ctx, node->lhs, 0);
     Generate(ctx, node->rhs, 0);
     Insn(ctx, "or");
     break;
   case kNodeNot:
+    PRINT_NODE_COMMENT(ctx, node, "Not");
     Generate(ctx, node->rhs, 0);
     Insn(ctx, "not");
     break;
   case kNodeRShift:
   case kNodeLShift:
+    PRINT_NODE_COMMENT(ctx, node, "R/LShift");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 0);
     Insn(ctx, node->kind == kNodeRShift ? "sar" : "shl");
     break;
   case kNodeCall:
     {
+      PRINT_NODE_COMMENT(ctx, node, "Call");
       struct Node *args[10];
       int num_args = 0;
       for (struct Node *arg = node->rhs; arg; arg = arg->next) {
@@ -458,16 +498,21 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       int label_else = node->rhs ? GenLabel(ctx) : -1;
       int label_end = GenLabel(ctx);
+      PRINT_NODE_COMMENT(ctx, node, "If (cond eval)");
       Generate(ctx, node->cond, 0);
+      PRINT_NODE_COMMENT(ctx, node, "If (cond to bool)");
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_end);
+      PRINT_NODE_COMMENT(ctx, node, "If (then)");
       Generate(ctx, node->lhs, 0);
       if (node->rhs) {
         InsnLabelAutoL(ctx, "jmp", label_end);
+        PRINT_NODE_COMMENT(ctx, node, "If (else)");
         AddLabelAutoL(ctx, label_else);
         Generate(ctx, node->rhs, 0);
       }
+      PRINT_NODE_COMMENT(ctx, node, "If (end)");
       AddLabelAutoL(ctx, label_end);
     }
     break;
@@ -481,6 +526,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lbreak = label_end;
       ctx->jump_labels.lcontinue = label_next;
 
+      PRINT_NODE_COMMENT(ctx, node, "For (eval init)");
       Generate(ctx, node->lhs, 0);
       AddLabelAutoL(ctx, label_cond);
       Generate(ctx, node->cond, 0);
@@ -491,6 +537,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       AddLabelAutoL(ctx, label_next);
       Generate(ctx, node->lhs->next, 0);
       InsnLabelAutoL(ctx, "jmp", label_cond);
+      PRINT_NODE_COMMENT(ctx, node, "For (end)");
       AddLabelAutoL(ctx, label_end);
 
       ctx->jump_labels = old_labels;
@@ -505,6 +552,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lbreak = label_end;
       ctx->jump_labels.lcontinue = label_cond;
 
+      PRINT_NODE_COMMENT(ctx, node, "While");
       AddLabelAutoL(ctx, label_cond);
       Generate(ctx, node->cond, 0);
       InsnInt(ctx, "push", 0);
@@ -512,6 +560,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       InsnLabelAutoL(ctx, "jz", label_end);
       Generate(ctx, node->rhs, 0);
       InsnLabelAutoL(ctx, "jmp", label_cond);
+      PRINT_NODE_COMMENT(ctx, node, "While (end)");
       AddLabelAutoL(ctx, label_end);
 
       ctx->jump_labels = old_labels;
@@ -610,6 +659,9 @@ int main(int argc, char **argv) {
         }
       }
       printf("\n");
+      break;
+    case kAsmLineIndentedComment:
+      printf(INDENT "; %s\n", line->comment);
       break;
     }
   }
