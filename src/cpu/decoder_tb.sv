@@ -3,7 +3,7 @@
 module decoder_tb;
 
 logic [15:0] insn;
-logic imm, sign, wr_stk1, pop, push, load_stk, load_fp, load_ip,
+logic imm, sign, wr_stk1, pop, push, load_stk, load_fp, load_ip, ind_jmp,
   cpop, cpush, byt, rd_mem, wr_mem;
 logic [15:0] imm_mask;
 logic [1:0] src_a;
@@ -26,6 +26,7 @@ task test_sig(
   input e_load_stk,
   input e_load_fp,
   input e_load_ip,
+  input e_ind_jmp,
   input e_cpop,
   input e_cpush,
   input e_byt,
@@ -46,6 +47,7 @@ begin
   `test_sig1(load_stk);
   `test_sig1(load_fp);
   `test_sig1(load_ip);
+  `test_sig1(ind_jmp);
   `test_sig1(cpop);
   `test_sig1(cpush);
   `test_sig1(byt);
@@ -64,8 +66,8 @@ endtask
 initial begin
   $monitor("%d: insn=%04x imm=%d sign=%d mask=%04x src_a=%d alu=%02x wr_stk1=%d",
            $time, insn, imm, sign, imm_mask, src_a, alu_sel, wr_stk1,
-           " pop=%d push=%d load_stk=%d fp=%d ip=%d cpop=%d cpush=%d",
-           pop, push, load_stk, load_fp, load_ip, cpop, cpush,
+           " pop=%d push=%d load_stk=%d fp=%d ip=%d ind_jmp=%d cpop=%d cpush=%d",
+           pop, push, load_stk, load_fp, load_ip, ind_jmp, cpop, cpush,
            " byt=%d rd=%d wr=%d",
            byt, rd_mem, wr_mem);
 
@@ -81,6 +83,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -100,6 +103,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               1,        // load_ip
+              0,        // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -119,6 +123,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               1,        // load_ip
+              0,        // ind_jmp
               0,        // cpop
               1,        // cpush
               `x,       // byt
@@ -138,6 +143,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               1,        // byt
@@ -157,6 +163,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               1,        // byt
@@ -176,6 +183,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -195,6 +203,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -214,6 +223,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -221,7 +231,27 @@ initial begin
               1         // wr_mem
             );
 
-  #1 insn <= 16'h6020;  // add fp,0x20
+  #1 insn <= 16'h6004;  // int 4
+  #1 test_sig(1,        // imm,
+              0,        // sign,
+              16'h03ff, // imm_mask
+              2'hx,     // src_a
+              `ALU_B,   // alu
+              `x,       // wr_stk1
+              0,        // pop
+              0,        // push
+              0,        // load_stk
+              0,        // load_fp
+              1,        // load_ip
+              1,        // ind_jmp
+              0,        // cpop
+              1,        // cpush
+              0,        // byt
+              `x,       // rd_mem
+              0         // wr_mem
+            );
+
+  #1 insn <= 16'h6420;  // add fp,0x20
   #1 test_sig(1,        // imm,
               0,        // sign,
               16'h03ff, // imm_mask
@@ -233,6 +263,7 @@ initial begin
               0,        // load_stk
               1,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -252,6 +283,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -271,6 +303,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -290,6 +323,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -309,6 +343,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               1,        // load_ip
+              0,        // ind_jmp
               1,        // cpop
               0,        // cpush
               0,        // byt
@@ -328,6 +363,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -347,6 +383,7 @@ initial begin
               1,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -366,6 +403,7 @@ initial begin
               0,        // load_stk
               0,        // load_fp
               0,        // load_ip
+              `x,       // ind_jmp
               0,        // cpop
               0,        // cpush
               0,        // byt

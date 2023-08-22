@@ -13,6 +13,7 @@ module decoder(
   output load_stk,
   output load_fp,
   output load_ip,
+  output ind_jmp,
   output cpop,
   output cpush,
   output byt,
@@ -37,6 +38,7 @@ assign push = calc_push(insn);
 assign load_stk = calc_load_stk(insn);
 assign load_fp = calc_load_fp(insn);
 assign load_ip = calc_load_ip(insn);
+assign ind_jmp = insn[15:10] === 6'b0110_00;
 assign cpop = calc_cpop(insn);
 assign cpush = calc_cpush(insn);
 assign byt = calc_byt(insn);
@@ -87,6 +89,7 @@ begin
     16'b0001_xxxx_xxxx_xxx1: calc_alu_sel = `ALU_ADDNZ;// JNZ
     16'b001x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // LD.1 etc X=0
     16'b010x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // LD etc X=0
+    16'b0110_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // ICALL
     16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0]; // ALU
     16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;    // CSTK, MEM
     default:                 calc_alu_sel = `ALU_ADD;
@@ -99,6 +102,7 @@ begin
   casex (insn)
     16'b0010_xxxx_xxxx_xxxx: calc_rd_mem = 1'b1; // LD.1
     16'b0100_xxxx_xxxx_xxx0: calc_rd_mem = 1'b1; // LD
+    16'b0110_00xx_xxxx_xxxx: calc_rd_mem = 1'b1;
     16'b0111_1xxx_xxxx_10xx: calc_rd_mem = 1'b1; // LDD, LDD.1
     default:                 calc_rd_mem = 1'b0;
   endcase
@@ -144,7 +148,7 @@ endfunction
 function calc_load_fp(input [15:0] insn);
 begin
   casex (insn)
-    16'b0110_xxxx_xxxx_xxxx: calc_load_fp = 1'b1;
+    16'b0110_01xx_xxxx_xxxx: calc_load_fp = 1'b1;
     16'b0111_1xxx_xxxx_0010: calc_load_fp = 1'b1;
     default:                 calc_load_fp = 1'b0;
   endcase
@@ -155,6 +159,7 @@ function calc_load_ip(input [15:0] insn);
 begin
   casex (insn)
     16'b000x_xxxx_xxxx_xxxx: calc_load_ip = 1'b1;
+    16'b0110_00xx_xxxx_xxxx: calc_load_ip = 1'b1;
     16'b0111_1xxx_xxxx_0000: calc_load_ip = 1'b1;
     default:                 calc_load_ip = 1'b0;
   endcase
@@ -174,6 +179,7 @@ function calc_cpush(input [15:0] insn);
 begin
   casex (insn)
     16'b0000_xxxx_xxxx_xxx1: calc_cpush = 1'b1;
+    16'b0110_00xx_xxxx_xxxx: calc_cpush = 1'b1;
     16'b0111_1xxx_xxxx_0011: calc_cpush = 1'b1;
     default:                 calc_cpush = 1'b0;
   endcase

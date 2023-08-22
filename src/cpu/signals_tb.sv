@@ -373,8 +373,8 @@ begin
              0,         // cpop
              1,         // cpush
              x,         // byt
-             0,         // rd_mem
-             0          // wr_mem
+             x,         // rd_mem
+             x          // wr_mem
            );
   else
     test_sig(x,         // imm
@@ -394,8 +394,8 @@ begin
              0,         // cpop
              0,         // cpush
              x,         // byt
-             0,         // rd_mem
-             0          // wr_mem
+             x,         // rd_mem
+             x          // wr_mem
            );
 end
 endtask

@@ -202,7 +202,8 @@ always @(posedge clk) begin
       16'b0100_xxxx_xxxx_xxx0: insn_name <= "ld";
       16'b0100_xxxx_xxxx_xxx1: insn_name <= "st";
       16'b0101_xxxx_xxxx_xxxx: insn_name <= "push";
-      16'b0110_00xx_xxxx_xxxx: insn_name <= "addfp";
+      16'b0110_00xx_xxxx_xxxx: insn_name <= "int";
+      16'b0110_01xx_xxxx_xxxx: insn_name <= "addfp";
       16'b0111_0000_0000_0000: insn_name <= "nop";
       16'b0111_0000_0100_1111: insn_name <= "pop";
       16'b0111_0000_0100_0000: insn_name <= "pop1";

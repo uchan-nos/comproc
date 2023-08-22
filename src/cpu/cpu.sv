@@ -42,8 +42,8 @@ LD X+simm10    |0100xx  simm9  0| mem[X+simm10] から読んだ値を stack に�
 ST X+simm10    |0100xx  simm9  1| stack からポップした値を mem[X+simm10] に書く
 PUSH X+simm10  |0101xx  simm10  | X+simm10 を stack にプッシュ
                                   X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
-ADD FP,simm10  |011000  simm10  | fp += simm10
-               |011001xxxxxxxxxx| 予約
+INT uimm10     |011000  uimm10  | mem[uimm10] から読んだ値にジャンプ（ソフトウェア割り込み）
+ADD FP,simm10  |011001  simm10  | fp += simm10
                |01101xxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxx| 即値なし命令（別表）
 
@@ -88,7 +88,7 @@ STD        |0111100000001110| stack から値とアドレスをポップしメ�
 LDD.1      |0111100000001001| byte version
 STA.1      |0111100000001101| byte version
 STD.1      |0111100000001111| byte version
-INT        |0111100000010000| ソフトウェア割り込み
+INT        |0111100010000100| ソフトウェア割り込み
 
 
 即値無し命令の構造
@@ -152,6 +152,7 @@ addr      説明
 ---------------
 000h-001h 無効
 002h-003h カウントダウンタイマ
+004h-005h 割り込みハンドラのアドレス
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h-083h UART 入出力
@@ -217,7 +218,7 @@ stack cstack(
   .pop(cpop),
   .push(cpush),
   .load(cpush),
-  .data_in(alu_out),
+  .data_in(stack_in),
   .data0(cstack0)
 );
 
@@ -252,14 +253,14 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     fp <= 16'd0;
   else if (load_fp)
-    fp <= alu_out;
+    fp <= stack_in;
 end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
     ip <= 16'h0300;
   else if (load_ip)
-    ip <= alu_out;
+    ip <= stack_in;
 end
 
 always @(posedge clk, posedge rst) begin

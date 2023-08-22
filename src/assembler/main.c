@@ -284,7 +284,7 @@ int main(void) {
           exit(1);
         }
         uint16_t addend = GET_LONG_NO_BP(1);
-        insn[ip >> 1] = 0x6000 | (0x3ff & addend);
+        insn[ip >> 1] = 0x6400 | (0x3ff & addend);
       }
     } else if (strcmp(mnemonic, "nop") == 0) {
       insn[ip >> 1] = 0x7000;
@@ -375,7 +375,8 @@ int main(void) {
       }
       continue;
     } else if (strcmp(mnemonic, "int") == 0) {
-      insn[ip >> 1] = 0x7810;
+      uint16_t addend = GET_LONG_NO_BP(0);
+      insn[ip >> 1] = 0x6000 | (0x3ff & addend);
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);
