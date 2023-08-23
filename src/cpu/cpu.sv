@@ -42,7 +42,7 @@ LD X+simm10    |0100xx  simm9  0| mem[X+simm10] から読んだ値を stack に�
 ST X+simm10    |0100xx  simm9  1| stack からポップした値を mem[X+simm10] に書く
 PUSH X+simm10  |0101xx  simm10  | X+simm10 を stack にプッシュ
                                   X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
-INT uimm10     |011000  uimm10  | mem[uimm10] から読んだ値にジャンプ（ソフトウェア割り込み）
+               |011000xxxxxxxxxx| 予約
 ADD FP,simm10  |011001  simm10  | fp += simm10
                |01101xxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxx| 即値なし命令（別表）
@@ -88,7 +88,8 @@ STD        |0111100000001110| stack から値とアドレスをポップしメ�
 LDD.1      |0111100000001001| byte version
 STA.1      |0111100000001101| byte version
 STD.1      |0111100000001111| byte version
-INT        |0111100010000100| ソフトウェア割り込み
+INT        |0111100000010000| ソフトウェア割り込みを発生
+ISR        |0111100000010001| stack から値を取り出し、ISR レジスタに書く
 
 
 即値無し命令の構造
@@ -105,16 +106,21 @@ INT        |0111100010000100| ソフトウェア割り込み
 alu_sel   ALU の機能選択
 alu_out   ALU 出力
 src_a     ALU-A 入力（stack[0], FP, IP, cstack[0]）
-src_b     ALU-B 入力（stack[1], insn & imm_mask）
 src_a_X   ALU-A に入力する値の選択
           4 つの信号線のうち 1 本だけが 1、その他は 0 となる
-imm       0: 即値無し命令（src_b は stack[1] を選択）
-          1: 即値有り命令（src_b は insn & imm_mask を選択）
+src_b     ALU-B 入力
+src_b_sel ALU-B 入力選択
+          0: stack[1]
+          1: insn & imm_mask
+          2: isr
+          3: reserved
 wr_stk1   0/1: wr_data に stack[0/1] を出力
 pop/push  stack をポップ/プッシュ
 load_stk  stack[0] に stack_in をロード
 load_fp   FP に alu_out をロード
 load_ip   IP に alu_out をロード
+load_insn INSN に rd_data をロード
+load_isr  ISR に alu_out をロード
 cpop      cstack をポップ
 cpush     cstack に値をプッシュ
 rd_mem    stack_in に接続する値の選択
@@ -135,6 +141,7 @@ fp        フレームポインタ（スタックフレームの先頭を指す�
 ip        命令（instruction）ポインタ（次に実行する命令を指す）
 insn      命令（instruction）レジスタ
 addr0_d   mem_addr の最下位ビットを 1 クロック遅延した値
+isr       割り込みハンドラ（ISR）のアドレスを保持するレジスタ
 
 
 メモリマップ
@@ -152,7 +159,6 @@ addr      説明
 ---------------
 000h-001h 無効
 002h-003h カウントダウンタイマ
-004h-005h 割り込みハンドラのアドレス
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h-083h UART 入出力
@@ -174,19 +180,22 @@ doc/signal-timing-design に記載
 */
 
 // CPU コアの信号
-logic imm, sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_insn, cpop, cpush, rd_mem;
+logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, rd_mem;
+logic [1:0] src_b_sel;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
 
 // レジスタ群
-logic [15:0] fp, ip, insn;
+logic [15:0] fp, ip, insn, isr;
 logic [`ADDR_WIDTH-1:0] addr_d;
 
 // 結線
 assign src_a = src_a_fp ? fp
                : src_a_ip ? ip
                : src_a_cstk ? cstack0 : stack0;
-assign src_b = imm ? mask_imm(insn, imm_mask, sign) : stack1;
+assign src_b = src_b_sel === 2'd0 ? stack1
+               : src_b_sel === 2'd1 ? mask_imm(insn, imm_mask, sign)
+               : isr;
 assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr_d[0]) : alu_out;
 assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data_raw = wr_stk1 ? stack1 : stack0;
@@ -218,7 +227,7 @@ stack cstack(
   .pop(cpop),
   .push(cpush),
   .load(cpush),
-  .data_in(stack_in),
+  .data_in(alu_out),
   .data0(cstack0)
 );
 
@@ -226,13 +235,13 @@ signals signals(
   .rst(rst),
   .clk(clk),
   .insn(insn),
-  .imm(imm),
   .sign(sign),
   .imm_mask(imm_mask),
   .src_a_stk0(src_a_stk0),
   .src_a_fp(src_a_fp),
   .src_a_ip(src_a_ip),
   .src_a_cstk(src_a_cstk),
+  .src_b_sel(src_b_sel),
   .alu_sel(alu_sel),
   .wr_stk1(wr_stk1),
   .pop(pop),
@@ -241,6 +250,7 @@ signals signals(
   .load_fp(load_fp),
   .load_ip(load_ip),
   .load_insn(load_insn),
+  .load_isr(load_isr),
   .cpop(cpop),
   .cpush(cpush),
   .byt(byt),
@@ -253,14 +263,21 @@ always @(posedge clk, posedge rst) begin
   if (rst)
     fp <= 16'd0;
   else if (load_fp)
-    fp <= stack_in;
+    fp <= alu_out;
 end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
     ip <= 16'h0300;
   else if (load_ip)
-    ip <= stack_in;
+    ip <= alu_out;
+end
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    isr <= 16'd0;
+  else if (load_isr)
+    isr <= alu_out;
 end
 
 always @(posedge clk, posedge rst) begin

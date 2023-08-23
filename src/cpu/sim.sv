@@ -66,11 +66,14 @@ initial begin
     trace_fd = $fopen(trace_file, "w");
 
   // 信号が変化したら自動的に出力する
-  $monitor("%d: rst=%d ip=%02x.%d %04x %-6s addr=%03x r=%04x w=%04x byt=%d stack{%02x %02x} fp=%04x cstk{%02x %02x} cdt=%04x",
-           $time, rst, cpu.ip, phase_num, cpu.insn, insn_name, mem_addr, rd_data,
-           wr_data_mon, byt,
-           stack0, stack1, cpu.fp, cpu.cstack.data[0], cpu.cstack.data[1],
-           cpu.cdtimer_cnt);
+  $monitor("%d: rst=%d ip=%02x.%d %04x %-6s",
+           $time, rst, cpu.ip, phase_num, cpu.insn, insn_name,
+           " addr=%03x r=%04x w=%04x byt=%d",
+           mem_addr, rd_data, wr_data_mon, byt,
+           " alu_out=%04x stack{%02x %02x} fp=%04x",
+           cpu.alu_out, stack0, stack1, cpu.fp,
+           " cstk{%02x %02x} cdt=%04x",
+           cpu.cstack.data[0], cpu.cstack.data[1], cpu.cdtimer_cnt);
   $dumpvars(1, cpu, cpu.signals.decoder);
 
   // 各信号の初期値
@@ -116,15 +119,15 @@ always @(posedge clk) begin
               "stack0=%x fp=%x ip=%x insn=%x cstack0=%x ",
               stack0, cpu.fp, cpu.ip, cpu.insn, cpu.cstack0,
               // セレクト信号
-              "alu_sel=%x src_a_sel=%x imm=%x ",
-              cpu.signals.alu_sel, src_a_sel, cpu.imm,
+              "alu_sel=%x src_a_sel=%x src_b_sel=%x ",
+              cpu.signals.alu_sel, src_a_sel, cpu.src_b_sel,
               "rd_mem=%x wr_stk1=%x ",
               cpu.rd_mem, cpu.wr_stk1,
               // 制御信号
               "pop=%x push=%x load_stk=%x load_fp=%x load_ip=%x ",
               cpu.pop, cpu.push, cpu.load_stk, cpu.load_fp, cpu.load_ip,
-              "cpop=%x cpush=%x ",
-              cpu.cpop, cpu.cpush,
+              "load_isr=%d cpop=%x cpush=%x ",
+              cpu.load_isr, cpu.cpop, cpu.cpush,
               // データ値
               "rd_data=%x wr_data=%x addr_d=%x ",
               rd_data, wr_data, cpu.addr_d,
@@ -202,7 +205,6 @@ always @(posedge clk) begin
       16'b0100_xxxx_xxxx_xxx0: insn_name <= "ld";
       16'b0100_xxxx_xxxx_xxx1: insn_name <= "st";
       16'b0101_xxxx_xxxx_xxxx: insn_name <= "push";
-      16'b0110_00xx_xxxx_xxxx: insn_name <= "int";
       16'b0110_01xx_xxxx_xxxx: insn_name <= "addfp";
       16'b0111_0000_0000_0000: insn_name <= "nop";
       16'b0111_0000_0100_1111: insn_name <= "pop";
@@ -234,6 +236,8 @@ always @(posedge clk) begin
       16'b0111_1000_0000_1001: insn_name <= "ldd.1";
       16'b0111_1000_0000_1101: insn_name <= "sta.1";
       16'b0111_1000_0000_1111: insn_name <= "std.1";
+      16'b0111_1000_0001_0000: insn_name <= "int";
+      16'b0111_1000_0001_0001: insn_name <= "isr";
       default:                 insn_name <= "UNDEF";
     endcase
   end
