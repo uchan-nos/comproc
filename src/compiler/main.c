@@ -586,7 +586,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       struct AsmLine *l = GenAsmLine(ctx, kAsmLineRaw);
       l->raw[0] = INDENT[0];
-      DecodeStringLiteral(l->raw + 1, sizeof(l->raw) - 1, node->lhs->token);
+      int len = 1;
+      struct Token *t = node->lhs->token;
+      while (t->kind == kTokenString) {
+        len += DecodeStringLiteral(l->raw + len, sizeof(l->raw) - len, t);
+        t = t->next;
+      }
     }
     break;
   }
@@ -731,12 +736,16 @@ int main(int argc, char **argv) {
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
     char buf[256];
-    int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
     fprintf(output_file, "STR_%d: \n" INDENT "db ", i);
-    for (int i = 0; i < len; i++) {
-      fprintf(output_file, "0x%02x,", buf[i]);
+
+    while (tk_str->kind == kTokenString) {
+      int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
+      for (int i = 0; i < len; i++) {
+        fprintf(output_file, "0x%02x,", buf[i]);
+      }
+      tk_str = tk_str->next;
     }
-    fprintf(output_file, INDENT "0\n");
+    fprintf(output_file, "0\n");
   }
 
   if (output_file != stdout) {

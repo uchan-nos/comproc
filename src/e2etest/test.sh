@@ -158,3 +158,4 @@ test_value 01 'int f(){int a=2; int b=5; return a+b;} int main(){int b=1; int a=
 test_value 06 'int main(){int i=3; {int i=4;} return i*2;}'
 test_value 08 'int main(){int i=3; {int i=4; return i*2;}}'
 test_value 04 'void isr(){int *p=0x2f0; *p=4;} int main(){int *p=0x2f0; *p=1; asm("push 0x308"); asm("isr"); asm("int"); return *p;}'
+test_value 05 'int main(){ char *p="foo" "ba"; int i=0; while(p[i]){i++;} return i;}'

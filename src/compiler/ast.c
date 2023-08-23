@@ -180,6 +180,7 @@ struct Node *Statement() {
     struct Node *asm_ = NewNode(kNodeAsm, token);
     Expect('(');
     asm_->lhs = NewNode(kNodeString, Expect(kTokenString));
+    while (Consume(kTokenString));
     Expect(')');
     Expect(';');
     return asm_;
@@ -400,6 +401,9 @@ struct Node *Primary() {
     node = NewNode(kNodeString, tk);
     node->type = NewType(kTypePtr);
     node->type->base = NewType(kTypeChar);
+
+    // 文字列リテラルが連続する区間は 1 つの kNodeString ノードが担当する
+    while (Consume(kTokenString));
   } else if ((tk = Consume(kTokenId))) {
     node = NewNode(kNodeId, tk);
   }
