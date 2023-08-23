@@ -21,12 +21,6 @@ module decoder(
   output wr_mem
 );
 
-`define src_stk0 2'h0
-`define src_fp   2'h1
-`define src_ip   2'h2
-`define src_cstk 2'h3
-`define src_x    2'hx
-
 assign sign = calc_sign(insn);
 assign imm_mask = calc_imm_mask(insn[15:12]);
 assign src_a = calc_src_a(insn);
@@ -70,14 +64,14 @@ endfunction
 function [1:0] calc_src_a(input [15:0] insn);
 begin
   casex (insn)
-    16'b000x_xxxx_xxxx_xxxx: calc_src_a = `src_ip;     // JMP, CALL, JZ, JNZ
+    16'b000x_xxxx_xxxx_xxxx: calc_src_a = `SRC_IP;     // JMP, CALL, JZ, JNZ
     16'b001x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10]; // LD.1, ST.1
     16'b010x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10]; // LD, ST, PUSH
-    16'b0110_01xx_xxxx_xxxx: calc_src_a = `src_fp;     // ADD FP
-    16'b0111_1xxx_xxx1_xxx0: calc_src_a = `src_ip;     // INT
-    16'b0111_1xxx_xxxx_00x0: calc_src_a = `src_cstk;   // RET, CPOP FP
-    16'b0111_1xxx_xxxx_0011: calc_src_a = `src_fp;     // CPUSH FP
-    default:                 calc_src_a = `src_stk0;
+    16'b0110_01xx_xxxx_xxxx: calc_src_a = `SRC_FP;     // ADD FP
+    16'b0111_1xxx_xxx1_xxx0: calc_src_a = `SRC_IP;     // INT
+    16'b0111_1xxx_xxxx_00x0: calc_src_a = `SRC_CSTK;   // RET, CPOP FP
+    16'b0111_1xxx_xxxx_0011: calc_src_a = `SRC_FP;     // CPUSH FP
+    default:                 calc_src_a = `SRC_STK0;
   endcase
 end
 endfunction

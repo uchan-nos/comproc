@@ -22,7 +22,15 @@
 `define ALU_ADDZ  6'h30
 `define ALU_ADDNZ 6'h31
 
+// Source A
+`define SRC_STK0 2'h0
+`define SRC_FP   2'h1
+`define SRC_IP   2'h2
+`define SRC_CSTK 2'h3
+
+// Source B
 `define SRC_STK1 2'h0
 `define SRC_IMM  2'h1
 `define SRC_ISR  2'h2
+
 `define SRC_X    2'hx
