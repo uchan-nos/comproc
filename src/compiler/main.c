@@ -585,7 +585,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeAsm:
     {
       struct AsmLine *l = GenAsmLine(ctx, kAsmLineRaw);
-      DecodeStringLiteral(l->raw, sizeof(l->raw), node->lhs->token);
+      l->raw[0] = INDENT[0];
+      DecodeStringLiteral(l->raw + 1, sizeof(l->raw) - 1, node->lhs->token);
     }
     break;
   }
