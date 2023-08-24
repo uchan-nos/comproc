@@ -9,5 +9,10 @@
 **/assembler/uasm
 **/assembler/*.o
 **/cpu/*.exe
+src/visualizer/*.svg
+src/visualizer/vis.asm
+src/visualizer/vis.hex
+src/visualizer/dump.vcd
+src/visualizer/trace.txt
 .*.swp
 .*.d
