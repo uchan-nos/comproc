@@ -159,9 +159,14 @@ addr      説明
 ---------------
 000h-001h 無効
 002h-003h カウントダウンタイマ
+004h-005h カウントダウンタイマ設定
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h-083h UART 入出力
+
+004h-005h の説明
+ビット 0: IF 割り込みフラグ
+ビット 1: IE 割り込み有効（IF & IE == 1 で割り込み発生）
 
 081h の説明
 ビット 0: E
@@ -324,7 +329,7 @@ logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
 // 結線
 assign data_memreg = addr_d >= `ADDR_WIDTH'h080 ? rd_data : data_reg;
-assign data_reg = addr_d[6:0] === 7'h02 ? cdtimer_cnt : 16'd0;
+assign data_reg = read_internal_reg(addr_d[6:0]);
 assign load_cdtimer = wr_mem & mem_addr === `ADDR_WIDTH'h002;
 
 // CPU 内蔵周辺機能モジュール群
@@ -336,5 +341,15 @@ cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
   .counter(cdtimer_cnt),
   .timeout(cdtimer_to)
 );
+
+function [15:0] read_internal_reg(input [6:0] addr);
+begin
+  casex (addr)
+    7'h02:   read_internal_reg = cdtimer_cnt;
+    7'h04:   read_internal_reg = {15'd0, cdtimer_to};
+    default: read_internal_reg = 16'd0;
+  endcase
+end
+endfunction
 
 endmodule
