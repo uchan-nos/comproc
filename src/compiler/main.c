@@ -35,7 +35,7 @@ struct JumpLabels {
 };
 
 struct GenContext {
-  struct Symbol *syms;
+  struct Scope *scope;
   int lvar_offset;
   int line_add_fp; // add fp, N 命令が最後に配置された行番号
   int num_label;
@@ -193,7 +193,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeId:
     {
-      struct Symbol *sym = FindSymbol(ctx->syms, node->token);
+      struct Symbol *sym = FindSymbol(ctx->scope, node->token);
       if (sym) {
         switch (sym->kind) {
         case kSymHead:
@@ -433,8 +433,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeDefFunc:
     {
+      ctx->scope = EnterScope(ctx->scope);
+
       struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
-      AppendSymbol(ctx->syms, func_sym);
+      AppendSymbol(ctx->scope->syms, func_sym);
       AddLabelToken(ctx, func_sym->name);
       InsnReg(ctx, "cpush", "fp");
       ctx->lvar_offset = 0;
@@ -443,7 +445,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         sym->offset = ctx->lvar_offset;
         sym->type = param->type;
         assert(sym->type);
-        AppendSymbol(ctx->syms, sym);
+        AppendSymbol(ctx->scope->syms, sym);
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
         ctx->lvar_offset += 2;
       }
@@ -457,6 +459,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         InsnReg(ctx, "cpop", "fp");
         Insn(ctx, "ret");
       }
+
+      ctx->scope = LeaveScope(ctx->scope);
     }
     break;
   case kNodeBlock:
@@ -481,7 +485,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       ctx->lvar_offset += stk_size;
-      AppendSymbol(ctx->syms, sym);
+      AppendSymbol(ctx->scope->syms, sym);
 
       if (node->rhs) {
         Generate(ctx, node->rhs, 0);
@@ -640,7 +644,7 @@ int main(int argc, char **argv) {
   }
 
   struct GenContext gen_ctx = {
-    NewSymbol(kSymHead, NULL), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast
+    NewGlobalScope(), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast
   };
   InsnRegInt(&gen_ctx, "add", "fp", 0x100);
   InsnLabelStr(&gen_ctx, "call", "main");

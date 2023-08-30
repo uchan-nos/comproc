@@ -23,4 +23,20 @@ struct Symbol {
 
 struct Symbol *NewSymbol(enum SymbolKind kind, struct Token *name);
 struct Symbol *AppendSymbol(struct Symbol *head, struct Symbol *sym);
-struct Symbol *FindSymbol(struct Symbol *head, struct Token *name);
+struct Symbol *FindSymbolLocal(struct Symbol *head, struct Token *name);
+
+struct Scope {
+  struct Scope *parent;
+  struct Symbol *syms;
+};
+
+// 新しくスコープを生成し、生成したスコープを返す
+struct Scope *EnterScope(struct Scope *current);
+
+// 現在のスコープを抜け、1 段上のスコープを返す
+struct Scope *LeaveScope(struct Scope *current);
+
+// 現在のスコープにおいてシンボルを検索する
+struct Symbol *FindSymbol(struct Scope *scope, struct Token *name);
+
+struct Scope *NewGlobalScope();

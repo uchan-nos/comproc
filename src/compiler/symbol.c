@@ -21,7 +21,7 @@ struct Symbol *AppendSymbol(struct Symbol *head, struct Symbol *sym) {
   return sym;
 }
 
-struct Symbol *FindSymbol(struct Symbol *head, struct Token *name) {
+struct Symbol *FindSymbolLocal(struct Symbol *head, struct Token *name) {
   for (; head; head = head->next) {
     if (head->kind != kSymHead &&
         head->name->len == name->len &&
@@ -30,4 +30,32 @@ struct Symbol *FindSymbol(struct Symbol *head, struct Token *name) {
     }
   }
   return NULL;
+}
+
+struct Scope *EnterScope(struct Scope *current) {
+  struct Scope *s = NewGlobalScope();
+  s->parent = current;
+  return s;
+}
+
+struct Scope *LeaveScope(struct Scope *current) {
+  struct Scope *parent = current->parent;
+  free(current);
+  return parent;
+}
+
+struct Symbol *FindSymbol(struct Scope *scope, struct Token *name) {
+  struct Symbol *sym = NULL;
+  while (scope && !sym) {
+    sym = FindSymbolLocal(scope->syms, name);
+    scope = scope->parent;
+  }
+  return sym;
+}
+
+struct Scope *NewGlobalScope() {
+  struct Scope *s = malloc(sizeof(struct Scope));
+  s->parent = NULL;
+  s->syms = NewSymbol(kSymHead, NULL);
+  return s;
 }
