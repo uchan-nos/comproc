@@ -172,6 +172,10 @@ struct Node *Statement() {
     return NewNode(kNodeContinue, token);
   }
 
+  if (cur_token->kind == '{') {
+    return Block();
+  }
+
   struct Node *e = Expression();
   Expect(';');
 

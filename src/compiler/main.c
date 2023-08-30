@@ -464,9 +464,13 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     }
     break;
   case kNodeBlock:
+    ctx->scope = EnterScope(ctx->scope);
+
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
     }
+
+    ctx->scope = LeaveScope(ctx->scope);
     break;
   case kNodeReturn:
     if (node->lhs) {
