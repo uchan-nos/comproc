@@ -13,6 +13,7 @@ void lcd_out4(int rs, int val) {
 
 void lcd_out8(int rs, int val) {
   lcd_out4(rs, val >> 4);
+  lcd_out4(rs, val & 0x0f);
 }
 
 int main() {
