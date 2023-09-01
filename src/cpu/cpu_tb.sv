@@ -16,7 +16,10 @@ initial begin
            stack0, stack1, cpu.fp, cpu.ip, last_wr_addr, last_wr_data,
            " phase=%d%d%d%d",
            cpu.signals.phase_decode, cpu.signals.phase_exec,
-           cpu.signals.phase_rdmem, cpu.signals.phase_fetch);
+           cpu.signals.phase_rdmem, cpu.signals.phase_fetch,
+           " irq=%d cdtimer_to=%d",
+           cpu.irq, cpu.cdtimer_to
+           );
 
   rst <= 1;
   clk <= 1;
@@ -107,7 +110,55 @@ initial begin
   #10 // rdmem
     rd_data <= 16'h1200;
   @(posedge cpu.load_insn)
+    rd_data <= 16'h80FF; // PUSH 0xFF
     if (cpu.stack0 !== 16'h0012) $error("stack0 must be 0x0012");
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h8900; // PUSH 0x900
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h7811; // ISR
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h8002; // PUSH 2
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h4005; // ST 4  (mem[4] <= 2: enable interrupt of cdtimer)
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h8001; // PUSH 1
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h4003; // ST 2  (mem[2] <= 1: write 1 to counter of cdtimer)
+
+  #11 // decode
+  #10 // exec
+  #10 // rdmem
+    if (cpu.cdtimer_to !== 1'b0) $error("cdtimer must NOT be timed out");
+
+  @(posedge cpu.load_insn)
+    rd_data <= 16'h80FE; // PUSH 0xFE
+    if (cpu.cdtimer_to !== 1'b1) $error("cdtimer must be timed out");
+    if (cpu.irq !== 1'b1) $error("IRQ must be 1");
+    if (cpu.ien !== 1'b1) $error("IEN must be 1");
+    if (mem_addr !== `ADDR_WIDTH'h358) $error("mem_addr must be 0x358");
+
+  #11 // decode
+  #10 // exec
+  #10 // rdmem
+    rd_data <= 16'h7812; // IRET
+    if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
+    if (cpu.ien !== 1'b0) $error("IEN must be 0");
+    if (mem_addr !== `ADDR_WIDTH'h900) $error("mem_addr must be 0x900");
+    if (stack0 !== 16'h00FF) $error("stack0 must be 0x00FF");
+
+  @(posedge cpu.load_insn)
+  #11 // decode
+  #10 // exec
+  #10 // rdmem
+    rd_data <= 16'h80FE; // PUSH 0xFE
+    if (cpu.ien !== 1'b1) $error("IEN must be 1");
+    if (mem_addr !== `ADDR_WIDTH'h358) $error("mem_addr must be 0x358");
 
   $finish;
 end

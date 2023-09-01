@@ -378,6 +378,8 @@ int main(void) {
       insn[ip >> 1] = 0x7810;
     } else if (strcmp(mnemonic, "isr") == 0) {
       insn[ip >> 1] = 0x7811;
+    } else if (strcmp(mnemonic, "iret") == 0) {
+      insn[ip >> 1] = 0x7812;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
       exit(1);

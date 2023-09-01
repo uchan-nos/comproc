@@ -2,10 +2,11 @@
 
 module signals_tb;
 
-logic rst, clk;
+logic rst, clk, irq;
 logic [15:0] insn;
 logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, byt, rd_mem, wr_mem;
+  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, byt, rd_mem, wr_mem,
+  set_ien, clear_ien;
 logic [1:0] src_b_sel;
 logic [15:0] imm_mask;
 logic [5:0] alu_sel;
@@ -14,19 +15,21 @@ signals signals(.*);
 
 initial begin
   $dumpvars;
-  $monitor("%d: rst=%d phase=%d%d%d%d insn=%04x imm_mask=%04x",
+  $monitor("%d: rst=%d phase=%d%d%d%d irq=%d insn=%04x imm_mask=%04x",
            $time, rst, signals.phase_decode, signals.phase_exec,
-           signals.phase_rdmem, signals.phase_fetch, insn, imm_mask,
+           signals.phase_rdmem, signals.phase_fetch, irq, insn, imm_mask,
            " src_a=%d%d%d%d src_b_sel=%d alu=%02x",
            src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, src_b_sel, alu_sel,
            " wr_stk1=%d pop/sh=%d%d load=%d%d%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
            wr_stk1, pop, push, load_stk, load_fp, load_ip, load_insn, load_isr,
-           cpop, cpush, byt, rd_mem, wr_mem
-           , " insn_cpush=%d", signals.insn_cpush
+           cpop, cpush, byt, rd_mem, wr_mem,
+           " insn_cpush=%d", signals.insn_cpush,
+           " set/clr_ien=%d/%d", set_ien, clear_ien
          );
 
   rst <= 1;
   clk <= 1;
+  irq <= 0;
   insn <= 16'h0000;
 
   #13
@@ -58,7 +61,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -82,7 +87,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -106,7 +113,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -130,7 +139,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -154,7 +165,9 @@ initial begin
                     0,         // cpush
                     0,         // byt
                     0,         // rd_mem
-                    1          // wr_mem
+                    1,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -178,7 +191,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -202,7 +217,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -226,7 +243,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     0,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -256,7 +275,9 @@ initial begin
              0,         // cpush
              x,         // byt
              x,         // rd_mem
-             0          // wr_mem
+             0,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
            );
 
   @(negedge clk)
@@ -280,7 +301,9 @@ initial begin
              0,         // cpush
              1,         // byt
              1,         // rd_mem
-             0          // wr_mem
+             0,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
            );
 
   @(negedge clk)
@@ -308,7 +331,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     x,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -332,7 +357,9 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     x,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
                   );
 
   @(posedge clk)
@@ -356,7 +383,127 @@ initial begin
                     0,         // cpush
                     x,         // byt
                     x,         // rd_mem
-                    0          // wr_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
+                  );
+
+  @(negedge clk)
+    irq <= 1;
+    // IRQ 信号は次の fetch で処理される
+
+    insn <= 16'h80FF; // PUSH 0xFF
+    if (~signals.phase_decode) $error("phase_decode must be 1");
+    test_sig_decode(0);
+
+  @(negedge clk)
+    if (~signals.phase_exec) $error("phase_exec must be 1");
+    test_sig(16'h7FFF,  // imm_mask
+             x,         // src_a_stk0
+             x,         // src_a_fp
+             x,         // src_a_ip
+             x,         // src_a_cstk
+             `SRC_IMM,  // src_b_sel
+             `ALU_B,    // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             1,         // push
+             1,         // load_stk
+             0,         // load_fp
+             0,         // load_ip
+             0,         // load_insn
+             0,         // load_isr
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             0,         // rd_mem
+             0,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
+           );
+
+  @(negedge clk)
+    if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
+    test_sig_rdmem;
+
+  @(negedge clk)
+    if (~signals.phase_fetch) $error("phase_fetch must be 1");
+    test_sig(16'hxxxx,  // imm_mask
+             x,         // src_a_stk0
+             x,         // src_a_fp
+             x,         // src_a_ip
+             x,         // src_a_cstk
+             `SRC_X,    // src_b_sel
+             `ALU_INC2, // alu_sel
+             x,         // wr_stk1
+             0,         // pop
+             0,         // push
+             0,         // load_stk
+             0,         // load_fp
+             0,         // load_ip  IRQ=1 なら IP を更新しない
+             1,         // load_insn
+             0,         // load_isr
+             0,         // cpop
+             0,         // cpush
+             x,         // byt
+             x,         // rd_mem
+             0,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
+           );
+
+  @(posedge clk)
+    irq <= 0;
+    insn <= 16'h80FE; // PUSH 0xFE
+    test_sig_phases(1,         // call
+                    16'hxxxx,  // imm_mask
+                    x,         // src_a_stk0
+                    x,         // src_a_fp
+                    x,         // src_a_ip
+                    x,         // src_a_cstk
+                    `SRC_ISR,  // src_b_sel
+                    `ALU_B,    // alu_sel
+                    x,         // wr_stk1
+                    0,         // pop
+                    0,         // push
+                    0,         // load_stk
+                    0,         // load_fp
+                    1,         // load_ip
+                    0,         // load_isr
+                    0,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    x,         // rd_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    1          // clear_ien
+                  );
+
+  @(posedge clk)
+    irq <= 0;
+    insn <= 16'h7812; // IRET
+    test_sig_phases(0,         // call
+                    16'hxxxx,  // imm_mask
+                    0,         // src_a_stk0
+                    0,         // src_a_fp
+                    0,         // src_a_ip
+                    1,         // src_a_cstk
+                    `SRC_X,    // src_b_sel
+                    `ALU_A,    // alu_sel
+                    x,         // wr_stk1
+                    0,         // pop
+                    0,         // push
+                    0,         // load_stk
+                    0,         // load_fp
+                    1,         // load_ip
+                    0,         // load_isr
+                    1,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    x,         // rd_mem
+                    0,         // wr_mem
+                    1,         // set_ien
+                    0          // clear_ien
                   );
 
   $finish;
@@ -389,7 +536,8 @@ task test_sig(
   input e_cpush,
   input e_byt,
   input e_rd_mem,
-  input e_wr_mem);
+  input e_wr_mem,
+  input e_set_ien, e_clear_ien);
 begin
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
     $error("imm_mask must be 0x%04x", e_imm_mask);
@@ -414,6 +562,8 @@ begin
   `test_sig1(byt);
   `test_sig1(rd_mem);
   `test_sig1(wr_mem);
+  `test_sig1(set_ien);
+  `test_sig1(clear_ien);
 end
 endtask
 
@@ -439,7 +589,9 @@ begin
              1,         // cpush
              x,         // byt
              x,         // rd_mem
-             x          // wr_mem
+             x,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
            );
   else
     test_sig(16'hxxxx,  // imm_mask
@@ -461,7 +613,9 @@ begin
              0,         // cpush
              x,         // byt
              x,         // rd_mem
-             x          // wr_mem
+             x,         // wr_mem
+             0,         // set_ien
+             0          // clear_ien
            );
 end
 endtask
@@ -488,7 +642,9 @@ begin
            0,         // cpush
            x,         // byt
            x,         // rd_mem
-           0          // wr_mem
+           0,         // wr_mem
+           0,         // set_ien
+           0          // clear_ien
          );
 end
 endtask
@@ -515,7 +671,9 @@ begin
            0,         // cpush
            x,         // byt
            x,         // rd_mem
-           0          // wr_mem
+           0,         // wr_mem
+           0,         // set_ien
+           0          // clear_ien
          );
 end
 endtask
@@ -540,7 +698,8 @@ task test_sig_phases(
   input e_cpush,
   input e_byt,
   input e_rd_mem,
-  input e_wr_mem);
+  input e_wr_mem,
+  input e_set_ien, e_clear_ien);
 begin
   @(negedge clk)
     if (~signals.phase_decode) $error("phase_decode must be 1");
@@ -550,7 +709,8 @@ begin
     if (~signals.phase_exec) $error("phase_exec must be 1");
     test_sig(e_imm_mask, e_src_a_stk0, e_src_a_fp, e_src_a_ip, e_src_a_cstk, e_src_b_sel,
              e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_ip,
-             0 /* load_insn */, e_load_isr, e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem);
+             0 /* load_insn */, e_load_isr, e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem,
+             e_set_ien, e_clear_ien);
 
   @(negedge clk)
     if (~signals.phase_rdmem) $error("phase_rdmem must be 1");

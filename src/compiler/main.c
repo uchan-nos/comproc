@@ -45,6 +45,7 @@ struct GenContext {
   int num_line;
   struct AsmLine asm_lines[MAX_LINE];
   int print_ast;
+  int is_isr; // 現在コンパイルしている関数は ISR である
 };
 
 int GenLabel(struct GenContext *ctx) {
@@ -438,6 +439,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
       AppendSymbol(ctx->scope->syms, func_sym);
       AddLabelToken(ctx, func_sym->name);
+
+      ctx->is_isr = 0;
+      if (strncmp(func_sym->name->raw, "_ISR", 4) == 0) {
+        ctx->is_isr = 1;
+      }
+
       InsnReg(ctx, "cpush", "fp");
       ctx->lvar_offset = 0;
       for (struct Node *param = node->cond; param; param = param->next) {
@@ -457,7 +464,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       struct Node *block_last = GetLastNode(node->rhs);
       if (block_last && block_last->kind != kNodeReturn) {
         InsnReg(ctx, "cpop", "fp");
-        Insn(ctx, "ret");
+        Insn(ctx, ctx->is_isr ? "iret" : "ret");
       }
 
       ctx->scope = LeaveScope(ctx->scope);
@@ -477,7 +484,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       Generate(ctx, node->lhs, 0);
     }
     InsnReg(ctx, "cpop", "fp");
-    Insn(ctx, "ret");
+    Insn(ctx, ctx->is_isr ? "iret" : "ret");
     break;
   case kNodeDefVar:
     {
@@ -660,7 +667,7 @@ int main(int argc, char **argv) {
   }
 
   struct GenContext gen_ctx = {
-    NewGlobalScope(), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast
+    NewGlobalScope(), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
   InsnRegInt(&gen_ctx, "add", "fp", 0x100);
   InsnLabelStr(&gen_ctx, "call", "main");

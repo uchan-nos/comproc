@@ -72,8 +72,8 @@ initial begin
            mem_addr, rd_data, wr_data_mon, byt,
            " alu_out=%04x stack{%02x %02x} fp=%04x",
            cpu.alu_out, stack0, stack1, cpu.fp,
-           " cstk{%02x %02x} cdt=%04x",
-           cpu.cstack.data[0], cpu.cstack.data[1], cpu.cdtimer_cnt);
+           " cstk{%02x %02x} irq=%d cdt=%04x",
+           cpu.cstack.data[0], cpu.cstack.data[1], cpu.irq, cpu.cdtimer_cnt);
   $dumpvars(1, cpu, cpu.signals.decoder);
 
   // 各信号の初期値

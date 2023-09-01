@@ -18,7 +18,8 @@ module decoder(
   output cpush,
   output byt,
   output rd_mem,
-  output wr_mem
+  output wr_mem,
+  output set_ien, clear_ien
 );
 
 assign sign = calc_sign(insn);
@@ -38,6 +39,8 @@ assign cpush = calc_cpush(insn);
 assign byt = calc_byt(insn);
 assign rd_mem = calc_rd_mem(insn);
 assign wr_mem = calc_wr_mem(insn);
+assign set_ien = insn === 16'h7812;
+assign clear_ien = 1'b0;
 
 function [15:0] calc_sign(input [15:0] insn);
 begin
@@ -68,6 +71,7 @@ begin
     16'b001x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10]; // LD.1, ST.1
     16'b010x_xxxx_xxxx_xxxx: calc_src_a = insn[11:10]; // LD, ST, PUSH
     16'b0110_01xx_xxxx_xxxx: calc_src_a = `SRC_FP;     // ADD FP
+    16'b0111_1xxx_xxx1_xx1x: calc_src_a = `SRC_CSTK;   // IRET
     16'b0111_1xxx_xxx1_xxx0: calc_src_a = `SRC_IP;     // INT
     16'b0111_1xxx_xxxx_00x0: calc_src_a = `SRC_CSTK;   // RET, CPOP FP
     16'b0111_1xxx_xxxx_0011: calc_src_a = `SRC_FP;     // CPUSH FP
@@ -96,8 +100,8 @@ begin
     16'b010x_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // LD etc X=0
     16'b0110_00xx_xxxx_xxxx: calc_alu_sel = `ALU_B;    // ICALL
     16'b0111_0xxx_xxxx_xxxx: calc_alu_sel = insn[5:0]; // ALU
-    16'b0111_1xxx_xxx1_xxx0: calc_alu_sel = `ALU_B;    // INT
-    16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;    // CSTK, MEM, ISR
+    16'b0111_1xxx_xxx1_xx00: calc_alu_sel = `ALU_B;    // INT
+    16'b0111_1xxx_xxxx_xxxx: calc_alu_sel = `ALU_A;    // CSTK, MEM, ISR, IRET
     default:                 calc_alu_sel = `ALU_ADD;
   endcase
 end
@@ -156,7 +160,7 @@ function calc_load_fp(input [15:0] insn);
 begin
   casex (insn)
     16'b0110_01xx_xxxx_xxxx: calc_load_fp = 1'b1;
-    16'b0111_1xxx_xxxx_0010: calc_load_fp = 1'b1;
+    16'b0111_1xxx_xxx0_0010: calc_load_fp = 1'b1;
     default:                 calc_load_fp = 1'b0;
   endcase
 end
@@ -168,6 +172,7 @@ begin
     16'b000x_xxxx_xxxx_xxxx: calc_load_ip = 1'b1;
     16'b0110_00xx_xxxx_xxxx: calc_load_ip = 1'b1;
     16'b0111_1xxx_xxxx_0000: calc_load_ip = 1'b1;
+    16'b0111_1xxx_xxx1_0010: calc_load_ip = 1'b1;
     default:                 calc_load_ip = 1'b0;
   endcase
 end
@@ -177,6 +182,7 @@ function calc_cpop(input [15:0] insn);
 begin
   casex (insn)
     16'b0111_1xxx_xxx0_00x0: calc_cpop = 1'b1;
+    16'b0111_1xxx_xxx1_xx1x: calc_cpop = 1'b1;
     default:                 calc_cpop = 1'b0;
   endcase
 end
@@ -187,7 +193,7 @@ begin
   casex (insn)
     16'b0000_xxxx_xxxx_xxx1: calc_cpush = 1'b1;
     16'b0110_00xx_xxxx_xxxx: calc_cpush = 1'b1;
-    16'b0111_1xxx_xxx1_xxx0: calc_cpush = 1'b1;
+    16'b0111_1xxx_xxx1_xx00: calc_cpush = 1'b1;
     16'b0111_1xxx_xxxx_0011: calc_cpush = 1'b1;
     default:                 calc_cpush = 1'b0;
   endcase

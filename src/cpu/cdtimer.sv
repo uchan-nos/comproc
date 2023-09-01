@@ -43,7 +43,7 @@ always @(posedge clk, posedge rst) begin
     period <= 0;
     if (counter > 1)
       counter <= counter - 1;
-    else begin
+    else if (counter === 1) begin
       counter <= 0;
       timeout <= 1;
     end

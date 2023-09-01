@@ -3,6 +3,7 @@
 module signals(
   input rst,
   input clk,
+  input irq,
   input [15:0] insn,
   output sign,
   output [15:0] imm_mask,
@@ -24,35 +25,39 @@ module signals(
   output cpush,
   output byt,
   output rd_mem,
-  output wr_mem
+  output wr_mem,
+  output set_ien, clear_ien
 );
 
 assign src_a_stk0 = ~src_a_fp & ~src_a_ip & ~src_a_cstk;
-assign src_a_fp = phase_half & (insn_src_a === 2'b01);
-assign src_a_ip = ~phase_half | (insn_src_a === 2'b10);
-assign src_a_cstk = phase_half & (insn_src_a === 2'b11);
-assign src_b_sel = insn_src_b;
-assign alu_sel = phase_exec ? insn_alu_sel : phase_fetch ? `ALU_INC2 : `ALU_A;
-assign pop = insn_pop & phase_exec;
-assign push = insn_push & (insn_rd ? phase_rdmem : phase_exec);
-assign load_stk = insn_stk & (insn_rd ? phase_rdmem : phase_exec);
-assign load_fp = insn_fp & phase_exec;
-assign load_ip = reload_ip | phase_fetch;
+assign src_a_fp = phase_half & (insn_src_a === 2'b01) & ~irq_pend;
+assign src_a_ip = ~phase_half | (insn_src_a === 2'b10) | irq_pend;
+assign src_a_cstk = phase_half & (insn_src_a === 2'b11) & ~irq_pend;
+assign src_b_sel = irq_pend ? `SRC_ISR : insn_src_b;
+assign alu_sel = phase_exec ? (irq_pend ? `ALU_B : insn_alu_sel) : phase_fetch ? `ALU_INC2 : `ALU_A;
+assign pop = (insn_pop & ~irq_pend) & phase_exec;
+assign push = (insn_push & ~irq_pend) & (insn_rd ? phase_rdmem : phase_exec);
+assign load_stk = (insn_stk & ~irq_pend) & (insn_rd ? phase_rdmem : phase_exec);
+assign load_fp = (insn_fp & ~irq_pend) & phase_exec;
+assign load_ip = reload_ip | (phase_fetch & ~irq /* not irq_pend */);
 assign load_insn = phase_fetch;
-assign load_isr = insn_isr & phase_exec;
-assign cpop = insn_cpop & phase_exec;
-assign cpush = insn_cpush & phase_decode;
-assign byt = insn_byt;
+assign load_isr = (insn_isr & ~irq_pend) & phase_exec;
+assign cpop = (insn_cpop & ~irq_pend) & phase_exec;
+assign cpush = (insn_cpush | irq_pend) & phase_decode;
+assign byt = (insn_byt & ~irq_pend);
 assign rd_mem = phase_rdmem;
-assign wr_mem = insn_wr & phase_exec;
+assign wr_mem = (insn_wr & ~irq_pend) & phase_exec;
+assign set_ien = (insn_set_ien & ~irq_pend) & phase_exec;
+assign clear_ien = (insn_clear_ien | irq_pend) & phase_exec;
 
-logic phase_decode, phase_exec, phase_rdmem, phase_fetch;
+logic phase_decode, phase_exec, phase_rdmem, phase_fetch, irq_pend;
 signalizer signalizer(.*);
 
 logic [1:0] insn_src_a, insn_src_b;
 logic [5:0] insn_alu_sel;
 logic insn_pop, insn_push, insn_stk, insn_fp, insn_ip, insn_isr,
-  insn_cpop, insn_cpush, insn_byt, insn_rd, insn_wr;
+  insn_cpop, insn_cpush, insn_byt, insn_rd, insn_wr,
+  insn_set_ien, insn_clear_ien;
 decoder decoder(
   .insn(insn),
   .sign(sign),
@@ -71,13 +76,22 @@ decoder decoder(
   .cpush(insn_cpush),
   .byt(insn_byt),
   .rd_mem(insn_rd),
-  .wr_mem(insn_wr)
+  .wr_mem(insn_wr),
+  .set_ien(insn_set_ien),
+  .clear_ien(insn_clear_ien)
 );
 
 logic reload_ip;
-assign reload_ip = insn_ip & phase_exec;
+assign reload_ip = (insn_ip | irq_pend) & phase_exec;
 
 logic phase_half;
 assign phase_half = phase_decode | phase_exec;
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    irq_pend <= 1'b0;
+  else if (phase_fetch)
+    irq_pend <= irq;
+end
 
 endmodule

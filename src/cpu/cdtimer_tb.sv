@@ -96,9 +96,30 @@ initial begin
     end
   end
 
+  // タイムアウトフラグをクリアできることを確認
   @(posedge clk)
+    load <= 1;
+    data <= 4'd0;
   @(negedge clk)
     test_timer(4'd0, 1, 16'd0);
+
+  @(posedge clk)
+    load <= 0;
+  @(negedge clk)
+    test_timer(4'd0, 0, 16'd0);
+
+  @(posedge clk)
+  @(negedge clk)
+    test_timer(4'd0, 0, 16'd1);
+
+  @(posedge clk)
+  @(negedge clk)
+    test_timer(4'd0, 0, 16'd2);
+
+  // period が 1 週後もタイムアウトフラグが 0 であることを確認
+  @(posedge clk)
+  @(negedge clk)
+    test_timer(4'd0, 0, 16'd0);
 
   $finish;
 end

@@ -90,6 +90,7 @@ STA.1      |0111100000001101| byte version
 STD.1      |0111100000001111| byte version
 INT        |0111100000010000| ソフトウェア割り込みを発生
 ISR        |0111100000010001| stack から値を取り出し、ISR レジスタに書く
+IRET       |0111100000010010| 割り込みハンドラから戻る
 
 
 即値無し命令の構造
@@ -186,7 +187,8 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, rd_mem;
+  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, rd_mem,
+  irq, ien, set_ien, clear_ien;
 logic [1:0] src_b_sel;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
 
@@ -205,6 +207,7 @@ assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr_d[0]) : alu_out;
 assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data_raw = wr_stk1 ? stack1 : stack0;
 assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
+assign irq = ien & cdtimer_to & cdtimer_ie;
 
 // CPU コアモジュール群
 alu alu(
@@ -239,6 +242,7 @@ stack cstack(
 signals signals(
   .rst(rst),
   .clk(clk),
+  .irq(irq),
   .insn(insn),
   .sign(sign),
   .imm_mask(imm_mask),
@@ -260,7 +264,9 @@ signals signals(
   .cpush(cpush),
   .byt(byt),
   .rd_mem(rd_mem),
-  .wr_mem(wr_mem)
+  .wr_mem(wr_mem),
+  .set_ien(set_ien),
+  .clear_ien(clear_ien)
 );
 
 // CPU コアのレジスタ群
@@ -299,6 +305,15 @@ always @(posedge clk, posedge rst) begin
     addr_d <= mem_addr;
 end
 
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    ien <= 1'b1;
+  else if (set_ien)
+    ien <= 1'b1;
+  else if (clear_ien)
+    ien <= 1'b0;
+end
+
 // CPU コア用の function 定義
 function [15:0] byte_format(input [15:0] val16, input byt, input addr1);
 begin
@@ -324,7 +339,7 @@ end
 endfunction
 
 // CPU 内蔵周辺機能の信号
-logic cdtimer_to, load_cdtimer;
+logic cdtimer_to, load_cdtimer, cdtimer_ie;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
 // 結線
@@ -341,6 +356,13 @@ cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
   .counter(cdtimer_cnt),
   .timeout(cdtimer_to)
 );
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    cdtimer_ie <= 1'b0;
+  else if (wr_mem && mem_addr === `ADDR_WIDTH'h004)
+    cdtimer_ie <= wr_data[1];
+end
 
 function [15:0] read_internal_reg(input [6:0] addr);
 begin
