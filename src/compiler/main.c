@@ -428,6 +428,10 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       }
     }
     break;
+  case kNodeCast:
+    Generate(ctx, node->rhs, lval);
+    node->type = node->lhs->type;
+    break;
   case kNodeExprEnd:
     fprintf(stderr, "kNodeExprEnd must not be used\n");
     exit(1);

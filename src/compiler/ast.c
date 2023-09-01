@@ -321,7 +321,7 @@ struct Node *Additive() {
 }
 
 struct Node *Multiplicative() {
-  struct Node *node = Unary();
+  struct Node *node = Cast();
 
   struct Token *op;
   if ((op = Consume('*'))) {
@@ -329,6 +329,24 @@ struct Node *Multiplicative() {
   }
 
   return node;
+}
+
+struct Node *Cast() {
+  struct Token *origin = cur_token;
+
+  struct Token *op = Consume('(');
+  if (!op) {
+    return Unary();
+  }
+
+  struct Node *tspec = TypeSpec();
+  if (!tspec) {
+    cur_token = origin;
+    return Unary();
+  }
+
+  Expect(')');
+  return NewNodeBinOp(kNodeCast, op, tspec, Cast());
 }
 
 struct Node *Unary() {
@@ -340,16 +358,16 @@ struct Node *Unary() {
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, NULL, Unary());
   } else if ((op = Consume('&'))) {
-    node = NewNodeBinOp(kNodeRef, op, NULL, Unary());
+    node = NewNodeBinOp(kNodeRef, op, NULL, Cast());
   } else if ((op = Consume('*'))) {
-    node = NewNodeBinOp(kNodeDeref, op, NULL, Unary());
+    node = NewNodeBinOp(kNodeDeref, op, NULL, Cast());
   } else if ((op = Consume('-'))) {
     struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
     zero_tk->value.as_int = 0;
     struct Node *zero = NewNode(kNodeInteger, zero_tk);
     node = NewNodeBinOp(kNodeSub, op, zero, Unary());
   } else if ((op = Consume('~'))) {
-    node = NewNodeBinOp(kNodeNot, op, NULL, Unary());
+    node = NewNodeBinOp(kNodeNot, op, NULL, Cast());
   } else {
     node = Postfix();
   }

@@ -30,6 +30,7 @@ enum NodeKind {
   kNodeRShift,// >>
   kNodeLShift,// <<
   kNodeCall,
+  kNodeCast,
   kNodeExprEnd,
   // 式以外（値をスタックに積まないもの）
   kNodeDefFunc,
@@ -65,6 +66,7 @@ struct Node {
   // kNodeCall    関数名    引数      NULL
   // kNodePList   変数名    NULL      NULL
   // kNodeAsm     文字列    NULL      NULL
+  // kNodeCast    型指定子  式        NULL
   struct Node *lhs, *rhs, *cond;
 };
 
@@ -88,6 +90,7 @@ struct Node *Relational();
 struct Node *BitwiseShift();
 struct Node *Additive();
 struct Node *Multiplicative();
+struct Node *Cast();
 struct Node *Unary();
 struct Node *Postfix();
 struct Node *Primary();
