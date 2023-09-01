@@ -10,7 +10,7 @@ fi
 
 case "$file" in
   *\.c)
-    asm=$(cat "$file" | ../compiler/ucc)
+    asm=$(../compiler/ucc -o - "$file")
     echo "===================================== ASM ====================================="
     echo "$asm"
     bin=$(cat "$file" | ./build.sh)

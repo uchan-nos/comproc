@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cat - | ../compiler/ucc | ../assembler/uasm
+cat - | ../compiler/ucc -o - - | ../assembler/uasm
