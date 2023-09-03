@@ -78,14 +78,6 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
   def->type = tspec->type;
   def->lhs = NewNode(kNodeId, id);
 
-  if (ctx->global_syms) {
-    struct Symbol *sym = NewSymbol(kSymGVar, id);
-    sym->def = def;
-    sym->type = def->type;
-    assert(sym->type);
-    AppendSymbol(ctx->global_syms, sym);
-  }
-
   if (Consume('[')) {
     struct Token *len = Expect(kTokenInteger);
     Expect(']');
@@ -93,6 +85,34 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
     t->len = len->value.as_int;
     t->base = def->type;
     def->type = t;
+  }
+
+  if (ctx->global_syms) {
+    struct Symbol *sym = NewSymbol(kSymGVar, id);
+    sym->def = def;
+    sym->type = def->type;
+    assert(sym->type);
+    AppendSymbol(ctx->global_syms, sym);
+
+    if (Consume(kTokenAttr)) {
+      struct Token *attr;
+      Expect('(');
+      Expect('(');
+      if ((attr = Consume(kTokenId))) {
+        if (strncmp(attr->raw, "at", attr->len) == 0) {
+          Expect('(');
+          struct Token *addr = Expect(kTokenInteger);
+          sym->offset = addr->value.as_int;
+          Expect(')');
+        } else {
+          fprintf(stderr, "unknown attribute\n");
+          Locate(attr->raw);
+          exit(1);
+        }
+      }
+      Expect(')');
+      Expect(')');
+    }
   }
 
   if (Consume('=')) {
