@@ -195,42 +195,63 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeId:
     {
       struct Symbol *sym = FindSymbol(ctx->scope, node->token);
-      if (sym) {
-        switch (sym->kind) {
-        case kSymHead:
-          fprintf(stderr, "this must not happen");
-          exit(1);
-          break;
-        case kSymLVar:
-          assert(sym->type);
-          node->type = sym->type;
-          if (sym->type->kind == kTypeArray) {
-            if (lval) {
-              fprintf(stderr, "array itself cannot be l-value: %.*s\n",
-                      sym->name->len, sym->name->raw);
-              exit(1);
-            }
-            InsnBaseOff(ctx, "push", "cstack", sym->offset);
-          } else {
-            if (lval) {
-              InsnBaseOff(ctx, "push", "cstack", sym->offset);
-            } else {
-              if (SizeofType(sym->type) == 1) {
-                InsnBaseOff(ctx, "ld.1", "cstack", sym->offset);
-              } else {
-                InsnBaseOff(ctx, "ld", "cstack", sym->offset);
-              }
-            }
-          }
-          break;
-        case kSymFunc:
-          InsnLabelToken(ctx, "push", sym->name);
-          break;
-        }
-      } else {
+      if (!sym) {
         fprintf(stderr, "unknown symbol\n");
         Locate(node->token->raw);
         exit(1);
+      }
+      switch (sym->kind) {
+      case kSymHead:
+        fprintf(stderr, "this must not happen");
+        exit(1);
+        break;
+      case kSymGVar:
+        assert(sym->type);
+        node->type = sym->type;
+        if (sym->type->kind == kTypeArray) {
+          if (lval) {
+            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+                    sym->name->len, sym->name->raw);
+            exit(1);
+          }
+          InsnInt(ctx, "push", sym->offset);
+        } else {
+          if (lval) {
+            InsnInt(ctx, "push", sym->offset);
+          } else {
+            if (SizeofType(sym->type) == 1) {
+              InsnBaseOff(ctx, "ld.1", "zero", sym->offset);
+            } else {
+              InsnBaseOff(ctx, "ld", "zero", sym->offset);
+            }
+          }
+        }
+        break;
+      case kSymLVar:
+        assert(sym->type);
+        node->type = sym->type;
+        if (sym->type->kind == kTypeArray) {
+          if (lval) {
+            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+                    sym->name->len, sym->name->raw);
+            exit(1);
+          }
+          InsnBaseOff(ctx, "push", "cstack", sym->offset);
+        } else {
+          if (lval) {
+            InsnBaseOff(ctx, "push", "cstack", sym->offset);
+          } else {
+            if (SizeofType(sym->type) == 1) {
+              InsnBaseOff(ctx, "ld.1", "cstack", sym->offset);
+            } else {
+              InsnBaseOff(ctx, "ld", "cstack", sym->offset);
+            }
+          }
+        }
+        break;
+      case kSymFunc:
+        InsnLabelToken(ctx, "push", sym->name);
+        break;
       }
     }
     break;
@@ -440,12 +461,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     {
       ctx->scope = EnterScope(ctx->scope);
 
-      struct Symbol *func_sym = NewSymbol(kSymFunc, node->token);
-      AppendSymbol(ctx->scope->syms, func_sym);
-      AddLabelToken(ctx, func_sym->name);
+      struct Token *func_name = node->token;
+      AddLabelToken(ctx, func_name);
 
       ctx->is_isr = 0;
-      if (strncmp(func_sym->name->raw, "_ISR", 4) == 0) {
+      if (strncmp(func_name->raw, "_ISR", 4) == 0) {
         ctx->is_isr = 1;
       }
 
@@ -492,22 +512,32 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeDefVar:
     {
-      struct Symbol *sym = NewSymbol(kSymLVar, node->lhs->token);
-      sym->offset = ctx->lvar_offset;
+      int is_global = ctx->scope->parent == NULL;
+      struct Symbol *sym;
+      if (is_global) {
+        sym = FindSymbol(ctx->scope, node->lhs->token);
+      } else {
+        sym = NewSymbol(kSymLVar, node->lhs->token);
+        assert(node->type);
+        sym->type = node->type;
+        AppendSymbol(ctx->scope->syms, sym);
+      }
+      assert(sym->type);
 
-      assert(node->type);
-      sym->type = node->type;
+      size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
+      if (is_global) {
+        assert(sym->offset != 0);
+      } else {
+        sym->offset = ctx->lvar_offset;
+        ctx->lvar_offset += mem_size;
 
-      size_t stk_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
-      ctx->lvar_offset += stk_size;
-      AppendSymbol(ctx->scope->syms, sym);
-
-      if (node->rhs) {
-        Generate(ctx, node->rhs, 0);
-        if (SizeofType(sym->type) == 1) {
-          InsnBaseOff(ctx, "st.1", "cstack", sym->offset);
-        } else {
-          InsnBaseOff(ctx, "st", "cstack", sym->offset);
+        if (node->rhs) {
+          Generate(ctx, node->rhs, 0);
+          if (SizeofType(sym->type) == 1) {
+            InsnBaseOff(ctx, "st.1", "cstack", sym->offset);
+          } else {
+            InsnBaseOff(ctx, "st", "cstack", sym->offset);
+          }
         }
       }
     }
@@ -652,8 +682,12 @@ int main(int argc, char **argv) {
     fclose(input_file);
   }
 
+  struct ParseContext parse_ctx = {
+    NewSymbol(kSymHead, NULL)
+  };
+
   Tokenize(src);
-  struct Node *ast = Program();
+  struct Node *ast = Program(&parse_ctx);
   Expect(kTokenEOF);
 
   if (print_ast) {
@@ -671,9 +705,20 @@ int main(int argc, char **argv) {
   }
 
   struct GenContext gen_ctx = {
-    NewGlobalScope(), 2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
+    NewGlobalScope(parse_ctx.global_syms),
+    2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
-  InsnRegInt(&gen_ctx, "add", "fp", 0x100);
+  int gvar_offset = 0x100;
+
+  struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
+  for (struct Symbol *sym = gen_ctx.scope->syms->next; sym; sym = sym->next) {
+    if (sym->kind == kSymGVar && sym->def->rhs) {
+      size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
+      sym->offset = gvar_offset;
+      gvar_offset += mem_size;
+      InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+    }
+  }
   InsnLabelStr(&gen_ctx, "call", "main");
   InsnBaseOff(&gen_ctx, "st", NULL, 0x82);
   AddLabelStr(&gen_ctx, "fin");
@@ -694,8 +739,11 @@ int main(int argc, char **argv) {
       } else {
         line->insn.operands[1].val_int = gen_ctx.lvar_offset;
       }
+    } else if (n->kind == kNodeDefVar) {
+      Generate(&gen_ctx, n, 0);
     }
   }
+  insn_add_fp->operands[1].val_int = gvar_offset;
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;

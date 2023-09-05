@@ -10,7 +10,10 @@ struct Symbol *NewSymbol(enum SymbolKind kind, struct Token *name) {
   s->kind = kind;
   s->name = name;
   s->next = NULL;
+  s->def = NULL;
+
   s->offset = 0;
+  s->type = NULL;
 
   return s;
 }
@@ -33,7 +36,7 @@ struct Symbol *FindSymbolLocal(struct Symbol *head, struct Token *name) {
 }
 
 struct Scope *EnterScope(struct Scope *current) {
-  struct Scope *s = NewGlobalScope();
+  struct Scope *s = NewGlobalScope(NewSymbol(kSymHead, NULL));
   s->parent = current;
   return s;
 }
@@ -53,9 +56,9 @@ struct Symbol *FindSymbol(struct Scope *scope, struct Token *name) {
   return sym;
 }
 
-struct Scope *NewGlobalScope() {
+struct Scope *NewGlobalScope(struct Symbol *global_syms) {
   struct Scope *s = malloc(sizeof(struct Scope));
   s->parent = NULL;
-  s->syms = NewSymbol(kSymHead, NULL);
+  s->syms = global_syms;
   return s;
 }

@@ -1,9 +1,11 @@
 #include "ast.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "symbol.h"
 #include "token.h"
 
 void Locate(char *p);
@@ -27,60 +29,17 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   return n;
 }
 
-struct Node *Program() {
-  struct Node *head = FunctionDefinition();
+struct Node *Program(struct ParseContext *ctx) {
+  struct Node *head = ExternalDeclaration(ctx);
   struct Node *n = head;
   while (n) {
-    n->next = FunctionDefinition();
+    n->next = ExternalDeclaration(ctx);
     n = n->next;
   }
   return head;
 }
 
-struct Node *FunctionDefinition() {
-  struct Node *ret_type = TypeSpec();
-  if (ret_type == NULL) {
-    return NULL;
-  }
-
-  struct Token *func_name = Expect(kTokenId);
-  Expect('(');
-  struct Node *params = ParameterList();
-  Expect(')');
-  struct Node *body = Block();
-
-  struct Node *func_def = NewNode(kNodeDefFunc, func_name);
-  func_def->lhs = ret_type;
-  func_def->rhs = body;
-  func_def->cond = params;
-  return func_def;
-}
-
-struct Node *Block() {
-  struct Token *brace = Consume('{');
-  if (brace == NULL) {
-    return NULL;
-  }
-
-  struct Node *block = NewNode(kNodeBlock, brace);
-
-  struct Node *node = block;
-  while (Consume('}') == NULL) {
-    if ((node->next = Declaration())) {
-    } else if ((node->next = Statement())) {
-    } else {
-      fprintf(stderr, "either declaration or statement is expected\n");
-      Locate(cur_token->raw);
-      exit(1);
-    }
-
-    node = node->next;
-  }
-
-  return block;
-}
-
-struct Node *Declaration() {
+struct Node *ExternalDeclaration(struct ParseContext *ctx) {
   struct Node *tspec = TypeSpec();
 
   if (!tspec) {
@@ -88,14 +47,44 @@ struct Node *Declaration() {
   }
 
   struct Token *id = Expect(kTokenId);
-  if (id->len != 1) {
-    fprintf(stderr, "variable name must be one character\n");
-    Locate(id->raw);
-    exit(1);
+  if (Consume('(')) {
+    return FunctionDefinition(ctx, tspec, id);
+  } else {
+    return VariableDefinition(ctx, tspec, id);
   }
+}
+
+struct Node *FunctionDefinition(struct ParseContext *ctx,
+                                struct Node *tspec, struct Token *id) {
+  struct Node *params = ParameterList();
+  Expect(')');
+  struct Node *body = Block();
+
+  struct Node *func_def = NewNode(kNodeDefFunc, id);
+  func_def->lhs = tspec;
+  func_def->rhs = body;
+  func_def->cond = params;
+
+  struct Symbol *sym = NewSymbol(kSymFunc, id);
+  sym->def = func_def;
+  AppendSymbol(ctx->global_syms, sym);
+
+  return func_def;
+}
+
+struct Node *VariableDefinition(struct ParseContext *ctx,
+                                struct Node *tspec, struct Token *id) {
   struct Node *def = NewNode(kNodeDefVar, tspec->token);
   def->type = tspec->type;
   def->lhs = NewNode(kNodeId, id);
+
+  if (ctx->global_syms) {
+    struct Symbol *sym = NewSymbol(kSymGVar, id);
+    sym->def = def;
+    sym->type = def->type;
+    assert(sym->type);
+    AppendSymbol(ctx->global_syms, sym);
+  }
 
   if (Consume('[')) {
     struct Token *len = Expect(kTokenInteger);
@@ -112,6 +101,44 @@ struct Node *Declaration() {
   Expect(';');
 
   return def;
+}
+
+struct Node *Block() {
+  struct Token *brace = Consume('{');
+  if (brace == NULL) {
+    return NULL;
+  }
+
+  struct Node *block = NewNode(kNodeBlock, brace);
+
+  struct Node *node = block;
+  while (Consume('}') == NULL) {
+    if ((node->next = InnerDeclaration())) {
+    } else if ((node->next = Statement())) {
+    } else {
+      fprintf(stderr, "either declaration or statement is expected\n");
+      Locate(cur_token->raw);
+      exit(1);
+    }
+
+    node = node->next;
+  }
+
+  return block;
+}
+
+struct Node *InnerDeclaration() {
+  struct ParseContext ctx = { NULL };
+  struct Node *ed = ExternalDeclaration(&ctx);
+  if (ed == NULL) {
+    return NULL;
+  }
+  if (ed->kind == kNodeDefFunc) {
+    fprintf(stderr, "inner func is not allowed\n");
+    Locate(ed->token->raw);
+    exit(1);
+  }
+  return ed;
 }
 
 struct Node *Statement() {

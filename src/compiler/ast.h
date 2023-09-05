@@ -70,13 +70,23 @@ struct Node {
   struct Node *lhs, *rhs, *cond;
 };
 
+struct Symbol;
+
+struct ParseContext {
+  struct Symbol *global_syms;
+};
+
 struct Node *NewNode(enum NodeKind kind, struct Token *token);
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
                           struct Node *lhs, struct Node *rhs);
-struct Node *Program();
-struct Node *FunctionDefinition();
+struct Node *Program(struct ParseContext *ctx);
+struct Node *ExternalDeclaration(struct ParseContext *ctx);
+struct Node *FunctionDefinition(struct ParseContext *ctx,
+                                struct Node *tspec, struct Token *id);
+struct Node *VariableDefinition(struct ParseContext *ctx,
+                                struct Node *tspec, struct Token *id);
 struct Node *Block();
-struct Node *Declaration();
+struct Node *InnerDeclaration();
 struct Node *Statement();
 struct Node *Expression();
 struct Node *Assignment();

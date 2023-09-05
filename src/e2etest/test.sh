@@ -161,3 +161,4 @@ test_value 04 'void isr(){*(int*)0x2f0=4;} int main(){int *p=0x2f0; *p=1; asm("p
 test_value 05 'int main(){ char *p="foo" "ba"; int i=0; while(p[i]){i++;} return i;}'
 test_value 01 'int main(){int *t=2; int *c=4; if(*c){return 4;} *t=3; while(*t){} return *c;}'
 test_value 05 'void _ISR(){*(int*)0x2f0+=1;*(int*)2=0;} int main(){int*t=2;int*p=0x2f0; asm("push _ISR\n\tisr"); *p=3;*(int*)4=2;*t=1;while(*t){} *t=1;while(*t){} return *p;}'
+test_value 01 'int *t=2; int main(){ *t=2; while (*t>0) {} return 1; }'

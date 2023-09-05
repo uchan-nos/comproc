@@ -6,16 +6,19 @@
 
 enum SymbolKind {
   kSymHead, // 線形リストのヘッドを表す特殊な種別
+  kSymGVar, // グローバル変数
   kSymLVar, // ローカル変数
   kSymFunc, // 関数
 };
 
 struct Type;
+struct Node;
 
 struct Symbol {
   enum SymbolKind kind;
   struct Token *name;
   struct Symbol *next;
+  struct Node *def;
 
   uint16_t offset;
   struct Type *type;
