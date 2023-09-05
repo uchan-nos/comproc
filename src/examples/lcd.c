@@ -1,14 +1,15 @@
+int tim_cnt __attribute__((at(0x02)));
+int lcd_port __attribute__((at(0x81)));
+
 void delay_ms(int ms) {
-  int *t = 2;
-  *t = ms;
-  while (*t > 0) {}
+  tim_cnt = ms;
+  while (tim_cnt > 0) {}
 }
 
 void lcd_out4(int rs, int val) {
-  char *p = 0x81;
-  *p = (val << 4) | rs | 1;
+  lcd_port = (val << 4) | rs | 1;
   delay_ms(2);
-  *p = *p & 0xfe;
+  lcd_port = lcd_port & 0xfe;
 }
 
 void lcd_out8(int rs, int val) {
