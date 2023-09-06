@@ -8,4 +8,4 @@ then
   exit 0
 fi
 
-../../tool/uart.py --unit 2 $bin ffff
+../../tool/uart.py --unit 2 $bin 7fff

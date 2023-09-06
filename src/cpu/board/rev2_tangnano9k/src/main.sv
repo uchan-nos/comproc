@@ -53,8 +53,6 @@ assign lcd_rw = cpu_io_lcd[1];
 assign lcd_rs = cpu_io_lcd[2];
 assign lcd_db = cpu_io_lcd[7:4];
 
-// FF FF を受け取ったら機械語の受信完了と判断
-//assign recv_compl = recv_data == 16'hffff;
 assign mem_wr = ~recv_compl | cpu_mem_wr;
 assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
@@ -202,9 +200,9 @@ end
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
     recv_compl <= 1'b0;
-  else if (recv_data == 16'hffff)
+  else if (recv_data == 16'h7fff)
     recv_compl <= 1'b1;
-  else if (recv_phase == 1 && recv_data[7:1] != 7'h7f)
+  else if (recv_phase == 1 && recv_data[7:2] != 6'b0111_11)
     recv_compl <= 1'b0;
 end
 
