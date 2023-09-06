@@ -14,6 +14,7 @@ enum NodeKind {
   kNodeMul,
   kNodeAssign,
   kNodeLT, // <
+  kNodeLE, // <=
   kNodeInc,
   kNodeDec,
   kNodeEq,

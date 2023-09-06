@@ -303,6 +303,12 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     Generate(ctx, node->lhs, 0);
     Insn(ctx, "lt");
     break;
+  case kNodeLE:
+    PRINT_NODE_COMMENT(ctx, node, "LE");
+    Generate(ctx, node->rhs, 0);
+    Generate(ctx, node->lhs, 0);
+    Insn(ctx, "le");
+    break;
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'

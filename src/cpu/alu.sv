@@ -24,6 +24,7 @@ ALU 機能
 28h   LT    A < B
 29h   EQ    A == B
 2ah   NEQ   A != B
+2bh   LE    A <= B
 30h   ADDZ  cond ? A : A+B
 31h   ADDNZ cond ? A+B : A
 */
@@ -49,11 +50,15 @@ begin
   logic [WIDTH-1:0] add, sub;
   logic of;
   logic zf;
+  logic sf; // sign flag
+  logic lt; // less than
   logic signed [WIDTH-1:0] sa;
   add = a + b;
   sub = a - b;
   of = is_overflow(a[15], b[15], sub[15]);
   zf = sub == {WIDTH{1'b0}};
+  sf = sub[15];
+  lt = sf ^ of;
   sa = a;
   casex (sel)
     6'b0000xx: alu = a + sel[1:0];
@@ -69,9 +74,10 @@ begin
     6'b100000: alu = add;
     6'b100001: alu = sub;
     6'b100010: alu = a * b;
-    6'b101000: alu = sub[15] ^ of;
+    6'b101000: alu = lt;
     6'b101001: alu = {{WIDTH-1{1'b0}}, zf};
     6'b101010: alu = {{WIDTH-1{1'b0}}, ~zf};
+    6'b101011: alu = lt | zf;
     6'b11xxx0: alu = cond ? a : add;
     6'b11xxx1: alu = cond ? add : a;
     default:   alu = {WIDTH{1'b0}};

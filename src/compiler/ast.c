@@ -336,6 +336,10 @@ struct Node *Relational() {
     node = NewNodeBinOp(kNodeLT, op, node, Relational());
   } else if ((op = Consume('>'))) {
     node = NewNodeBinOp(kNodeLT, op, Relational(), node);
+  } else if ((op = Consume(kTokenLE))) {
+    node = NewNodeBinOp(kNodeLE, op, node, Relational());
+  } else if ((op = Consume(kTokenGE))) {
+    node = NewNodeBinOp(kNodeLE, op, Relational(), node);
   }
 
   return node;

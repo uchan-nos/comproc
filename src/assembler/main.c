@@ -332,6 +332,8 @@ int main(void) {
       insn[ip >> 1] = 0x7069;
     } else if (strcmp(mnemonic, "neq") == 0) {
       insn[ip >> 1] = 0x706a;
+    } else if (strcmp(mnemonic, "le") == 0) {
+      insn[ip >> 1] = 0x706b;
     } else if (strcmp(mnemonic, "dup") == 0) {
       if (num_opr == 0) {
         insn[ip >> 1] = 0x7080;

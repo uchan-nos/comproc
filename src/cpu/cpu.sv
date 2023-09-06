@@ -75,6 +75,7 @@ MUL        |0111000001100010| stack[0] *= stack[1]
 LT         |0111000001101000| stack[0] = stack[0] < stack[1]
 EQ         |0111000001101001| stack[0] = stack[0] == stack[1]
 NEQ        |0111000001101010| stack[0] = stack[0] != stack[1]
+LE         |0111000001101011| stack[0] = stack[0] <= stack[1]
 
 DUP        |0111000010000000| stack[0] を stack にプッシュ
 DUP 1      |0111000010001111| stack[1] を stack にプッシュ
