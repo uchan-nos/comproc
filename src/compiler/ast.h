@@ -31,6 +31,7 @@ enum NodeKind {
   kNodeLShift,// <<
   kNodeCall,
   kNodeCast,
+  kNodeVoid,  // 空の式（単なる ;）
   kNodeExprEnd,
   // 式以外（値をスタックに積まないもの）
   kNodeDefFunc,

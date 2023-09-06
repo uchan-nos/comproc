@@ -176,10 +176,10 @@ struct Node *Statement() {
     Expect('(');
     if_->cond = Expression();
     Expect(')');
-    if_->lhs = Block();
+    if_->lhs = Statement();
 
     if ((token = Consume(kTokenElse))) {
-      if_->rhs = Block();
+      if_->rhs = Statement();
     }
 
     return if_;
@@ -194,7 +194,7 @@ struct Node *Statement() {
     Expect(';');
     for_->lhs->next = Expression();
     Expect(')');
-    for_->rhs = Block();
+    for_->rhs = Statement();
 
     return for_;
   }
@@ -204,7 +204,7 @@ struct Node *Statement() {
     Expect('(');
     while_->cond = Expression();
     Expect(')');
-    while_->rhs = Block();
+    while_->rhs = Statement();
 
     return while_;
   }
@@ -471,12 +471,8 @@ struct Node *Primary() {
     while (Consume(kTokenString));
   } else if ((tk = Consume(kTokenId))) {
     node = NewNode(kNodeId, tk);
-  }
-
-  if (!node) {
-    fprintf(stderr, "a primary expression is expected.\n");
-    Locate(cur_token->raw);
-    exit(1);
+  } else {
+    node = NewNode(kNodeVoid, cur_token);
   }
 
   return node;

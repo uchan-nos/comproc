@@ -289,6 +289,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     PRINT_NODE_COMMENT(ctx, node, "Assign");
     Generate(ctx, node->rhs, 0);
     Generate(ctx, node->lhs, 1);
+    assert(node->lhs->type);
     if (SizeofType(node->lhs->type) == 1) {
       Insn(ctx, lval ? "sta.1" : "std.1");
     } else {
@@ -452,6 +453,8 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
   case kNodeCast:
     Generate(ctx, node->rhs, lval);
     node->type = node->lhs->type;
+    break;
+  case kNodeVoid:
     break;
   case kNodeExprEnd:
     fprintf(stderr, "kNodeExprEnd must not be used\n");
