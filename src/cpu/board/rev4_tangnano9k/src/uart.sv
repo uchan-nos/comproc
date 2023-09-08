@@ -3,10 +3,10 @@ module uart(
   input rst_n,
   input uart_rx,
   output uart_tx,
-  output logic [7:0] rx_data,
+  output logic [15:0] rx_data,
   output logic rx_data_wr,
-  input [7:0] tx_data,
-  input tx_en
+  input [15:0] tx_data,
+  input tx_data_wr
 );
 
 // 定数

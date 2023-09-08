@@ -138,7 +138,7 @@ test_value 37 'int main() {int i; int s=0; for(i=0;i<20;i++){if(i>10){continue;}
 test_value 03 'int main() {int a[2]; a[1] = 3; return a[1];}'
 test_value 05 'int main() {int a[2]; a[0] = 1; *(a+1) = 4; return *a + a[a[0]];}'
 test_value 0f 'int main() {int a[3]; int *p = a+1; p[0] = 5; p[1] = 3; return a[1] * a[2];}'
-test_value 05 'int main() {int *p=0x82; int s=0; while(*p!=0x7ffe){while(*p==0x7fff); s+=*p&255; while((*p&0xff00)==0x7e00);} return s;}' "7e02 7fff 7e03 7ffe"
+test_value 05 'int main() {int *p=0x82; int s=0; int c=0; while(1){while((p[1]&1)==0); c=p[0]; if(c==0x7ffe)break; s+=c&255;} return s;}' "7e02 7e03 7ffe"
 test_value 14 'int main() {return (010 >> 1) | (002 << 3);}'
 test_value fe 'int main() {return 0xefff >> 12;}'
 test_value ff 'int main() {return 0x8000 >> 15;}'
