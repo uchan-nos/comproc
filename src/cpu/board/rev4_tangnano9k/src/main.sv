@@ -21,44 +21,39 @@ parameter GAP_OFF = 16'd2000;
 logic rst_n;
 logic [15:0] counter;
 logic [3:0] row_index;
-logic [7:0] uart_rx_data, uart_tx_data;
-logic uart_tx_en, uart_rx_data_wr;
 
 logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
 logic mem_wr, mem_byt;
-logic [`ADDR_WIDTH-1:0] mem_addr;
+logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
+logic [15:0] rd_data, wr_data;
 
 logic [15:0] bram_rd_data, wr_data;
 
 logic [7:0] cpu_out;
-logic [`ADDR_WIDTH-1:0] cpu_mem_addr, cpu_mem_addr_d;
-logic [15:0] cpu_rd_data, cpu_wr_data;
-logic cpu_mem_wr, cpu_mem_byt;
 logic [15:0] cpu_stack0, cpu_stack1;
 logic [5:0] cpu_alu_sel;
-logic [15:0] uart_in;
 
-logic [7:0] cpu_io_lcd;
-logic [7:0] cpu_io_led;
+logic [7:0] io_lcd;
+logic [7:0] io_led;
 
 // 継続代入
 assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
 
-assign lcd_e  = cpu_io_lcd[0];
-assign lcd_rw = cpu_io_lcd[1];
-assign lcd_rs = cpu_io_lcd[2];
-assign lcd_db = cpu_io_lcd[7:4];
+assign lcd_e  = io_lcd[0];
+assign lcd_rw = io_lcd[1];
+assign lcd_rs = io_lcd[2];
+assign lcd_db = io_lcd[7:4];
 
-assign mem_wr = ~recv_compl | cpu_mem_wr;
-assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
-assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
-assign wr_data = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = read_mem_or_reg(
-  cpu_mem_addr_d, bram_rd_data, cpu_io_led, cpu_io_lcd, uart_in);
+//assign mem_wr = ~recv_compl | cpu_mem_wr;
+//assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
+//assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
+//assign wr_data = recv_compl ? cpu_wr_data : recv_data;
+assign rd_data = read_mem_or_io(
+  mem_addr_d, bram_rd_data, io_led, io_lcd);
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -74,7 +69,7 @@ function [7:0] led_pattern(input [3:0] row_index);
     4'd4:    led_pattern = cpu_stack1[15:8];
     4'd5:    led_pattern = cpu_stack1[7:0];
     4'd6:    led_pattern = {2'd0, cpu_alu_sel};
-    4'd7:    led_pattern = cpu_io_led;
+    4'd7:    led_pattern = io_led;
     4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
@@ -107,42 +102,25 @@ function led_on(input [15:0] counter);
 endfunction
 
 always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    uart_tx_data <= 8'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h080)
-    if (cpu_mem_byt)
-      cpu_io_led <= cpu_wr_data[7:0];
+  if (!rst_n) begin
+    io_led <= 0;
+    io_lcd <= 0;
+  end
+  else if (mem_wr && mem_addr == `ADDR_WIDTH'h080)
+    if (mem_byt)
+      io_led <= wr_data[7:0];
     else
-      {cpu_io_lcd, cpu_io_led} <= cpu_wr_data;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h081)
-    cpu_io_lcd <= cpu_wr_data[15:8];
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
-    uart_tx_data <= cpu_wr_data[7:0];
+      {io_lcd, io_led} <= wr_data;
+  else if (mem_wr && mem_addr == `ADDR_WIDTH'h081)
+    io_lcd <= wr_data[15:8];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    uart_tx_en <= 1'd0;
-  else if (cpu_mem_wr && cpu_mem_addr == `ADDR_WIDTH'h082)
-    uart_tx_en <= 1'd1;
+    mem_addr_d <= `ADDR_WIDTH'd0;
   else
-    uart_tx_en <= 1'd0;
+    mem_addr_d <= mem_addr;
 end
-
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    cpu_mem_addr_d <= `ADDR_WIDTH'd0;
-  else
-    cpu_mem_addr_d <= cpu_mem_addr;
-end
-
-uart uart(
-  .*,
-  .rx_data(uart_rx_data),
-  .rx_data_wr(uart_rx_data_wr),
-  .tx_data(uart_tx_data),
-  .tx_en(uart_tx_en)
-);
 
 /* UART で受信したデータを BRAM に書き込む。
 
@@ -161,6 +139,7 @@ recv_addr    =N==============X=N+1=
 recv_data    =?====X={?,H}======X={H,L}===
 */
 
+/*
 // recv_phase は上位バイトを待っているとき 0、下位バイトを待っているとき 1
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
@@ -212,16 +191,19 @@ always @(posedge sys_clk, negedge rst_n) begin
   else if (recv_data_v)
     uart_in <= recv_data;
 end
+*/
 
 // 自作 CPU を接続する
-cpu cpu(
-  .rst(~rst_n | ~recv_compl),
+mcu mcu(
+  .rst(~rst_n),
   .clk(sys_clk),
-  .mem_addr(cpu_mem_addr),
-  .wr_mem(cpu_mem_wr),
-  .byt(cpu_mem_byt),
-  .rd_data(cpu_rd_data),
-  .wr_data(cpu_wr_data),
+  .uart_rx(uart_rx),
+  .uart_tx(uart_tx),
+  .mem_addr(mem_addr),
+  .wr_mem(mem_wr),
+  .byt(mem_byt),
+  .rd_data(rd_data),
+  .wr_data(wr_data),
   .stack0(cpu_stack0),
   .stack1(cpu_stack1),
   .alu_sel(cpu_alu_sel)
@@ -314,19 +296,17 @@ begin
 end
 endfunction
 
-function [15:0] read_mem_or_reg(
+function [15:0] read_mem_or_io(
   input [`ADDR_WIDTH-1:0] addr,
   input [15:0] mem,
   input [7:0] io_led,
-  input [7:0] io_lcd,
-  input [15:0] uart_in
+  input [7:0] io_lcd
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b1000_000x: read_mem_or_reg = {io_lcd, io_led};
-    `ADDR_WIDTH'b1000_001x: read_mem_or_reg = uart_in;
-    `ADDR_WIDTH'b1xxx_xxxx: read_mem_or_reg = 16'd0;
-    default:                read_mem_or_reg = mem;
+    `ADDR_WIDTH'b1000_000x: read_mem_or_io = {io_lcd, io_led};
+    `ADDR_WIDTH'b1xxx_xxxx: read_mem_or_io = 16'd0;
+    default:                read_mem_or_io = mem;
   endcase
 end
 endfunction
