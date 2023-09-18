@@ -82,6 +82,6 @@ always #5 begin
   clk <= ~clk;
 end
 
-uart#(.CLK(100), .BAUD(10)) uart(.*);
+uart#(.CLOCK_HZ(100), .BAUD(10)) uart(.*);
 
 endmodule
