@@ -19,6 +19,6 @@
         <File path="../../uart.sv" type="file.verilog" enable="1"/>
         <File path="../../mcu.sv" type="file.verilog" enable="1"/>
         <File path="src/port.cst" type="file.cst" enable="1"/>
-        <File path="src/comproc.rao" type="file.gao" enable="1"/>
+        <File path="src/comproc.rao" type="file.gao" enable="0"/>
     </FileList>
 </Project>

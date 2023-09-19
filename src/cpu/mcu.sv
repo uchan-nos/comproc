@@ -45,7 +45,7 @@ always @(posedge rst, posedge clk) begin
 end
 
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
-  .rst(rst),
+  .rst(~recv_compl),
   .clk(CLK_DIV >= 2 ? clk_div : clk),
   .mem_addr(cpu_mem_addr),
   .wr_mem(cpu_wr_mem),
@@ -74,6 +74,7 @@ assign wr_mem   = ~recv_compl | cpu_wr_mem;
 assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
+assign cpu_rd_data = rd_data;
 
 assign uart_rd = uart_rx_full;
 
