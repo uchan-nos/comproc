@@ -21,9 +21,32 @@ logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
+//localparam CLK_DIV = 27_000_000 / 2;
+localparam CLK_DIV = 1;
+logic [24:0] clk_div_cnt;
+logic clk_div;
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    clk_div_cnt <= 0;
+  else if (clk_div_cnt == CLK_DIV - 1)
+    clk_div_cnt <= 0;
+  else
+    clk_div_cnt <= clk_div_cnt + 1;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    clk_div <= 0;
+  else if (clk_div_cnt == CLK_DIV - 1)
+    clk_div <= 0;
+  else if (clk_div_cnt == (CLK_DIV >> 1))
+    clk_div <= 1;
+end
+
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .rst(rst),
-  .clk(clk),
+  .clk(CLK_DIV >= 2 ? clk_div : clk),
   .mem_addr(cpu_mem_addr),
   .wr_mem(cpu_wr_mem),
   .byt(cpu_byt),
