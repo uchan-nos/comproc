@@ -26,15 +26,16 @@ logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
-logic mem_wr, mem_byt;
+logic mem_wr, mem_byt, mem_clk;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
 logic [15:0] rd_data, wr_data;
 
-logic [15:0] bram_rd_data, wr_data;
+logic [15:0] bram_rd_data;
 
 logic [7:0] cpu_out;
-logic [15:0] cpu_stack0, cpu_stack1;
+logic [15:0] cpu_stack0, cpu_stack1, cpu_insn;
 logic [5:0] cpu_alu_sel;
+logic cpu_load_insn;
 
 logic [7:0] io_lcd;
 logic [7:0] io_led;
@@ -62,14 +63,22 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
+    //4'd0:    led_pattern = {wr_data[15:12], 4'd0};
+    //4'd0:    led_pattern = cpu_insn[15:8];
+    //4'd1:    led_pattern = cpu_insn[7:0];
     4'd0:    led_pattern = wr_data[15:8];
     4'd1:    led_pattern = wr_data[7:0];
+    //4'd1:    led_pattern = wr_data[15:8];
     4'd2:    led_pattern = cpu_stack0[15:8];
     4'd3:    led_pattern = cpu_stack0[7:0];
     4'd4:    led_pattern = cpu_stack1[15:8];
     4'd5:    led_pattern = cpu_stack1[7:0];
-    4'd6:    led_pattern = {2'd0, cpu_alu_sel};
-    4'd7:    led_pattern = io_led;
+    //4'd4:    led_pattern = wr_data[15:8];
+    //4'd5:    led_pattern = wr_data[7:0];
+    //4'd6:    led_pattern = {2'd0, cpu_alu_sel};
+    //4'd7:    led_pattern = io_led;
+    4'd6:    led_pattern = {cpu_load_insn, 3'd0, mem_addr[11:8]};
+    4'd7:    led_pattern = mem_addr[7:0];
     4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
@@ -202,10 +211,13 @@ mcu mcu(
   .mem_addr(mem_addr),
   .wr_mem(mem_wr),
   .byt(mem_byt),
+  .mem_clk(mem_clk),
   .rd_data(rd_data),
   .wr_data(wr_data),
   .stack0(cpu_stack0),
   .stack1(cpu_stack1),
+  .insn(cpu_insn),
+  .load_insn(cpu_load_insn),
   .alu_sel(cpu_alu_sel)
 );
 
@@ -217,7 +229,7 @@ logic [7:0] bram_rd_data_lo, bram_rd_data_hi;
 // メモリ
 mem mem(
   .rst(~rst_n),
-  .clk(sys_clk),
+  .clk(mem_clk),
   .addr(mem_addr),
   .wr(mem_wr),
   .byt(mem_byt),

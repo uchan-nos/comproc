@@ -12,7 +12,10 @@ module cpu#(
   output [15:0] wr_data,
   output [15:0] stack0,
   output [15:0] stack1,
-  output [5:0] alu_sel
+  output logic [15:0] insn,
+  output load_insn,
+  output [5:0] alu_sel,
+  input irq
 );
 
 /*
@@ -166,10 +169,10 @@ addr      説明
 000h-001h 無効
 002h-003h カウントダウンタイマ
 004h-005h カウントダウンタイマ設定
+006h-007h UART 入出力
+008h-009h UART 設定
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
-082h-083h UART 入出力
-084h-085h UART 設定
 
 004h-005h の説明
 ビット 0: IF 割り込みフラグ
@@ -199,13 +202,13 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, rd_mem,
-  irq, ien, set_ien, clear_ien;
+  load_stk, load_fp, load_ip, load_isr, cpop, cpush, rd_mem,
+  irq_masked, ien, set_ien, clear_ien;
 logic [1:0] src_b_sel;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
 
 // レジスタ群
-logic [15:0] fp, ip, insn, isr;
+logic [15:0] fp, ip, isr;
 logic [`ADDR_WIDTH-1:0] addr_d;
 
 // 結線
@@ -215,11 +218,11 @@ assign src_a = src_a_fp ? fp
 assign src_b = src_b_sel === 2'd0 ? stack1
                : src_b_sel === 2'd1 ? mask_imm(insn, imm_mask, sign)
                : isr;
-assign stack_in = rd_mem ? byte_format(data_memreg, byt, addr_d[0]) : alu_out;
+assign stack_in = rd_mem ? byte_format(rd_data, byt, addr_d[0]) : alu_out;
 assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data_raw = wr_stk1 ? stack1 : stack0;
 assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
-assign irq = ien & cdtimer_to & cdtimer_ie;
+assign irq_masked = ien & irq;
 
 // CPU コアモジュール群
 alu alu(
@@ -254,7 +257,7 @@ stack cstack(
 signals signals(
   .rst(rst),
   .clk(clk),
-  .irq(irq),
+  .irq(irq_masked),
   .insn(insn),
   .sign(sign),
   .imm_mask(imm_mask),
@@ -347,42 +350,6 @@ begin
   sign_bits = 6'b111111 ^ imm_mask[15:10];
   masked = imm16 & imm_mask;
   mask_imm = sign ? (masked | (sign_bits << 10)) : masked;
-end
-endfunction
-
-// CPU 内蔵周辺機能の信号
-logic cdtimer_to, load_cdtimer, cdtimer_ie;
-logic [15:0] data_memreg, data_reg, cdtimer_cnt;
-
-// 結線
-assign data_memreg = addr_d >= `ADDR_WIDTH'h080 ? rd_data : data_reg;
-assign data_reg = read_internal_reg(addr_d[6:0]);
-assign load_cdtimer = wr_mem & mem_addr === `ADDR_WIDTH'h002;
-
-// CPU 内蔵周辺機能モジュール群
-cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
-  .rst(rst),
-  .clk(clk),
-  .load(load_cdtimer),
-  .data(wr_data),
-  .counter(cdtimer_cnt),
-  .timeout(cdtimer_to)
-);
-
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    cdtimer_ie <= 1'b0;
-  else if (wr_mem && mem_addr === `ADDR_WIDTH'h004)
-    cdtimer_ie <= wr_data[1];
-end
-
-function [15:0] read_internal_reg(input [6:0] addr);
-begin
-  casex (addr)
-    7'h02:   read_internal_reg = cdtimer_cnt;
-    7'h04:   read_internal_reg = {15'd0, cdtimer_to};
-    default: read_internal_reg = 16'd0;
-  endcase
 end
 endfunction
 

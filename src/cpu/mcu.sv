@@ -5,15 +5,16 @@ module mcu#(
 ) (
   input rst, clk, uart_rx,
   output uart_tx, [`ADDR_WIDTH-1:0] mem_addr,
-  output wr_mem, byt,
+  output wr_mem, byt, mem_clk,
   input  [15:0] rd_data, // メモリ読み込みデータバス
   output [15:0] wr_data, // メモリ書き込みデータバス
-  output [15:0] stack0, [15:0] stack1, [5:0] alu_sel // デバッグ出力
+  output [15:0] stack0, stack1, insn, [5:0] alu_sel, // デバッグ出力
+  output load_insn
 );
 
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr;
 logic [15:0] cpu_rd_data, cpu_wr_data;
-logic cpu_wr_mem, cpu_byt;
+logic cpu_wr_mem, cpu_byt, cpu_irq;
 logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready;
 
@@ -21,10 +22,11 @@ logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
-//localparam CLK_DIV = 27_000_000 / 2;
-localparam CLK_DIV = 1;
-logic [24:0] clk_div_cnt;
-logic clk_div;
+//localparam CLK_DIV = 27_000_000 << 1;
+localparam CLK_DIV = 27_000_000 >> 1;
+//localparam CLK_DIV = 1;
+logic [25:0] clk_div_cnt;
+logic clk_div, cpu_clk;
 
 always @(posedge rst, posedge clk) begin
   if (rst)
@@ -44,9 +46,12 @@ always @(posedge rst, posedge clk) begin
     clk_div <= 1;
 end
 
+assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
+assign mem_clk = recv_compl ? cpu_clk : clk;
+
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .rst(~recv_compl),
-  .clk(CLK_DIV >= 2 ? clk_div : clk),
+  .clk(cpu_clk),
   .mem_addr(cpu_mem_addr),
   .wr_mem(cpu_wr_mem),
   .byt(cpu_byt),
@@ -54,9 +59,35 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .wr_data(cpu_wr_data),
   .stack0(stack0),
   .stack1(stack1),
-  .alu_sel(alu_sel)
+  .insn(insn),
+  .load_insn(load_insn),
+  .alu_sel(alu_sel),
+  .irq(cpu_irq)
 );
 
+// MCU 内蔵周辺機能：カウントダウンタイマ
+logic cdtimer_to, load_cdtimer, cdtimer_ie;
+logic [15:0] data_memreg, data_reg, cdtimer_cnt;
+
+cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
+  .rst(rst),
+  .clk(clk),
+  .load(load_cdtimer),
+  .data(wr_data),
+  .counter(cdtimer_cnt),
+  .timeout(cdtimer_to)
+);
+
+assign load_cdtimer = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h002;
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    cdtimer_ie <= 1'b0;
+  else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h004)
+    cdtimer_ie <= wr_data[1];
+end
+
+// MCU 内蔵周辺機能：UART
 uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(115200), .TIM_WIDTH(8)) uart(
   .rst(rst),
   .clk(clk),
@@ -70,13 +101,38 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(115200), .TIM_WIDTH(8)) uart(
   .tx_ready(uart_tx_ready)
 );
 
+assign uart_rd = uart_rx_full;
+assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
+assign uart_tx_data = cpu_wr_data[7:0];
+
+// MCU 内蔵周辺機能のメモリマップ
+function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
+  casex (mem_addr)
+    `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
+    `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
+    `ADDR_WIDTH'h006: read_memreg = recv_data;
+    default:          read_memreg = rd_data;
+  endcase
+endfunction
+
+// 信号結線
 assign wr_mem   = ~recv_compl | cpu_wr_mem;
 assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = rd_data;
+assign cpu_rd_data = read_memreg(mem_addr);
+assign cpu_irq  = cdtimer_to & cdtimer_ie;
 
-assign uart_rd = uart_rx_full;
+/*
+always @(posedge rst, posedge clk) begin
+  casex (mem_addr)
+    `ADDR_WIDTH'h002: cpu_rd_data = cdtimer_cnt;
+    `ADDR_WIDTH'h004: cpu_rd_data = {14'd0, cdtimer_ie, cdtimer_to};
+    `ADDR_WIDTH'h006: cpu_rd_data = recv_data;
+    default:          cpu_rd_data = rd_data;
+  endcase
+end
+*/
 
 // recv_phase は上位バイトを待っているとき 0、下位バイトを待っているとき 1
 always @(posedge rst, posedge clk) begin

@@ -7,7 +7,6 @@ module timer#(
 );
 
 logic [BITS-1:0] cnt, inc, next;
-logic full, half;
 
 assign inc  = cnt + 1;
 assign next = inc < PERIOD ? inc : 0;
