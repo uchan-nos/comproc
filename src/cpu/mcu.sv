@@ -4,7 +4,8 @@ module mcu#(
   parameter CLOCK_HZ = 27_000_000
 ) (
   input rst, clk, uart_rx,
-  output uart_tx, [`ADDR_WIDTH-1:0] mem_addr, wr_mem, byt,
+  output uart_tx, [`ADDR_WIDTH-1:0] mem_addr,
+  output wr_mem, byt,
   input  [15:0] rd_data, // メモリ読み込みデータバス
   output [15:0] wr_data, // メモリ書き込みデータバス
   output [15:0] stack0, [15:0] stack1, [5:0] alu_sel // デバッグ出力
