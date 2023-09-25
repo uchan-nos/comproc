@@ -202,6 +202,19 @@ end
     4'd1:    led_pattern = wr_data[15:8];
     4'd3:    led_pattern = cpu_stack0[15:8];
     4'd4:    led_pattern = cpu_stack0[7:0];
+
+パターン22: OK
+    4'd2:    led_pattern = cpu_stack0[15:8];
+    4'd3:    led_pattern = cpu_stack0[7:0];
+    4'd4:    led_pattern = cpu_stack1[15:8];
+    4'd5:    led_pattern = cpu_stack1[7:0];
+
+パターン23: OK
+    4'd0:    led_pattern = wr_data[7:0];
+    4'd2:    led_pattern = cpu_stack0[15:8];
+    4'd3:    led_pattern = cpu_stack0[7:0];
+    4'd4:    led_pattern = cpu_stack1[15:8];
+    4'd5:    led_pattern = cpu_stack1[7:0];
 */
 
 // LED の各行に情報を表示
@@ -210,10 +223,10 @@ function [7:0] led_pattern(input [3:0] row_index);
     //4'd0:    led_pattern = {wr_data[15:12], 4'd0};
     //4'd0:    led_pattern = cpu_insn[15:8];
     //4'd1:    led_pattern = cpu_insn[7:0];
-    4'd0:    led_pattern = wr_data[15:8];
-    4'd1:    led_pattern = wr_data[7:0];
+    //4'd0:    led_pattern = wr_data[15:8];
+    //4'd1:    led_pattern = wr_data[7:0];
     //4'd0:    led_pattern = wr_data[7:0];
-    //4'd1:    led_pattern = wr_data[15:8];
+    4'd1:    led_pattern = wr_data[15:8];
     4'd2:    led_pattern = cpu_stack0[15:8];
     4'd3:    led_pattern = cpu_stack0[7:0];
     4'd4:    led_pattern = cpu_stack1[15:8];
