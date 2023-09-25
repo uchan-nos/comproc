@@ -42,6 +42,7 @@ module uart#(
 localparam BIT_PERIOD = CLOCK_HZ / BAUD;
 
 logic rx1buf; // 非同期信号 rx を同期するためのレジスタ
+logic [3:0] rx_filter;
 logic [DATA_BITS-1:0] rx_shift, tx_shift; // シフトレジスタ
 logic [2:0] rx_bit_cnt, tx_bit_cnt; // 送受信済みビット数
 logic rxtim_rst, txtim_rst;
@@ -80,7 +81,16 @@ assign txtim_rst = rst || tx_state == WAIT;
 assign tx_ready = ~wr && tx_state == WAIT;
 
 always @(posedge clk) begin
-  rx1buf <= rx;
+  rx_filter <= {rx, rx_filter[3:1]};
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    rx1buf <= 1;
+  else if ((rx_filter[3] & rx_filter[2] & rx_filter[1] & rx_filter[0]) == 1)
+    rx1buf <= 1;
+  else if ((rx_filter[3] | rx_filter[2] | rx_filter[1] | rx_filter[0]) == 0)
+    rx1buf <= 0;
 end
 
 always @(posedge rst, posedge clk) begin
