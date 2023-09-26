@@ -21,8 +21,6 @@ module mcu#(
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_wr_mem, cpu_byt, cpu_irq;
-logic [7:0] uart_rx_data, uart_tx_data;
-logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready;
 
 //logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
@@ -109,6 +107,9 @@ always @(posedge clk, posedge rst) begin
 end
 
 // MCU 内蔵周辺機能：UART
+logic [7:0] uart_rx_data, uart_tx_data;
+logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
+
 uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(115200), .TIM_WIDTH(8)) uart(
   .rst(rst),
   .clk(clk),
@@ -127,12 +128,20 @@ assign uart_rd = uart_rx_full;
 assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
 assign uart_tx_data = cpu_wr_data[7:0];
 
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    uart_ie <= 1'b0;
+  else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h008)
+    uart_ie <= wr_data[1];
+end
+
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
   casex (mem_addr)
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = recv_data;
+    `ADDR_WIDTH'h008: read_memreg = {14'd0, uart_ie, uart_rx_full};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
