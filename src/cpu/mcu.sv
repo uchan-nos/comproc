@@ -5,7 +5,7 @@ module mcu#(
 ) (
   input rst, clk, uart_rx,
   output uart_tx, [`ADDR_WIDTH-1:0] mem_addr,
-  output wr_mem, byt, mem_clk,
+  output wr_mem, byt,
   input  [15:0] rd_data, // メモリ読み込みデータバス
   output [15:0] wr_data, // メモリ書き込みデータバス
   output [15:0] stack0, stack1, insn, [5:0] alu_sel, // デバッグ出力
@@ -28,6 +28,8 @@ localparam CLK_DIV = 27_000_000 >> 1;
 logic [25:0] clk_div_cnt;
 logic clk_div, cpu_clk;
 
+logic [15:0] rd_data_d;
+
 always @(posedge rst, posedge clk) begin
   if (rst)
     clk_div_cnt <= 0;
@@ -46,8 +48,14 @@ always @(posedge rst, posedge clk) begin
     clk_div <= 1;
 end
 
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    rd_data_d <= 0;
+  else if (clk_div_cnt == (CLK_DIV >> 1) + 1)
+    rd_data_d <= rd_data;
+end
+
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
-assign mem_clk = recv_compl ? cpu_clk : clk;
 
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .rst(~recv_compl),
@@ -111,7 +119,7 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = recv_data;
-    default:          read_memreg = rd_data;
+    default:          read_memreg = rd_data_d;
   endcase
 endfunction
 

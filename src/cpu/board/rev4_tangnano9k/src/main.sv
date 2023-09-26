@@ -26,7 +26,7 @@ logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
-logic mem_wr, mem_byt, mem_clk;
+logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
 logic [15:0] rd_data, wr_data;
 
@@ -373,7 +373,6 @@ mcu mcu(
   .mem_addr(mem_addr),
   .wr_mem(mem_wr),
   .byt(mem_byt),
-  .mem_clk(mem_clk),
   .rd_data(rd_data),
   .wr_data(wr_data),
   .stack0(cpu_stack0),
@@ -391,7 +390,7 @@ logic [7:0] bram_rd_data_lo, bram_rd_data_hi;
 // メモリ
 mem mem(
   .rst(~rst_n),
-  .clk(mem_clk),
+  .clk(sys_clk),
   .addr(mem_addr),
   .wr(mem_wr),
   .byt(mem_byt),
