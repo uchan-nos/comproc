@@ -18,7 +18,7 @@ module mcu#(
   , output dbg_rx_timing
 );
 
-logic [`ADDR_WIDTH-1:0] cpu_mem_addr;
+logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_wr_mem, cpu_byt, cpu_irq;
 logic [7:0] uart_rx_data, uart_tx_data;
@@ -62,6 +62,13 @@ always @(posedge rst, posedge clk) begin
 end
 
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    mem_addr_d <= `ADDR_WIDTH'd0;
+  else
+    mem_addr_d <= mem_addr;
+end
 
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .rst(rst | ~recv_compl),
@@ -135,7 +142,7 @@ assign wr_mem   = ~recv_compl | cpu_wr_mem;
 assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = read_memreg(mem_addr);
+assign cpu_rd_data = read_memreg(mem_addr_d);
 assign cpu_irq  = cdtimer_to & cdtimer_ie;
 
 /*
