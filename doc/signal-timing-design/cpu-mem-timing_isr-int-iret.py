@@ -1,0 +1,23 @@
+{
+  signal: [
+    {name: 'clk',          wave: 'PPPPPPPPPPPPPP'},
+    {name: 'phase',        wave: '22222222222222', data: ['R', 'F', 'D', 'E', 'R', 'F', 'D', 'E', 'R', 'F', 'D', 'E', 'R', 'F', 'D', 'E', 'R', 'F']},
+    {name: 'ip',           wave: '3.4...6.5.2.6.', data: ['X', 'X+2', 'X+4', 'Y', 'Y+2', 'X+4']},
+    {name: 'load_ip',      wave: '010..101010101'},
+    {name: 'src_a',        wave: '2.2.2.....2.2.', data: ['ip', 'stack0', 'ip', 'cstack', 'ip']},
+    {name: 'src_b',        wave: 'x.2...........', data: ['isr']},
+  	{name: 'alu_sel',      wave: '222..222222..2', data: ['A', 'INC2', 'A', 'INC2', 'A', 'B', 'A', 'INC2', 'A', 'INC2']},
+    {name: 'alu_out',      wave: '345.46.5.26..2', data: ['X', 'X+2', 'Y', 'X+2', 'X+4', 'Y', 'Y+2', 'X+4', 'X+6']},
+    {name: 'rd_data',      wave: 'x345.46.5.x6..', data: ['ins1', 'ins2', 'ins3', 'ins2', 'ins4', 'ins3', 'ins4']},
+    {name: 'insn',         wave: 'x.3...4...5...', data: ['ins1: ISR', 'ins2: INT', 'ins3: IRET']},
+    {name: 'load_isr',     wave: '0..10.........'},
+    {name: 'isr',          wave: 'x...5.........', data: ['Y']},
+    {name: 'set_ien',      wave: '0..........10.', data: ['ins1: LD cstack+Y', 'ins2: STA', 'ins3: LDD', 'ins4: ADD']},
+    {name: 'clear_ien',    wave: '0.............', data: ['S0', 'M0', 'M0', 'S0', 'S2=S0+S1']},
+    {name: 'stack0',       wave: '5...x.........', data: ['Y']},
+    {name: 'pop',          wave: '0..10.........'},
+    {name: 'cstack0',      wave: 'x......6....x.', data: ['X+4']},
+    {name: 'cpop',         wave: '0..........10.'},
+    {name: 'cpush',        wave: '0.....10......'},
+  ],
+}
