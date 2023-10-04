@@ -92,7 +92,7 @@ end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
-  if (wr_mem && mem_addr == `ADDR_WIDTH'h082) begin
+  if (wr_mem && mem_addr == `ADDR_WIDTH'h006) begin
     if (uart_out == 0 || uart_eot != 0) begin
       $fdisplay(STDERR, "%x", wr_data[7:0]);
       $finish;

@@ -23,8 +23,8 @@ logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
 //localparam CLK_DIV = 27_000_000 << 1;
-localparam CLK_DIV = 27_000_000 >> 1;
-//localparam CLK_DIV = 1;
+//localparam CLK_DIV = 27_000_000 >> 1;
+localparam CLK_DIV = 1;
 logic [25:0] clk_div_cnt;
 logic clk_div, cpu_clk;
 
@@ -119,7 +119,7 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = recv_data;
-    default:          read_memreg = rd_data_d;
+    default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
 

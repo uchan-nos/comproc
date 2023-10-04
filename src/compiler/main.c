@@ -729,7 +729,7 @@ int main(int argc, char **argv) {
     }
   }
   InsnLabelStr(&gen_ctx, "call", "main");
-  InsnBaseOff(&gen_ctx, "st", NULL, 0x82);
+  InsnBaseOff(&gen_ctx, "st", NULL, 0x06);
   AddLabelStr(&gen_ctx, "fin");
   InsnLabelStr(&gen_ctx, "jmp", "fin");
   for (struct Node *n = ast; n; n = n->next) {
