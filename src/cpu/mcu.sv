@@ -10,6 +10,8 @@ module mcu#(
   output [15:0] wr_data, // メモリ書き込みデータバス
   output [15:0] stack0, stack1, insn, [5:0] alu_sel, // デバッグ出力
   output load_insn
+  , output logic [15:0] recv_data
+  , output logic recv_data_v
 );
 
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr;
@@ -18,9 +20,9 @@ logic cpu_wr_mem, cpu_byt, cpu_irq;
 logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready;
 
-logic [15:0] recv_data;
+//logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, recv_data_v, recv_compl;
+logic recv_phase, /*recv_data_v, */recv_compl;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;

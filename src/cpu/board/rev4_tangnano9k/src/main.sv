@@ -23,6 +23,7 @@ logic [15:0] counter;
 logic [3:0] row_index;
 
 logic [15:0] recv_data;
+logic [15:0] recv_data_buf[0:2];
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
 
@@ -40,6 +41,8 @@ logic cpu_load_insn;
 logic [7:0] io_lcd;
 logic [7:0] io_led;
 
+logic [15:0] recv_data;
+
 // 継続代入
 assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
@@ -48,6 +51,14 @@ assign lcd_e  = io_lcd[0];
 assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
+
+always @(posedge sys_clk) begin
+  if (recv_data_v) begin
+    recv_data_buf[2] <= recv_data_buf[1];
+    recv_data_buf[1] <= recv_data_buf[0];
+    recv_data_buf[0] <= recv_data;
+  end
+end
 
 //assign mem_wr = ~recv_compl | cpu_mem_wr;
 //assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
@@ -63,14 +74,20 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    4'd0:    led_pattern = cpu_insn[15:8];
-    4'd1:    led_pattern = cpu_insn[7:0];
+    //4'd0:    led_pattern = cpu_insn[15:8];
+    //4'd1:    led_pattern = cpu_insn[7:0];
     //4'd0:    led_pattern = wr_data[15:8];
     //4'd1:    led_pattern = wr_data[7:0];
-    4'd2:    led_pattern = cpu_stack0[15:8];
-    4'd3:    led_pattern = cpu_stack0[7:0];
-    4'd4:    led_pattern = cpu_stack1[15:8];
-    4'd5:    led_pattern = cpu_stack1[7:0];
+    4'd0:    led_pattern = recv_data_buf[0][15:8];
+    4'd1:    led_pattern = recv_data_buf[0][7:0];
+    4'd2:    led_pattern = recv_data_buf[1][15:8];
+    4'd3:    led_pattern = recv_data_buf[1][7:0];
+    4'd4:    led_pattern = recv_data_buf[2][15:8];
+    4'd5:    led_pattern = recv_data_buf[2][7:0];
+    //4'd2:    led_pattern = cpu_stack0[15:8];
+    //4'd3:    led_pattern = cpu_stack0[7:0];
+    //4'd4:    led_pattern = cpu_stack1[15:8];
+    //4'd5:    led_pattern = cpu_stack1[7:0];
     //4'd6:    led_pattern = {2'd0, cpu_alu_sel};
     //4'd7:    led_pattern = io_led;
     4'd6:    led_pattern = {cpu_load_insn, 3'd0, mem_addr[11:8]};
@@ -214,6 +231,8 @@ mcu mcu(
   .insn(cpu_insn),
   .load_insn(cpu_load_insn),
   .alu_sel(cpu_alu_sel)
+  , .recv_data(recv_data)
+  , .recv_data_v(recv_data_v)
 );
 
 logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;
