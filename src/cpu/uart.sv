@@ -105,8 +105,8 @@ always @(posedge rst, posedge clk) begin
     rx_state <= DATA;
   else if (rx_state == DATA && rxtim_full && rx_bit_cnt == DATA_BITS-1)
     rx_state <= STOP;
-  else if (rx_state == STOP && rxtim_full)
-    rx_state <= WAIT;
+  else if (rx_state == STOP && rxtim_half)
+    rx_state <= WAIT; // ストップビットだけは half で受信を終える
 end
 
 always @(posedge rst, posedge clk) begin
@@ -148,7 +148,7 @@ always @(posedge rst, posedge clk) begin
     rx_data <= 0;
     rx_full <= 0;
   end
-  else if (rx_state == STOP && rxtim_full) begin
+  else if (rx_state == STOP && rxtim_half) begin
     rx_data <= rx_shift;
     rx_full <= 1;
   end
