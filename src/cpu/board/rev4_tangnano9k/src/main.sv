@@ -11,6 +11,7 @@ module main(
   output lcd_rw,
   output lcd_rs,
   output [7:4] lcd_db
+  , output pin55
 );
 
 parameter PERIOD = 16'd27000;
@@ -26,6 +27,9 @@ logic [15:0] recv_data;
 logic [15:0] recv_data_buf[0:2];
 logic [`ADDR_WIDTH-1:0] recv_addr;
 logic recv_phase, recv_data_v, recv_compl;
+logic dbg_rx_timing;
+
+assign pin55 = dbg_rx_timing;
 
 logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
@@ -233,6 +237,7 @@ mcu mcu(
   .alu_sel(cpu_alu_sel)
   , .recv_data(recv_data)
   , .recv_data_v(recv_data_v)
+  , .dbg_rx_timing(dbg_rx_timing)
 );
 
 logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;
