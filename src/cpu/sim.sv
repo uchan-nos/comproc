@@ -42,7 +42,7 @@ assign src_a_sel = mcu.cpu.src_a_fp ? 2'd1
 logic rst, clk;
 mcu#(.CLOCK_HZ(100_000)) mcu(
   .*,
-  .uart_rx(1'b1), .uart_tx(), .insn(), .load_insn(),
+  .uart_rx(1'b1), .rx_prog(1'b0), .uart_tx(), .insn(), .load_insn(),
   .recv_data(), .recv_data_v(), .dbg_rx_timing()
 );
 

@@ -224,6 +224,7 @@ mcu mcu(
   .rst(~rst_n),
   .clk(sys_clk),
   .uart_rx(uart_rx),
+  .rx_prog(1'b1),
   .uart_tx(uart_tx),
   .mem_addr(mem_addr),
   .wr_mem(mem_wr),

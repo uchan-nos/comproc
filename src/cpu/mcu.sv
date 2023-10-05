@@ -4,6 +4,7 @@ module mcu#(
   parameter CLOCK_HZ = 27_000_000
 ) (
   input rst, clk, uart_rx,
+  input rx_prog, // 1: 最初にプログラムを受信する、0: プログラム受信をスキップ
   output uart_tx,
   output [`ADDR_WIDTH-1:0] mem_addr,
   output wr_mem, byt,
@@ -63,7 +64,7 @@ end
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
 
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
-  .rst(~recv_compl),
+  .rst(rst | ~recv_compl),
   .clk(cpu_clk),
   .mem_addr(cpu_mem_addr),
   .wr_mem(cpu_wr_mem),
@@ -182,7 +183,7 @@ end
 
 always @(posedge rst, posedge clk) begin
   if (rst)
-    recv_compl <= 1'b0;
+    recv_compl <= ~rx_prog;
   else if (recv_data == 16'h7fff)
     recv_compl <= 1'b1;
   else if (recv_phase == 1 && recv_data[7:2] != 6'b0111_11)
