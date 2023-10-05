@@ -14,7 +14,7 @@ logic [15:0] stack0, stack1;
 logic [5:0] alu_sel;
 
 logic [15:0] wr_data_mon;
-assign wr_data_mon = wr_mem ? cpu.wr_data : 16'hzzzz;
+assign wr_data_mon = wr_mem ? mcu.wr_data : 16'hzzzz;
 
 integer num_insn = 0;
 integer ip_init = `ADDR_WIDTH'h300 >> 1;
@@ -30,17 +30,21 @@ integer uart_index;
 logic [15:0] insn_buf;
 
 logic [1:0] phase_num;
-assign phase_num = cpu.signals.phase_decode ? 0
-                   : cpu.signals.phase_exec ? 1
-                   : cpu.signals.phase_rdmem ? 2 : 3;
+assign phase_num = mcu.cpu.signals.phase_decode ? 0
+                   : mcu.cpu.signals.phase_exec ? 1
+                   : mcu.cpu.signals.phase_rdmem ? 2 : 3;
 logic [1:0] src_a_sel;
-assign src_a_sel = cpu.src_a_fp ? 2'd1
-                   : cpu.src_a_ip ? 2'd2
-                   : cpu.src_a_cstk ? 2'd3 : 2'd0;
+assign src_a_sel = mcu.cpu.src_a_fp ? 2'd1
+                   : mcu.cpu.src_a_ip ? 2'd2
+                   : mcu.cpu.src_a_cstk ? 2'd3 : 2'd0;
 
 // CPU を接続する
 logic rst, clk;
-cpu#(.CLOCK_HZ(100_000)) cpu(.*);
+mcu#(.CLOCK_HZ(100_000)) mcu(
+  .*,
+  .uart_rx(1'b1), .uart_tx(), .insn(), .load_insn(),
+  .recv_data(), .recv_data_v(), .dbg_rx_timing()
+);
 
 // 実行トレース機能
 logic trace_enable;
@@ -67,14 +71,14 @@ initial begin
 
   // 信号が変化したら自動的に出力する
   $monitor("%d: rst=%d ip=%02x.%d %04x %-6s",
-           $time, rst, cpu.ip, phase_num, cpu.insn, insn_name,
+           $time, rst, mcu.cpu.ip, phase_num, mcu.cpu.insn, insn_name,
            " addr=%03x r=%04x w=%04x byt=%d",
            mem_addr, rd_data, wr_data_mon, byt,
            " alu_out=%04x stack{%02x %02x} fp=%04x",
-           cpu.alu_out, stack0, stack1, cpu.fp,
+           mcu.cpu.alu_out, stack0, stack1, mcu.cpu.fp,
            " cstk{%02x %02x} irq=%d cdt=%04x",
-           cpu.cstack.data[0], cpu.cstack.data[1], cpu.irq, cpu.cdtimer_cnt);
-  $dumpvars(1, cpu, cpu.signals.decoder);
+           mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt);
+  $dumpvars(1, mcu.cpu, mcu.cpu.signals.decoder);
 
   // 各信号の初期値
   rst <= 1;
@@ -117,22 +121,22 @@ always @(posedge clk) begin
               $stime, rst, phase_num,
               // レジスタ値
               "stack0=%x fp=%x ip=%x insn=%x cstack0=%x ",
-              stack0, cpu.fp, cpu.ip, cpu.insn, cpu.cstack0,
+              stack0, mcu.cpu.fp, mcu.cpu.ip, mcu.cpu.insn, mcu.cpu.cstack0,
               // セレクト信号
               "alu_sel=%x src_a_sel=%x src_b_sel=%x ",
-              cpu.signals.alu_sel, src_a_sel, cpu.src_b_sel,
+              mcu.cpu.signals.alu_sel, src_a_sel, mcu.cpu.src_b_sel,
               "rd_mem=%x wr_stk1=%x ",
-              cpu.rd_mem, cpu.wr_stk1,
+              mcu.cpu.rd_mem, mcu.cpu.wr_stk1,
               // 制御信号
               "pop=%x push=%x load_stk=%x load_fp=%x load_ip=%x ",
-              cpu.pop, cpu.push, cpu.load_stk, cpu.load_fp, cpu.load_ip,
+              mcu.cpu.pop, mcu.cpu.push, mcu.cpu.load_stk, mcu.cpu.load_fp, mcu.cpu.load_ip,
               "load_isr=%d cpop=%x cpush=%x ",
-              cpu.load_isr, cpu.cpop, cpu.cpush,
+              mcu.cpu.load_isr, mcu.cpu.cpop, mcu.cpu.cpush,
               // データ値
               "rd_data=%x wr_data=%x addr_d=%x ",
-              rd_data, wr_data, cpu.addr_d,
+              rd_data, wr_data, mcu.cpu.addr_d,
               "alu_out=%x src_a=%x src_b=%x stack_in=%x imm_mask=%x ",
-              cpu.alu_out, cpu.src_a, cpu.src_b, cpu.stack_in, cpu.imm_mask
+              mcu.cpu.alu_out, mcu.cpu.src_a, mcu.cpu.src_b, mcu.cpu.stack_in, mcu.cpu.imm_mask
              );
   end
 end
@@ -181,7 +185,7 @@ byte_bram mem_hi(
 );
 
 logic [`ADDR_WIDTH-1:0] mem_addr_d;
-assign rd_data = mem_addr_d == `ADDR_WIDTH'h082 ?
+assign rd_data = mem_addr_d == `ADDR_WIDTH'h006 ?
                  uart_in[uart_index] : bram_rd_data;
 
 always @(posedge clk) begin
@@ -194,7 +198,7 @@ end
 
 always @(posedge clk) begin
   if (phase_num == 0) begin
-    casex (cpu.insn)
+    casex (mcu.cpu.insn)
       16'b1xxx_xxxx_xxxx_xxxx: insn_name <= "push";
       16'b0000_xxxx_xxxx_xxx0: insn_name <= "jmp";
       16'b0000_xxxx_xxxx_xxx1: insn_name <= "call";
