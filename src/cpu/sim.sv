@@ -21,14 +21,16 @@ integer num_insn = 0;
 integer ip_init = `ADDR_WIDTH'h300 >> 1;
 
 string uart_in_file;
+integer uart_in_fd;
 string uart_out_file = "";
 integer uart_out = 0;
 integer uart_eot = 0;
-logic [15:0] uart_in[0:255];
+logic [7:0] uart_in[0:255];
 logic [5:0][7:0] insn_name;
-integer uart_index;
+integer uart_index, uart_in_len;
 integer uart_in_tx_phase;
 logic mcu_uart_rx;
+logic [7:0] cur_uart_in;
 
 logic [15:0] insn_buf;
 
@@ -40,6 +42,8 @@ logic [1:0] src_a_sel;
 assign src_a_sel = mcu.cpu.src_a_fp ? 2'd1
                    : mcu.cpu.src_a_ip ? 2'd2
                    : mcu.cpu.src_a_cstk ? 2'd3 : 2'd0;
+
+assign cur_uart_in = uart_in[uart_index];
 
 // CPU を接続する
 logic rst, clk;
@@ -64,11 +68,16 @@ initial begin
   end
 
   uart_in_tx_phase = 0;
+  mcu_uart_rx = 1;
 
-  for (uart_index = 0; uart_index < 256; uart_index++) uart_in[uart_index] = 0;
   uart_index = 0;
-  if ($value$plusargs("uart_in=%s", uart_in_file))
-    $readmemh(uart_in_file, uart_in);
+  uart_in_len = 0;
+  if ($value$plusargs("uart_in=%s", uart_in_file)) begin
+    uart_in_fd = $fopen(uart_in_file, "r");
+    if (uart_in_fd != 0)
+      while ($fscanf(uart_in_fd, "%h", uart_in[uart_in_len]) == 1)
+        uart_in_len++;
+  end
   if ($value$plusargs("uart_out=%s", uart_out_file))
     uart_out = $fopen(uart_out_file, "w");
   if ($value$plusargs("trace_file=%s", trace_file))
@@ -82,7 +91,9 @@ initial begin
            " alu_out=%04x stack{%02x %02x} fp=%04x",
            mcu.cpu.alu_out, stack0, stack1, mcu.cpu.fp,
            " cstk{%02x %02x} irq=%d cdt=%04x",
-           mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt);
+           mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
+           " mcu_uart_rx=%d cur_uart_in=%02x",
+           mcu_uart_rx, cur_uart_in);
   $dumpvars(1, mcu.cpu, mcu.cpu.signals.decoder);
 
   // 各信号の初期値
@@ -198,18 +209,23 @@ always @(posedge clk) begin
 end
 
 // UART 送信のシミュレート
-always #(CLOCK_HZ/UART_BAUD) begin
-  uart_in_tx_phase = (uart_in_tx_phase + 1) % 0;
-end
+always #(10*CLOCK_HZ/UART_BAUD) begin
+  if (uart_index == uart_in_len)
+    mcu_uart_rx = 1;
+  else begin
+    case (uart_in_tx_phase)
+      0: mcu_uart_rx = 0; // start bit
+      9: mcu_uart_rx = 1; // stop bit
+      default: mcu_uart_rx = (uart_in[uart_index] >> (uart_in_tx_phase - 1)) & 1;
+    endcase
 
-always #(CLOCK_HZ/UART_BAUD) begin
-  case (uart_in_tx_phase)
-    0: mcu_uart_rx = 1;
-    1: mcu_uart_rx = 0;
-    default: mcu_uart_rx = (uart_in[uart_index] >> (mcu_uart_rx - 2)) & 1;
-  endcase
-
-  uart_index <= uart_index + 1;
+    if (uart_in_tx_phase < 9)
+      uart_in_tx_phase++;
+    else begin
+      uart_in_tx_phase = 0;
+      uart_index++;
+    end
+  end
 end
 
 always @(posedge clk) begin

@@ -129,7 +129,7 @@ test_value 33 'int main() {int i = 1; return "0123"[++i + 1];}'
 test_value 05 'int main() {int i = 0; while(1){if(i == 5)break; i++;} return i;}'
 test_value 06 'int main() {int i; int j; int s=0; for(i=0;i<3;i++) for(j=0;j<2;j++){s++;} return s;}'
 test_value 04 'int main() {if(0){if(1){return 2;}else{return 3;}}else{if(1){return 4;} return 1;}}'
-test_value 05 'int main() {int *p = 0x06; while(*p == 0x7fff); return *p + 1;}' 7e04
+test_value 05 'int main() {int *p = 0x06; while((p[1]&1) == 0); return *p + 1;}' 7e04
 test_value fe 'int main() {return -2;}'
 test_value 03 'int main() {if (-1 < 0) { return 3; } else { return 5; }}'
 test_value 85 'int main() {return 0xaf & 0xc1 | 0xfb ^ 255;}'
