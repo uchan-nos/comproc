@@ -1,7 +1,8 @@
 `include "common.sv"
 
 module mcu#(
-  parameter CLOCK_HZ = 27_000_000
+  parameter CLOCK_HZ = 27_000_000,
+  parameter UART_BAUD = 115200
 ) (
   input rst, clk, uart_rx,
   input rx_prog, // 1: 最初にプログラムを受信する、0: プログラム受信をスキップ
@@ -110,7 +111,7 @@ end
 logic [7:0] uart_rx_data, uart_tx_data;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
 
-uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(115200), .TIM_WIDTH(8)) uart(
+uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
   .rst(rst),
   .clk(clk),
   .rx(uart_rx),

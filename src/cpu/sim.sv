@@ -4,6 +4,7 @@ module Simulation;
 localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
 localparam CLOCK_HZ = 10_000;
+localparam UART_BAUD = 1_000;
 localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
 logic [`ADDR_WIDTH-1:0] mem_addr;
@@ -26,6 +27,8 @@ integer uart_eot = 0;
 logic [15:0] uart_in[0:255];
 logic [5:0][7:0] insn_name;
 integer uart_index;
+integer uart_in_tx_phase;
+logic mcu_uart_rx;
 
 logic [15:0] insn_buf;
 
@@ -40,9 +43,9 @@ assign src_a_sel = mcu.cpu.src_a_fp ? 2'd1
 
 // CPU を接続する
 logic rst, clk;
-mcu#(.CLOCK_HZ(100_000)) mcu(
+mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(1'b1), .rx_prog(1'b0), .uart_tx(), .insn(), .load_insn(),
+  .uart_rx(mcu_uart_rx), .rx_prog(1'b0), .uart_tx(), .insn(), .load_insn(),
   .recv_data(), .recv_data_v(), .dbg_rx_timing()
 );
 
@@ -59,6 +62,8 @@ initial begin
     num_insn++;
     ip_init++;
   end
+
+  uart_in_tx_phase = 0;
 
   for (uart_index = 0; uart_index < 256; uart_index++) uart_in[uart_index] = 0;
   uart_index = 0;
@@ -192,7 +197,18 @@ always @(posedge clk) begin
   mem_addr_d <= mem_addr;
 end
 
-always #5000 begin
+// UART 送信のシミュレート
+always #(CLOCK_HZ/UART_BAUD) begin
+  uart_in_tx_phase = (uart_in_tx_phase + 1) % 0;
+end
+
+always #(CLOCK_HZ/UART_BAUD) begin
+  case (uart_in_tx_phase)
+    0: mcu_uart_rx = 1;
+    1: mcu_uart_rx = 0;
+    default: mcu_uart_rx = (uart_in[uart_index] >> (mcu_uart_rx - 2)) & 1;
+  endcase
+
   uart_index <= uart_index + 1;
 end
 
