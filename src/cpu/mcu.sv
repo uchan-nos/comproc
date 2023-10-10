@@ -25,7 +25,7 @@ logic cpu_wr_mem, cpu_byt, cpu_irq;
 
 //logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, /*recv_data_v, */recv_compl;
+logic recv_phase, /*recv_data_v, */recv_compl, recv_data_full;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;
@@ -108,7 +108,7 @@ always @(posedge clk, posedge rst) begin
 end
 
 // MCU 内蔵周辺機能：UART
-logic [7:0] uart_rx_data, uart_tx_data;
+logic [7:0] uart_rx_byte, uart_tx_byte;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
 
 uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
@@ -116,8 +116,8 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
   .clk(clk),
   .rx(uart_rx),
   .tx(uart_tx),
-  .rx_data(uart_rx_data),
-  .tx_data(uart_tx_data),
+  .rx_data(uart_rx_byte),
+  .tx_data(uart_tx_byte),
   .rd(uart_rd),
   .rx_full(uart_rx_full),
   .wr(uart_wr),
@@ -127,7 +127,7 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
 
 assign uart_rd = uart_rx_full;
 assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
-assign uart_tx_data = cpu_wr_data[7:0];
+assign uart_tx_byte = cpu_wr_data[7:0];
 
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -142,7 +142,7 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = recv_data;
-    `ADDR_WIDTH'h008: read_memreg = {14'd0, uart_ie, uart_rx_full};
+    `ADDR_WIDTH'h008: read_memreg = {14'd0, uart_ie, recv_data_full};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
@@ -179,7 +179,7 @@ always @(posedge rst, posedge clk) begin
   if (rst)
     recv_data <= 10'd0;
   else if (uart_rx_full)
-    recv_data <= {recv_data[7:0], uart_rx_data};
+    recv_data <= {recv_data[7:0], uart_rx_byte};
 end
 
 // recv_data_v は命令の受信が完了したら 1 になる
@@ -205,6 +205,15 @@ always @(posedge rst, posedge clk) begin
     recv_compl <= 1'b1;
   else if (recv_phase == 1 && recv_data[7:2] != 6'b0111_11)
     recv_compl <= 1'b0;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    recv_data_full <= 1'b0;
+  else if (uart_rx_full & recv_phase)
+    recv_data_full <= 1'b1;
+  else if (cpu_wr_mem & mem_addr === `ADDR_WIDTH'h008)
+    recv_data_full <= cpu_wr_data[0];
 end
 
 endmodule
