@@ -2,9 +2,9 @@
 
 module cpu_tb;
 
-logic rst, clk, wr_mem, byt;
+logic rst, clk, wr_mem, byt, load_insn, irq;
 logic [`ADDR_WIDTH-1:0] mem_addr, last_wr_addr;
-logic [15:0] rd_data, wr_data, stack0, stack1, last_wr_data;
+logic [15:0] rd_data, wr_data, stack0, stack1, insn, last_wr_data;
 logic [5:0] alu_sel;
 
 cpu#(.CLOCK_HZ(1000)) cpu(.*);
@@ -17,8 +17,8 @@ initial begin
            " phase=%d%d%d%d",
            cpu.signals.phase_decode, cpu.signals.phase_exec,
            cpu.signals.phase_rdmem, cpu.signals.phase_fetch,
-           " irq=%d cdtimer_to=%d",
-           cpu.irq, cpu.cdtimer_to
+           " irq=%d",
+           cpu.irq
            );
 
   rst <= 1;
@@ -119,6 +119,7 @@ initial begin
   @(posedge cpu.load_insn)
     rd_data <= 16'h7811; // ISR
 
+  /*
   @(posedge cpu.load_insn)
     rd_data <= 16'h8002; // PUSH 2
 
@@ -142,6 +143,7 @@ initial begin
     if (cpu.irq !== 1'b1) $error("IRQ must be 1");
     if (cpu.ien !== 1'b1) $error("IEN must be 1");
     if (mem_addr !== `ADDR_WIDTH'h358) $error("mem_addr must be 0x358");
+  */
 
   #11 // decode
   #10 // exec

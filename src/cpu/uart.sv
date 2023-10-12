@@ -37,7 +37,6 @@ module uart#(
   output logic rx_full, // rx buffer full
   input  wr,      // write tx buffer
   output tx_ready // ready to transmit
-  , output dbg_rx_timing
 );
 
 localparam BIT_PERIOD = CLOCK_HZ / BAUD;
@@ -80,8 +79,6 @@ assign tx = tx_signal(tx_state, tx_shift[0]);
 assign rxtim_rst = rst || rx_state == WAIT;
 assign txtim_rst = rst || tx_state == WAIT;
 assign tx_ready = ~wr && tx_state == WAIT;
-
-assign dbg_rx_timing = rx_state == DATA && rxtim_half;
 
 always @(posedge clk) begin
   rx_filter <= {rx, rx_filter[3:1]};

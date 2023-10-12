@@ -16,7 +16,6 @@ module mcu#(
   output load_insn
   , output logic [15:0] recv_data
   , output logic recv_data_v
-  , output dbg_rx_timing
 );
 
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
@@ -122,7 +121,6 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
   .rx_full(uart_rx_full),
   .wr(uart_wr),
   .tx_ready(uart_tx_ready)
-  , .dbg_rx_timing(dbg_rx_timing)
 );
 
 assign uart_rd = uart_rx_full;

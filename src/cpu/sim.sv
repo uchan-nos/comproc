@@ -50,7 +50,7 @@ logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
   .uart_rx(mcu_uart_rx), .rx_prog(1'b0), .uart_tx(), .insn(), .load_insn(),
-  .recv_data(), .recv_data_v(), .dbg_rx_timing()
+  .recv_data(), .recv_data_v()
 );
 
 // 実行トレース機能
