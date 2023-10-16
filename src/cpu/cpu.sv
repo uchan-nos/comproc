@@ -6,7 +6,7 @@ module cpu#(
   input rst,
   input clk,
   output [`ADDR_WIDTH-1:0] mem_addr,
-  output wr_mem,
+  output rd_mem, wr_mem,
   output byt,
   input  [15:0] rd_data,
   output [15:0] wr_data,
@@ -203,7 +203,7 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_isr, cpop, cpush, rd_mem,
+  load_stk, load_fp, load_ip, load_isr, cpop, cpush,
   irq_masked, ien, set_ien, clear_ien;
 logic [1:0] src_b_sel;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;

@@ -2,7 +2,7 @@
 
 module cpu_tb;
 
-logic rst, clk, wr_mem, byt, load_insn, irq;
+logic rst, clk, rd_mem, wr_mem, byt, load_insn, irq;
 logic [`ADDR_WIDTH-1:0] mem_addr, last_wr_addr;
 logic [15:0] rd_data, wr_data, stack0, stack1, insn, last_wr_data;
 logic [5:0] alu_sel;
@@ -76,8 +76,11 @@ initial begin
   #11 // decode
   #10 // exec
     if (mem_addr !== 16'h0103) $error("mem_addr must be 0x0103");
+    if (rd_mem !== 1'b0) $error("rd_mem must be 0 (at exec stage)");
   #10 // rdmem
+    if (rd_mem !== 1'b1) $error("rd_mem must be 1 (at rdmem stage)");
     rd_data <= 16'hDEAD;
+
   @(posedge cpu.load_insn)
     rd_data <= 16'h7001; // 33c: INC
     if (cpu.stack0 !== 16'h00DE) $error("stack0 must be 0x00DE");
@@ -85,6 +88,12 @@ initial begin
   @(posedge cpu.load_insn)
     rd_data <= 16'h4005; // 33e: ST 0+4
     if (cpu.stack0 !== 16'h00DF) $error("stack0 must be 0x00DF");
+
+  #11 // decode
+  #10 // exec
+    if (rd_mem !== 1'b0) $error("rd_mem must be 0");
+  #10 // rdmem
+    if (rd_mem !== 1'b0) $error("rd_mem must be 0");
 
   @(posedge cpu.load_insn)
     rd_data <= 16'h8012; // 340: PUSH 0x12
