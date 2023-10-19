@@ -20,7 +20,8 @@ module mcu#(
 
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
-logic cpu_wr_mem, cpu_byt, cpu_irq;
+logic cpu_rd_mem, cpu_wr_mem, cpu_byt, cpu_irq;
+logic cpu_rst;
 
 //logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
@@ -60,6 +61,7 @@ always @(posedge rst, posedge clk) begin
 end
 
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
+assign cpu_rst = rst | ~recv_compl;
 
 always @(posedge cpu_clk, posedge rst) begin
   if (rst)
@@ -69,9 +71,10 @@ always @(posedge cpu_clk, posedge rst) begin
 end
 
 cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
-  .rst(rst | ~recv_compl),
+  .rst(cpu_rst),
   .clk(cpu_clk),
   .mem_addr(cpu_mem_addr),
+  .rd_mem(cpu_rd_mem),
   .wr_mem(cpu_wr_mem),
   .byt(cpu_byt),
   .rd_data(cpu_rd_data),
@@ -205,11 +208,13 @@ always @(posedge rst, posedge clk) begin
     recv_compl <= 1'b0;
 end
 
-always @(posedge rst, posedge clk) begin
-  if (rst)
+always @(posedge cpu_rst, posedge clk) begin
+  if (cpu_rst)
     recv_data_full <= 1'b0;
   else if (uart_rx_full & recv_phase)
     recv_data_full <= 1'b1;
+  else if (cpu_rd_mem & mem_addr_d === `ADDR_WIDTH'h006)
+    recv_data_full <= 1'b0;
   else if (cpu_wr_mem & mem_addr === `ADDR_WIDTH'h008)
     recv_data_full <= cpu_wr_data[0];
 end

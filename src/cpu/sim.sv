@@ -26,6 +26,7 @@ string uart_out_file = "";
 integer uart_out = 0;
 integer uart_eot = 0;
 logic [7:0] uart_in[0:255];
+logic [15:0] uart_buf;
 logic [5:0][7:0] insn_name;
 integer uart_index, uart_in_len;
 integer uart_in_tx_phase;
@@ -75,8 +76,11 @@ initial begin
   if ($value$plusargs("uart_in=%s", uart_in_file)) begin
     uart_in_fd = $fopen(uart_in_file, "r");
     if (uart_in_fd != 0)
-      while ($fscanf(uart_in_fd, "%h", uart_in[uart_in_len]) == 1)
-        uart_in_len++;
+      while ($fscanf(uart_in_fd, "%h", uart_buf) == 1) begin
+        uart_in[uart_in_len] = uart_buf[15:8];
+        uart_in[uart_in_len+1] = uart_buf[7:0];
+        uart_in_len += 2;
+      end
   end
   if ($value$plusargs("uart_out=%s", uart_out_file))
     uart_out = $fopen(uart_out_file, "w");
@@ -94,7 +98,6 @@ initial begin
            //mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
            " mcu_uart_rx=%d cur_uart_in=%02x rx_shift=%x, rx_data=%x rx_full=%d",
            mcu_uart_rx, cur_uart_in, mcu.uart.rx_shift, mcu.uart.rx_data, mcu.uart.rx_full
-
          );
   $dumpvars(1, mcu.cpu, mcu.cpu.signals.decoder);
 
