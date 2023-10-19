@@ -3,7 +3,7 @@ module Simulation;
 
 localparam STDIN  = 'h8000_0000;
 localparam STDERR = 'h8000_0002;
-localparam CLOCK_HZ = 10_000;
+localparam CLOCK_HZ = 100_000;
 localparam UART_BAUD = 1_000;
 localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
