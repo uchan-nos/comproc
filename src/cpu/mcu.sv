@@ -61,7 +61,7 @@ end
 
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
 
-always @(posedge clk, posedge rst) begin
+always @(posedge cpu_clk, posedge rst) begin
   if (rst)
     mem_addr_d <= `ADDR_WIDTH'd0;
   else
