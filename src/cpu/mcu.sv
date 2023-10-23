@@ -143,7 +143,7 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = recv_data;
-    `ADDR_WIDTH'h008: read_memreg = {14'd0, uart_ie, recv_data_full};
+    `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, recv_data_full};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction

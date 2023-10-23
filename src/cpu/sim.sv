@@ -24,7 +24,6 @@ string uart_in_file;
 integer uart_in_fd;
 string uart_out_file = "";
 integer uart_out = 0;
-integer uart_eot = 0;
 logic [7:0] uart_in[0:255];
 logic [15:0] uart_buf;
 logic [5:0][7:0] insn_name;
@@ -121,12 +120,10 @@ end
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
   if (mcu_uart_tx_full) begin
-    if (uart_out == 0 || uart_eot != 0) begin
+    if (uart_out == 0 || mcu_uart_tx_data == 4) begin
       $fdisplay(STDERR, "%x", mcu_uart_tx_data);
       $finish;
     end
-    if (mcu_uart_tx_data == 4)
-      uart_eot = 1;
     else
       $fwrite(uart_out, "%c", mcu_uart_tx_data);
   end

@@ -144,7 +144,7 @@ test_value fe 'int main() {return 0xefff >> 12;}'
 test_value ff 'int main() {return 0x8000 >> 15;}'
 # test_value 00 'int main() {return 0x8000 >> 16;}' A nonsense test case due to undefined behavior
 test_value 61 'int main() {int i=0; char *s="a"; while(*s){i+=*s++;} return i;}'
-test_stdout 'hello' 'int main() {int *p=0x06; char *s="hello"; while(*s)*p=*s++; *p=4; return 0;}'
+test_stdout 'hello' 'int main() {int *p=0x06; char *s="hello"; while(*s){*p=*s++;while((p[1]&4)==0);} *p=4; return 0;}'
 test_value 03 'int f() { return 2; } int main() { return f() + 1; }'
 test_value 05 'int f(int a, int b) { return a+b; } int main() { return f(2,3); }'
 test_value 08 'int fib(int n) { if(n<3){return 1;}else{return fib(n-1)+fib(n-2);} } int main() { return fib(6); }'
