@@ -30,8 +30,11 @@ logic [15:0] uart_buf;
 logic [5:0][7:0] insn_name;
 integer uart_index, uart_in_len;
 integer uart_in_tx_phase;
-logic mcu_uart_rx;
+logic mcu_uart_rx, mcu_uart_tx;
 logic [7:0] cur_uart_in;
+
+logic [7:0] mcu_uart_tx_data;
+logic mcu_uart_tx_full;
 
 logic [15:0] insn_buf;
 
@@ -50,7 +53,7 @@ assign cur_uart_in = uart_in[uart_index];
 logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(mcu_uart_rx), .rx_prog(1'b0), .uart_tx(), .insn(), .load_insn(),
+  .uart_rx(mcu_uart_rx), .rx_prog(1'b0), .uart_tx(mcu_uart_tx), .insn(), .load_insn(),
   .recv_data(), .recv_data_v()
 );
 
@@ -117,15 +120,15 @@ end
 
 // レジスタに出力があるか、タイムアウトしたらシミュレーション終了
 always @(posedge clk) begin
-  if (wr_mem && mem_addr == `ADDR_WIDTH'h006) begin
+  if (mcu_uart_tx_full) begin
     if (uart_out == 0 || uart_eot != 0) begin
-      $fdisplay(STDERR, "%x", wr_data[7:0]);
+      $fdisplay(STDERR, "%x", mcu_uart_tx_data);
       $finish;
     end
-    if (wr_data[7:0] == 4)
+    if (mcu_uart_tx_data == 4)
       uart_eot = 1;
     else
-      $fwrite(uart_out, "%c", wr_data[7:0]);
+      $fwrite(uart_out, "%c", mcu_uart_tx_data);
   end
   else if ($time > TIMEOUT) begin
     $fdisplay(STDERR, "timeout");
@@ -213,7 +216,7 @@ always @(posedge clk) begin
   mem_addr_d <= mem_addr;
 end
 
-// UART 送信のシミュレート
+// MCU への UART 送信
 always #(10*CLOCK_HZ/UART_BAUD) begin
   if (uart_index == uart_in_len)
     mcu_uart_rx = 1;
@@ -232,6 +235,20 @@ always #(10*CLOCK_HZ/UART_BAUD) begin
     end
   end
 end
+
+// MCU からの UART 受信
+uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD)) uart(
+  .rst(rst),
+  .clk(clk),
+  .rx(mcu_uart_tx),
+  .tx(),
+  .rx_data(mcu_uart_tx_data),
+  .tx_data(8'hff),
+  .rd(mcu_uart_tx_full),
+  .rx_full(mcu_uart_tx_full),
+  .wr(1'd0),
+  .tx_ready()
+);
 
 always @(posedge clk) begin
   if (phase_num == 0) begin

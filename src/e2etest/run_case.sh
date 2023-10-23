@@ -19,12 +19,17 @@ fi
 
 filename=$(basename $src .c)
 
+if [ "$uart_out" != "" ]
+then
+  uart_out_opt="+uart_out=$uart_out"
+fi
+
 ../compiler/ucc -o $filename.s $src
 echo "Compiler output:   $filename.s"
 
 cat $filename.s | ../assembler/uasm > $filename.hex
 echo "Assembler output:  $filename.hex"
 
-cat $filename.hex | ../cpu/sim.exe $uart_in > $filename.trace 2> $filename.simout
+cat $filename.hex | ../cpu/sim.exe $uart_in $uart_out_opt > $filename.trace 2> $filename.simout
 echo "Simulation trace:  $filename.trace"
 echo "Simulation output: $(cat $filename.simout) ($filename.simout)"
