@@ -14,12 +14,12 @@ def receive_stdout(filename, ser):
     num = 0
     with open(filename, 'wb') as f:
         b = ser.read(1)
-        while b != b'\x04':
+        while len(b) == 1:
             num += 1
             f.write(b)
-            b = ser.read(1)
-            if len(b) < 1:
+            if b == b'\x04':
                 break
+            b = ser.read(1)
     return num
 
 
@@ -67,12 +67,14 @@ def main():
     ser.flush()
     if not args.nowait:
         if args.stdout:
-            receive_stdout(args.stdout, ser)
-        read_bytes = ser.read(1)
-        if len(read_bytes) == 0: # timeout
-            print('timeout')
+            recv_len = receive_stdout(args.stdout, ser)
+            print(f"{recv_len} bytes received and saved to '{args.stdout}'")
         else:
-            print(' '.join('{:02x}'.format(b) for b in read_bytes))
+            read_bytes = ser.read(1)
+            if len(read_bytes) == 0: # timeout
+                print('timeout')
+            else:
+                print(' '.join('{:02x}'.format(b) for b in read_bytes))
 
     ser.close()
 
