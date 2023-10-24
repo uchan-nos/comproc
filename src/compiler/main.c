@@ -508,6 +508,9 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, 0);
+      if (ctx->is_isr) {
+        Insn(ctx, "pop");
+      }
     }
 
     ctx->scope = LeaveScope(ctx->scope);
