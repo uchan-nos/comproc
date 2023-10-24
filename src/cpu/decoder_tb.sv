@@ -109,7 +109,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -131,7 +131,7 @@ initial begin
               0,        // cpop
               1,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -175,7 +175,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               1,        // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               1,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -219,7 +219,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               1,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -241,7 +241,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               1,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -263,7 +263,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -351,7 +351,7 @@ initial begin
               1,        // cpop
               0,        // cpush
               0,        // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -417,7 +417,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               1,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -439,7 +439,7 @@ initial begin
               0,        // cpop
               1,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -461,7 +461,7 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               0,        // set_ien
               0         // clear_ien
@@ -483,7 +483,7 @@ initial begin
               1,        // cpop
               0,        // cpush
               `x,       // byt
-              `x,       // rd_mem
+              0,        // rd_mem
               0,        // wr_mem
               1,        // set_ien
               0         // clear_ien

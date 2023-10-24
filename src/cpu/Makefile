@@ -1,5 +1,5 @@
 sim.exe: sim.sv cpu.sv mem.sv alu.sv stack.sv signals.sv cdtimer.sv \
-	signalizer.sv decoder.sv
+	signalizer.sv decoder.sv mcu.sv uart.sv
 	iverilog -g2012 -o $@ $^
 
 stack_tb.exe: stack_tb.sv stack.sv
@@ -27,13 +27,16 @@ cpu_tb.exe: cpu_tb.sv cpu.sv alu.sv stack.sv signals.sv cdtimer.sv \
 	signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
+uart_tb.exe: uart_tb.sv uart.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: clean
 clean:
 	rm -f *.exe
 
 .PHONY: test_modules
 test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
-	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe cpu_tb.exe
+	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe cpu_tb.exe uart_tb.exe
 	@./test_module.sh stack_tb.exe
 	@./test_module.sh alu_tb.exe
 	@./test_module.sh decoder_tb.exe
@@ -42,3 +45,4 @@ test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
 	@./test_module.sh clkdiv_tb.exe
 	@./test_module.sh cdtimer_tb.exe
 	@./test_module.sh cpu_tb.exe
+	@./test_module.sh uart_tb.exe
