@@ -154,7 +154,7 @@ assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
 assign cpu_rd_data = read_memreg(mem_addr_d);
-assign cpu_irq  = cdtimer_to & cdtimer_ie;
+assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (recv_data_full & uart_ie);
 
 /*
 always @(posedge rst, posedge clk) begin

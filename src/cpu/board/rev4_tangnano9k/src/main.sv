@@ -88,10 +88,10 @@ function [7:0] led_pattern(input [3:0] row_index);
     4'd3:    led_pattern = cpu_stack0[7:0];
     4'd4:    led_pattern = cpu_stack1[15:8];
     4'd5:    led_pattern = cpu_stack1[7:0];
-    //4'd6:    led_pattern = {2'd0, cpu_alu_sel};
-    //4'd7:    led_pattern = io_led;
-    4'd6:    led_pattern = {cpu_load_insn, 3'd0, mem_addr[11:8]};
-    4'd7:    led_pattern = mem_addr[7:0];
+    4'd6:    led_pattern = {2'd0, cpu_alu_sel};
+    4'd7:    led_pattern = io_led;
+    //4'd6:    led_pattern = {cpu_load_insn, 3'd0, mem_addr[11:8]};
+    //4'd7:    led_pattern = mem_addr[7:0];
     4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
     default: led_pattern = 8'b00000000;
   endcase
