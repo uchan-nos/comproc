@@ -728,6 +728,7 @@ int main(int argc, char **argv) {
       size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       sym->offset = gvar_offset;
       gvar_offset += mem_size;
+      Generate(&gen_ctx, sym->def->rhs, 0);
       InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
     }
   }
@@ -751,8 +752,6 @@ int main(int argc, char **argv) {
       } else {
         line->insn.operands[1].val_int = gen_ctx.lvar_offset;
       }
-    } else if (n->kind == kNodeDefVar) {
-      Generate(&gen_ctx, n, 0);
     }
   }
   insn_add_fp->operands[1].val_int = gvar_offset;
