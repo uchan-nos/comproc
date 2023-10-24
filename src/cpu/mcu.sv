@@ -92,7 +92,7 @@ logic cdtimer_to, load_cdtimer, cdtimer_ie;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
 
 cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
-  .rst(rst),
+  .rst(cpu_rst),
   .clk(clk),
   .load(load_cdtimer),
   .data(wr_data),
@@ -102,8 +102,8 @@ cdtimer#(.PERIOD(CLOCK_HZ/1000)) cdtimer(
 
 assign load_cdtimer = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h002;
 
-always @(posedge clk, posedge rst) begin
-  if (rst)
+always @(posedge clk, posedge cpu_rst) begin
+  if (cpu_rst)
     cdtimer_ie <= 1'b0;
   else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h004)
     cdtimer_ie <= wr_data[1];
