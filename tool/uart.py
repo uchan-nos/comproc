@@ -14,13 +14,11 @@ def receive_stdout(filename, ser):
     num = 0
     with open(filename, 'wb') as f:
         b = ser.read(1)
-        while len(b) == 1:
+        while b != b'\x04':
             num += 1
             f.write(b)
-            if b == b'\x04':
-                break
             b = ser.read(1)
-    return num
+    return (num, b)
 
 
 def main():
@@ -67,8 +65,9 @@ def main():
     ser.flush()
     if not args.nowait:
         if args.stdout:
-            recv_len = receive_stdout(args.stdout, ser)
-            print(f"{recv_len} bytes received and saved to '{args.stdout}'")
+            recv_len, last_byte = receive_stdout(args.stdout, ser)
+            info = 'with EOT' if last_byte == b'\x04' else 'no EOT'
+            print(f"{recv_len} bytes ({info}) received and saved to '{args.stdout}'")
         else:
             read_bytes = ser.read(1)
             if len(read_bytes) == 0: # timeout
