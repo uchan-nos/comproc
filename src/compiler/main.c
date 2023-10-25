@@ -687,8 +687,8 @@ int main(int argc, char **argv) {
     output_file = fopen(output_filename, "w");
   }
 
-  src = malloc(1024);
-  size_t src_len = fread(src, 1, 1023, input_file);
+  src = malloc(MAX_LINE * 10);
+  size_t src_len = fread(src, 1, MAX_LINE * 10 - 1, input_file);
   src[src_len] = '\0';
   if (input_file != stdin) {
     fclose(input_file);
