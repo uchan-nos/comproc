@@ -362,10 +362,14 @@ struct Node *Additive() {
   struct Node *node = Multiplicative();
 
   struct Token *op;
-  if ((op = Consume('+'))) {
-    node = NewNodeBinOp(kNodeAdd, op, node, Additive());
-  } else if ((op = Consume('-'))) {
-    node = NewNodeBinOp(kNodeSub, op, node, Additive());
+  while (1) {
+    if ((op = Consume('+'))) {
+      node = NewNodeBinOp(kNodeAdd, op, node, Multiplicative());
+    } else if ((op = Consume('-'))) {
+      node = NewNodeBinOp(kNodeSub, op, node, Multiplicative());
+    } else {
+      break;
+    }
   }
 
   return node;

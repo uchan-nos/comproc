@@ -95,7 +95,7 @@ function test_timeout() {
 }
 
 test_value 1f 'int main() {return 31;}'
-test_value fe 'int main() {return 1 - 3;}'
+test_value 04 'int main() {return 5 - 3 + 2;}'
 test_value 07 'int main() {return 1+2*3;}'
 test_value 02 'int main() {int a=3; return 5-a;}'
 test_value 0a 'int main() {int a=3; int b=5; return b*(a-1);}'
