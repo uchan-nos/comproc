@@ -9,10 +9,10 @@ initial begin
   clk <= 1;
   rx <= 1;
   wr <= 0;
-  $monitor("%5t: rst=%d rx=%d rxdat=%x rx_full=%d rxtim_half=%d",
-           $time, rst, rx, rx_data, rx_full, uart.rxtim_half,
-           " tx=%d txdat=%x tx_ready=%d txtim_full=%d",
-           tx, tx_data, tx_ready, uart.txtim_full
+  $monitor("%5t: rst=%d rx=%d rx1buf=%d data=%x full=%d state=%d rxtim_half=%d",
+           $time, rst, rx, uart.rx1buf, rx_data, rx_full, uart.rx_state, uart.rxtim_half,
+           " tx=%d data=%x ready=%d state=%d txtim_full=%d",
+           tx, tx_data, tx_ready, uart.tx_state, uart.txtim_full
            );
 
   #13
@@ -30,13 +30,13 @@ initial begin
   #100 rx <= 0;
   #100 rx <= 1;
   if (rx_full !== 0) $error("rx_full must be 0");
-  #100 rx <= 1; // MSB
+  #100 rx <= 0; // MSB
 
   #100 rx <= 1; // STOP
-  #200;
+  #150;
 
   if (rx_full !== 1) $error("rx_full must be 1");
-  if (rx_data !== 8'hc5) $error("rx_data must be c5: %x", rx_data);
+  if (rx_data !== 8'h45) $error("rx_data must be 45: %x", rx_data);
 
   @(posedge clk);
   rd <= 1;
