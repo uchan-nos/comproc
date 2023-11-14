@@ -15,19 +15,30 @@ module uart_mux#(
   output tx_ready // ready to transmit
 );
 
-logic [DATA_BITS-1:0] rx_buf, uart_rx_data;
-logic uart_rx_full, rx_buf_full;
-logic rx_buf_55, rd_rx_buf;
+/*
+*  --------------     --------     ---------
+* | uart.rx_data |-->| rx_buf |-->| rx_data |
+*  --------------     --------     ---------
+*   uart.rx_full     rx_buf_full    rx_full
+*   uart.rd          rd_rx_buf      rd
+*/
 
+logic [DATA_BITS-1:0] rx_buf, uart_rx_data;
+logic uart_rx_full, uart_rd;
+logic rx_buf_full, rd_rx_buf, rx_buf_55, recv_55aa;
+
+assign uart_rd = ~rx_buf_full & uart_rx_full;
+assign rd_rx_buf = ~rx_full & rx_buf_full & (~rx_buf_55 | tim >= TIM_UPPER |
+  (tim < TIM_LOWER & uart_rx_data !== 8'h55));
 assign rx_buf_55 = (rx_buf === 8'h55);
-assign rd_rx_buf = ~rx_full & (~rx_buf_55 | tim_timeout);
+assign recv_55aa = rx_buf_55 & (uart_rx_data === 8'hAA);
 
 always @(posedge rst, posedge clk) begin
   if (rst) begin
     rx_buf <= 0;
     rx_buf_full <= 0;
   end
-  else if (uart_rx_full) begin
+  else if (uart_rd) begin
     rx_buf <= uart_rx_data;
     rx_buf_full <= 1;
   end
@@ -40,11 +51,9 @@ always @(posedge rst, posedge clk) begin
     rx_data <= 0;
     rx_full <= 0;
   end
-  else if (rx_buf_full) begin
-    if (rd_rx_buf) begin
-      rx_data <= rx_buf;
-      rx_full <= 1;
-    end
+  else if (rd_rx_buf) begin
+    rx_data <= rx_buf;
+    rx_full <= 1;
   end
   else if (rd)
     rx_full <= 0;
@@ -54,16 +63,11 @@ localparam TIM_LOWER = CLOCK_HZ/5000; // 0.2ms
 localparam TIM_UPPER = CLOCK_HZ/50; // 20ms
 
 logic [19:0] tim;
-logic tim_in_range; // タイマーが指定した範囲にあるとき 1
-logic tim_timeout; // タイマーが指定した範囲を超えたとき 1
-
-assign tim_timeout = TIM_UPPER < tim;
-assign tim_in_range = (TIM_LOWER <= tim) & ~tim_timeout;
 
 always @(posedge rst, posedge clk) begin
   if (rst | ~rx_buf_55)
     tim <= 0;
-  else if (~tim_timeout)
+  else if (tim <= TIM_UPPER)
     tim <= tim + 1;
 end
 
@@ -74,7 +78,7 @@ uart#(
   .TIM_WIDTH(TIM_WIDTH)
 ) uart(
   .rx_data(uart_rx_data),
-  .rd(uart_rx_full),
+  .rd(uart_rd),
   .rx_full(uart_rx_full),
   .*
 );
