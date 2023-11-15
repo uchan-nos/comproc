@@ -1,7 +1,7 @@
 module uart_mux_tb();
 
 logic rst, clk;
-logic rx, tx, rd, rx_full, wr, tx_ready;
+logic rx, tx, rd, rx_full, wr, tx_ready, prog_recv;
 logic [7:0] rx_data, tx_data;
 
 integer i;
@@ -12,8 +12,8 @@ initial begin
   rx <= 1;
   rd <= 0;
   wr <= 0;
-  $monitor("%7t: rst=%d rx=%d data=%x full=%d rd=%d",
-           $time, rst, rx, rx_data, rx_full, rd,
+  $monitor("%7t: rst=%d rx=%d data=%x full=%d rd=%d prog_recv=%d",
+           $time, rst, rx, rx_data, rx_full, rd, prog_recv,
            " tx=%d data=%x ready=%d wr=%d",
            tx, tx_data, tx_ready, wr
            );
@@ -60,7 +60,48 @@ initial begin
   $display("20.8ms from 55 received");
   test_read(8'h55);
 
+  // 55 受信後、20ms 以降に AA が来ても、プログラム転送モードにはならない
+  recv_byte(8'h55);
+  #300000; // 26ms 経過。
+  $display("26ms from 55 received");
+  if (prog_recv !== 0) $error("prog_recv must be 0");
+  recv_byte(8'hAA);
+  #50;
+  if (prog_recv !== 0) $error("prog_recv must be 0");
+  test_read(8'h55);
+  @(posedge clk)
+  test_read(8'hAA);
+
   // 55 受信後 0.2ms～20ms の間に AA が来たら、プログラム転送モードへ
+  recv_byte(8'h55);
+  #3000; // 0.26ms 経過。
+  $display("0.26ms from 55 received");
+  if (prog_recv !== 0) $error("prog_recv must be 0");
+  recv_byte(8'hAA);
+  #50;
+  if (prog_recv !== 1) $error("prog_recv must be 1");
+
+  #100;
+
+  recv_byte(8'h23);
+  #50;
+  test_read(8'h23);
+
+  // prog_recv == 1 のときは 55 もすぐ受信する
+  recv_byte(8'h55);
+  #50;
+  test_read(8'h55);
+
+  recv_byte(8'hAA);
+  #50;
+  test_read(8'hAA);
+
+  #100;
+  if (prog_recv !== 1) $error("prog_recv must be 1");
+  recv_byte(8'h7F);
+  recv_byte(8'hFF);
+  #50;
+  if (prog_recv !== 0) $error("prog_recv must be 0");
 
   $finish;
 end
