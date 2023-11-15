@@ -52,19 +52,19 @@ initial begin
   if (rx_full !== 0) $error("rx_full must be 0");
   if (rx_data !== 8'h62) $error("rx_data must be 62: %x", rx_data);
 
-  #200000; // 17.4ms 経過。まだまだ。
-  $display("17.4ms from 55 received");
+  #17000; // 17ms 経過。まだまだ。
+  $display("17ms from 55 received");
   if (rx_full !== 0) $error("rx_full must be 0");
   if (rx_data !== 8'h62) $error("rx_data must be 62: %x", rx_data);
 
-  #40000; // 3.5ms 経過。合計で 20ms 以上！
-  $display("20.8ms from 55 received");
+  #4000; // 4ms 経過。合計で 20ms 以上！
+  $display("21ms from 55 received");
   test_read(8'h55);
 
   // 55 受信後、20ms 以降に AA が来ても、プログラム転送モードにはならない
   recv_byte(8'h55);
-  #300000; // 26ms 経過。
-  $display("26ms from 55 received");
+  #25000; // 25ms 経過。
+  $display("25ms from 55 received");
   if (prog_recv !== 0) $error("prog_recv must be 0");
   recv_byte(8'hAA);
   #50;
@@ -73,10 +73,10 @@ initial begin
   @(posedge clk)
   test_read(8'hAA);
 
-  // 55 受信後 0.2ms～20ms の間に AA が来たら、プログラム転送モードへ
+  // 55 受信後 2ms～20ms の間に AA が来たら、プログラム転送モードへ
   recv_byte(8'h55);
-  #3000; // 0.26ms 経過。
-  $display("0.26ms from 55 received");
+  #2500; // 2.5ms 経過。
+  $display("2.5ms from 55 received");
   if (prog_recv !== 0) $error("prog_recv must be 0");
   recv_byte(8'hAA);
   #50;
@@ -114,7 +114,7 @@ initial begin
   if (prog_recv !== 0) $error("prog_recv must be 0");
 
   recv_byte(8'h55);
-  #300000; // 26ms 経過。
+  #25000; // 25ms 経過。
   test_read(8'h55);
 
   $finish;
@@ -155,6 +155,6 @@ begin
 end
 endtask
 
-uart_mux#(.CLOCK_HZ(1152000), .BAUD(115200)) uart(.*);
+uart_mux#(.CLOCK_HZ(100000), .BAUD(10000)) uart(.*);
 
 endmodule

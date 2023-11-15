@@ -75,7 +75,7 @@ always @(posedge rst, posedge clk) begin
     prog_recv <= 0;
 end
 
-localparam TIM_LOWER = CLOCK_HZ/5000; // 0.2ms
+localparam TIM_LOWER = CLOCK_HZ/500; // 2ms
 localparam TIM_UPPER = CLOCK_HZ/50; // 20ms
 
 logic [19:0] tim;
