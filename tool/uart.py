@@ -4,6 +4,7 @@ import argparse
 import serial
 from serial.tools.list_ports import comports
 import sys
+import time
 
 
 def hex_to_bytes(hex_list, unit, byte_order):
@@ -41,6 +42,8 @@ def main():
                    help='path to a file to hold bytes received')
     p.add_argument('--file',
                    help='read values from file instead of command arguments')
+    p.add_argument('--delim', action='store_true',
+                   help='send delimiter "55 AA" before sending data')
     p.add_argument('hex', nargs='*',
                    help='list of hex values to send')
 
@@ -60,6 +63,13 @@ def main():
     ser = serial.Serial(args.dev, 115200, timeout=args.timeout,
                         bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                         stopbits=serial.STOPBITS_ONE)
+
+    if args.delim:
+        ser.write(b'\x55')
+        ser.flush()
+        time.sleep(0.005)
+        ser.write(b'\xAA')
+        ser.flush()
 
     ser.write(bytes_to_send)
     ser.flush()

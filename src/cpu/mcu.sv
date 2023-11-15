@@ -5,7 +5,6 @@ module mcu#(
   parameter UART_BAUD = 115200
 ) (
   input rst, clk, uart_rx,
-  input rx_prog, // 1: 最初にプログラムを受信する、0: プログラム受信をスキップ
   output uart_tx,
   output [`ADDR_WIDTH-1:0] mem_addr,
   output wr_mem, byt,
@@ -14,8 +13,6 @@ module mcu#(
   output [15:0] stack0, stack1, insn,
   output [5:0] alu_sel, // デバッグ出力
   output load_insn
-  , output logic [15:0] recv_data
-  , output logic recv_data_v
 );
 
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
@@ -23,9 +20,9 @@ logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_rd_mem, cpu_wr_mem, cpu_byt, cpu_irq;
 logic cpu_rst;
 
-//logic [15:0] recv_data;
+logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, /*recv_data_v, */recv_compl, recv_data_full;
+logic recv_phase, recv_data_v, recv_compl, recv_data_full;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;
@@ -112,8 +109,9 @@ end
 // MCU 内蔵周辺機能：UART
 logic [7:0] uart_rx_byte, uart_tx_byte;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
+logic prog_recv, end_prog_recv;
 
-uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
+uart_mux#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart_mux(
   .rst(rst),
   .clk(clk),
   .rx(uart_rx),
@@ -123,12 +121,15 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart(
   .rd(uart_rd),
   .rx_full(uart_rx_full),
   .wr(uart_wr),
-  .tx_ready(uart_tx_ready)
+  .tx_ready(uart_tx_ready),
+  .prog_recv(prog_recv),
+  .end_prog_recv(end_prog_recv)
 );
 
 assign uart_rd = uart_rx_full;
 assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
 assign uart_tx_byte = cpu_wr_data[7:0];
+assign end_prog_recv = recv_data_v & recv_data === 16'h7fff;
 
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -201,10 +202,10 @@ end
 
 always @(posedge rst, posedge clk) begin
   if (rst)
-    recv_compl <= ~rx_prog;
-  else if (recv_data == 16'h7fff)
     recv_compl <= 1'b1;
-  else if (recv_phase == 1 && recv_data[7:2] != 6'b0111_11)
+  else if (end_prog_recv)
+    recv_compl <= 1'b1;
+  else if (prog_recv)
     recv_compl <= 1'b0;
 end
 

@@ -52,8 +52,7 @@ assign cur_uart_in = uart_in[uart_index];
 logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(mcu_uart_rx), .rx_prog(1'b0), .uart_tx(mcu_uart_tx), .insn(), .load_insn(),
-  .recv_data(), .recv_data_v()
+  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx), .insn(), .load_insn()
 );
 
 // 実行トレース機能
@@ -98,8 +97,8 @@ initial begin
            mcu.cpu.alu_out, stack0, stack1, mcu.cpu.fp,
            //" cstk{%02x %02x} irq=%d cdt=%04x",
            //mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
-           " mcu_uart_rx=%d cur_uart_in=%02x rx_shift=%x, rx_data=%x rx_full=%d",
-           mcu_uart_rx, cur_uart_in, mcu.uart.rx_shift, mcu.uart.rx_data, mcu.uart.rx_full
+           " mcu_uart_rx=%d cur_uart_in=%02x rx_data=%x rx_full=%d",
+           mcu_uart_rx, cur_uart_in, mcu.uart.rx_data, mcu.uart.rx_full
          );
   $dumpvars(1, mcu.cpu, mcu.cpu.signals.decoder);
 

@@ -38,7 +38,7 @@ function test_prog() {
       got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in $uart_out_opt_sim 2>&1 1>/dev/null)
       ;;
     uart)
-      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 $bin $(cat $uart_in) --timeout 3 $uart_out_opt_uart))
+      got=$(echo $(sudo ../../tool/uart.py --dev "$uart_dev" --unit 2 --delim $bin $(cat $uart_in) --timeout 3 $uart_out_opt_uart))
       ;;
     *)
       echo "unknown target: $target" >&2

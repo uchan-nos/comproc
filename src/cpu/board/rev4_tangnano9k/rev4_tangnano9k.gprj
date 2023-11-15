@@ -17,6 +17,7 @@
         <File path="../../decoder.sv" type="file.verilog" enable="1"/>
         <File path="../../cdtimer.sv" type="file.verilog" enable="1"/>
         <File path="../../uart.sv" type="file.verilog" enable="1"/>
+        <File path="../../uart_mux.sv" type="file.verilog" enable="1"/>
         <File path="../../mcu.sv" type="file.verilog" enable="1"/>
         <File path="src/port.cst" type="file.cst" enable="1"/>
         <File path="src/timing.sdc" type="file.sdc" enable="1"/>

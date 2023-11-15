@@ -22,10 +22,8 @@ logic rst_n;
 logic [15:0] counter;
 logic [3:0] row_index;
 
-logic [15:0] recv_data;
-logic [15:0] recv_data_buf[0:2];
 logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, recv_data_v, recv_compl;
+logic recv_phase, recv_compl;
 
 logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
@@ -41,8 +39,6 @@ logic cpu_load_insn;
 logic [7:0] io_lcd;
 logic [7:0] io_led;
 
-logic [15:0] recv_data;
-
 // 継続代入
 assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
@@ -52,18 +48,9 @@ assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
 
-always @(posedge sys_clk) begin
-  if (recv_data_v) begin
-    recv_data_buf[2] <= recv_data_buf[1];
-    recv_data_buf[1] <= recv_data_buf[0];
-    recv_data_buf[0] <= recv_data;
-  end
-end
-
 //assign mem_wr = ~recv_compl | cpu_mem_wr;
 //assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
 //assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
-//assign wr_data = recv_compl ? cpu_wr_data : recv_data;
 assign rd_data = read_mem_or_io(
   mem_addr_d, bram_rd_data, io_led, io_lcd);
 
@@ -78,12 +65,6 @@ function [7:0] led_pattern(input [3:0] row_index);
     4'd1:    led_pattern = cpu_insn[7:0];
     //4'd0:    led_pattern = wr_data[15:8];
     //4'd1:    led_pattern = wr_data[7:0];
-    //4'd0:    led_pattern = recv_data_buf[0][15:8];
-    //4'd1:    led_pattern = recv_data_buf[0][7:0];
-    //4'd2:    led_pattern = recv_data_buf[1][15:8];
-    //4'd3:    led_pattern = recv_data_buf[1][7:0];
-    //4'd4:    led_pattern = recv_data_buf[2][15:8];
-    //4'd5:    led_pattern = recv_data_buf[2][7:0];
     4'd2:    led_pattern = cpu_stack0[15:8];
     4'd3:    led_pattern = cpu_stack0[7:0];
     4'd4:    led_pattern = cpu_stack1[15:8];
@@ -144,83 +125,11 @@ always @(posedge sys_clk, negedge rst_n) begin
     mem_addr_d <= mem_addr;
 end
 
-/* UART で受信したデータを BRAM に書き込む。
-
-命令長は 16 ビットなので、BRAM も 16 ビット幅で読み書きする。
-一方で UART は 8 ビットずつの送受信なので、recv_data に 2 バイト貯める。
-
-信号タイミング図
-https://rawgit.com/osamutake/tchart-coffee/master/bin/editor-offline.html
-
-sys_clk      _~_~_~_~_~_~_~_~_~
-rx_data_wr   ___~~______~~_____
-rx_data      X?==X=H======X=L=====
-recv_phase   _____~~~~~~~~_____
-recv_data_v  _____________~~___
-recv_addr    =N==============X=N+1=
-recv_data    =?====X={?,H}======X={H,L}===
-*/
-
-/*
-// recv_phase は上位バイトを待っているとき 0、下位バイトを待っているとき 1
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_phase <= 1'b0;
-  else if (uart_rx_data_wr)
-    recv_phase <= ~recv_phase;
-end
-
-// recv_data は UART から受信した直近 2 バイトを記憶する
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_data <= 10'd0;
-  else if (uart_rx_data_wr)
-    recv_data <= {recv_data[7:0], uart_rx_data};
-end
-
-// recv_data_v は命令の受信が完了したら 1 になる
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_data_v <= 1'b0;
-  else if (uart_rx_data_wr & recv_phase)
-    recv_data_v <= 1'b1;
-  else
-    recv_data_v <= 1'b0;
-end
-
-// recv_addr は命令の受信が完了するたびにインクリメントされる
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_addr <= `ADDR_WIDTH'h300;
-  else if (recv_compl)
-    recv_addr <= `ADDR_WIDTH'h300;
-  else if (recv_data_v)
-    recv_addr <= recv_addr + `ADDR_WIDTH'd2;
-end
-
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    recv_compl <= 1'b0;
-  else if (recv_data == 16'h7fff)
-    recv_compl <= 1'b1;
-  else if (recv_phase == 1 && recv_data[7:2] != 6'b0111_11)
-    recv_compl <= 1'b0;
-end
-
-always @(posedge sys_clk, negedge rst_n) begin
-  if (!rst_n)
-    uart_in <= 16'd0;
-  else if (recv_data_v)
-    uart_in <= recv_data;
-end
-*/
-
 // 自作 CPU を接続する
 mcu mcu(
   .rst(~rst_n),
   .clk(sys_clk),
   .uart_rx(uart_rx),
-  .rx_prog(1'b1),
   .uart_tx(uart_tx),
   .mem_addr(mem_addr),
   .wr_mem(mem_wr),
@@ -232,8 +141,6 @@ mcu mcu(
   .insn(cpu_insn),
   .load_insn(cpu_load_insn),
   .alu_sel(cpu_alu_sel)
-  , .recv_data(recv_data)
-  , .recv_data_v(recv_data_v)
 );
 
 logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;
