@@ -1,7 +1,7 @@
 module uart_mux_tb();
 
 logic rst, clk;
-logic rx, tx, rd, rx_full, wr, tx_ready, prog_recv;
+logic rx, tx, rd, rx_full, wr, tx_ready, prog_recv, end_prog_recv;
 logic [7:0] rx_data, tx_data;
 
 integer i;
@@ -12,8 +12,9 @@ initial begin
   rx <= 1;
   rd <= 0;
   wr <= 0;
-  $monitor("%7t: rst=%d rx=%d data=%x full=%d rd=%d prog_recv=%d",
-           $time, rst, rx, rx_data, rx_full, rd, prog_recv,
+  end_prog_recv <= 0;
+  $monitor("%7t: rst=%d rx=%d data=%x full=%d rd=%d prog_recv=%d end=%d",
+           $time, rst, rx, rx_data, rx_full, rd, prog_recv, end_prog_recv,
            " tx=%d data=%x ready=%d wr=%d",
            tx, tx_data, tx_ready, wr
            );
@@ -96,12 +97,25 @@ initial begin
   #50;
   test_read(8'hAA);
 
+  // end_prog_recv == 1 になるまでプログラム転送モードが継続
   #100;
   if (prog_recv !== 1) $error("prog_recv must be 1");
   recv_byte(8'h7F);
   recv_byte(8'hFF);
   #50;
+  test_read(8'h7F);
+  @(posedge clk);
+  test_read(8'hFF);
+  if (prog_recv !== 1) $error("prog_recv must be 1");
+
+  // 7F FF でプログラム転送モードを止めるのは uart_mux より外の機能
+  end_prog_recv <= 1;
+  repeat(2) @(posedge clk);
   if (prog_recv !== 0) $error("prog_recv must be 0");
+
+  recv_byte(8'h55);
+  #300000; // 26ms 経過。
+  test_read(8'h55);
 
   $finish;
 end

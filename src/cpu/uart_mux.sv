@@ -13,7 +13,8 @@ module uart_mux#(
   output logic rx_full,  // rx buffer full
   input  wr,             // write tx buffer
   output tx_ready,       // ready to transmit
-  output logic prog_recv // program receive mode
+  output logic prog_recv,// program receive mode
+  input end_prog_recv    // stop program receive mode
 );
 
 /*
@@ -70,7 +71,7 @@ always @(posedge rst, posedge clk) begin
     prog_recv <= 0;
   else if (start_prog_recv)
     prog_recv <= 1;
-  else if (rx_buf === 8'h7f & uart_rx_data === 8'hff)
+  else if (end_prog_recv)
     prog_recv <= 0;
 end
 
