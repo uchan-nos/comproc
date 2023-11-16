@@ -25,7 +25,7 @@ integer uart_in_fd;
 string uart_out_file = "";
 integer uart_out = 0;
 logic [7:0] uart_in[0:255];
-logic [15:0] uart_buf;
+logic [7:0] uart_buf;
 logic [5:0][7:0] insn_name;
 integer uart_index, uart_in_len;
 integer uart_in_tx_phase;
@@ -34,8 +34,6 @@ logic [7:0] cur_uart_in;
 
 logic [7:0] mcu_uart_tx_data;
 logic mcu_uart_tx_full;
-
-logic [15:0] insn_buf;
 
 logic [1:0] phase_num;
 assign phase_num = mcu.cpu.signals.phase_decode ? 0
@@ -62,9 +60,13 @@ integer trace_fd;
 
 initial begin
   // stdin からテストデータを読む
-  while ($fscanf(STDIN, "%x", insn_buf) == 1) begin
-    mem_lo.data[ip_init] <= insn_buf[7:0];
-    mem_hi.data[ip_init] <= insn_buf[15:8];
+  while ($fscanf(STDIN, "%x", uart_buf) == 1) begin
+    mem_hi.data[ip_init] <= uart_buf;
+    if ($fscanf(STDIN, "%x", uart_buf) == 0) begin
+      $fdisplay(STDERR, "invalid_instruction");
+      $finish(1);
+    end
+    mem_lo.data[ip_init] <= uart_buf;
     num_insn++;
     ip_init++;
   end
@@ -78,9 +80,8 @@ initial begin
     uart_in_fd = $fopen(uart_in_file, "r");
     if (uart_in_fd != 0)
       while ($fscanf(uart_in_fd, "%h", uart_buf) == 1) begin
-        uart_in[uart_in_len] = uart_buf[15:8];
-        uart_in[uart_in_len+1] = uart_buf[7:0];
-        uart_in_len += 2;
+        uart_in[uart_in_len] = uart_buf;
+        uart_in_len += 1;
       end
   end
   if ($value$plusargs("uart_out=%s", uart_out_file))

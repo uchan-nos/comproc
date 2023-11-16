@@ -7,8 +7,8 @@ import sys
 import time
 
 
-def hex_to_bytes(hex_list, unit, byte_order):
-    return b''.join(int(c, 16).to_bytes(unit, byte_order) for c in hex_list)
+def hex_to_bytes(hex_list):
+    return b''.join(int(c, 16).to_bytes(1, 'big') for c in hex_list)
 
 
 def receive_stdout(filename, ser):
@@ -32,8 +32,6 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--dev', default=default_dev,
                    help='path to a serial device')
-    p.add_argument('--unit', type=int, default=1,
-                   help='the number of bytes of a hex value')
     p.add_argument('--timeout', type=int, default=3,
                    help='time to wait for result')
     p.add_argument('--nowait', action='store_true',
@@ -59,7 +57,7 @@ def main():
         print('no data to send', file=sys.stderr)
         sys.exit(1)
 
-    bytes_to_send = hex_to_bytes(hex_list, args.unit, 'big')
+    bytes_to_send = hex_to_bytes(hex_list)
     ser = serial.Serial(args.dev, 115200, timeout=args.timeout,
                         bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                         stopbits=serial.STOPBITS_ONE)

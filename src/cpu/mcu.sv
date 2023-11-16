@@ -22,7 +22,7 @@ logic cpu_rst;
 
 logic [15:0] recv_data;
 logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, recv_data_v, recv_compl, recv_data_full;
+logic recv_phase, recv_data_v, recv_compl, uart_rx_ready;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;
@@ -143,8 +143,8 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
   casex (mem_addr)
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
-    `ADDR_WIDTH'h006: read_memreg = recv_data;
-    `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, recv_data_full};
+    `ADDR_WIDTH'h006: read_memreg = {8'd0, recv_data[7:0]};
+    `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, uart_rx_ready};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
@@ -155,7 +155,7 @@ assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
 assign cpu_rd_data = read_memreg(mem_addr_d);
-assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (recv_data_full & uart_ie);
+assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
 
 /*
 always @(posedge rst, posedge clk) begin
@@ -170,7 +170,7 @@ end
 
 // recv_phase は上位バイトを待っているとき 0、下位バイトを待っているとき 1
 always @(posedge rst, posedge clk) begin
-  if (rst)
+  if (rst | recv_compl)
     recv_phase <= 1'b0;
   else if (uart_rx_full)
     recv_phase <= ~recv_phase;
@@ -211,13 +211,13 @@ end
 
 always @(posedge cpu_rst, posedge clk) begin
   if (cpu_rst)
-    recv_data_full <= 1'b0;
-  else if (uart_rx_full & recv_phase)
-    recv_data_full <= 1'b1;
+    uart_rx_ready <= 1'b0;
+  else if (uart_rx_full)
+    uart_rx_ready <= 1'b1;
   else if (cpu_rd_mem & mem_addr_d === `ADDR_WIDTH'h006)
-    recv_data_full <= 1'b0;
+    uart_rx_ready <= 1'b0;
   else if (cpu_wr_mem & mem_addr === `ADDR_WIDTH'h008)
-    recv_data_full <= cpu_wr_data[0];
+    uart_rx_ready <= cpu_wr_data[0];
 end
 
 endmodule

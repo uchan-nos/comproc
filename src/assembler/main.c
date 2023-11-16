@@ -423,7 +423,8 @@ int main(void) {
   }
 
   for (int i = ORIGIN; i < ip; i += 2) {
-    printf("%04X\n", insn[i >> 1]);
+    uint16_t ins = insn[i >> 1];
+    printf("%02X %02X\n", ins >> 8, ins & 0xffu);
   }
   return 0;
 }
