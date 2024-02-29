@@ -10,7 +10,8 @@ module main(
   output lcd_e,
   output lcd_rw,
   output lcd_rs,
-  output [7:4] lcd_db
+  output [7:4] lcd_db,
+  inout [7:0] gpio // GPIO (HDMI pins)
 );
 
 parameter PERIOD = 16'd27000;
@@ -36,8 +37,7 @@ logic [15:0] cpu_stack0, cpu_stack1, cpu_insn;
 logic [5:0] cpu_alu_sel;
 logic cpu_load_insn;
 
-logic [7:0] io_lcd;
-logic [7:0] io_led;
+logic [7:0] io_led, io_lcd, io_gpio;
 
 // 継続代入
 assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
@@ -52,7 +52,9 @@ assign lcd_db = io_lcd[7:4];
 //assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
 //assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign rd_data = read_mem_or_io(
-  mem_addr_d, bram_rd_data, io_led, io_lcd);
+  mem_addr_d, bram_rd_data, io_led, io_lcd, io_gpio);
+
+assign gpio = io_gpio;
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
@@ -108,6 +110,7 @@ always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n) begin
     io_led <= 0;
     io_lcd <= 0;
+    io_gpio <= 0;
   end
   else if (mem_wr && mem_addr == `ADDR_WIDTH'h080)
     if (mem_byt)
@@ -116,6 +119,11 @@ always @(posedge sys_clk, negedge rst_n) begin
       {io_lcd, io_led} <= wr_data;
   else if (mem_wr && mem_addr == `ADDR_WIDTH'h081)
     io_lcd <= wr_data[15:8];
+  else if (mem_wr && mem_addr == `ADDR_WIDTH'h082)
+    if (mem_byt)
+      io_gpio <= wr_data[7:0];
+    else
+      io_gpio <= wr_data[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
@@ -231,14 +239,13 @@ end
 endfunction
 
 function [15:0] read_mem_or_io(
-  input [`ADDR_WIDTH-1:0] addr,
-  input [15:0] mem,
-  input [7:0] io_led,
-  input [7:0] io_lcd
+  input [`ADDR_WIDTH-1:0] addr, [15:0] mem,
+  [7:0] io_led, io_lcd, io_gpio
 );
 begin
   casex (addr)
     `ADDR_WIDTH'b1000_000x: read_mem_or_io = {io_lcd, io_led};
+    `ADDR_WIDTH'b1000_001x: read_mem_or_io = {8'd0, io_gpio};
     `ADDR_WIDTH'b1xxx_xxxx: read_mem_or_io = 16'd0;
     default:                read_mem_or_io = mem;
   endcase
