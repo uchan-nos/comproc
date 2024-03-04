@@ -1,7 +1,7 @@
 #!/bin/sh
 
 attach_dev() {
-  powershell.exe Start-Process cmd.exe -Verb runas -ArgumentList cmd.exe,/C,usbipd,wsl,attach,--busid,$1
+  cmd.exe /C usbipd attach --busid $1 --wsl
 }
 
 if [ $# -eq 1 ]
@@ -11,7 +11,7 @@ then
   exit 0
 fi
 
-vcom_line=$(cd /mnt/c; cmd.exe /C usbipd wsl list | grep "USB Serial Converter")
+vcom_line=$(cd /mnt/c; cmd.exe /C usbipd list | nkf | grep "USB Serial Converter")
 
 if [ "$vcom_line" = "" ]
 then
