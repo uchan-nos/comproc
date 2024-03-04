@@ -11,7 +11,10 @@ module main(
   output lcd_rw,
   output lcd_rs,
   output [7:4] lcd_db,
-  inout [7:0] gpio // GPIO (HDMI pins)
+  inout [7:0] gpio, // GPIO (HDMI pins)
+  input  adc_cmp,     // ADC のコンパレータ出力
+  output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
+  output adc_dac_pwm  // ADC の DAC PWM 信号
 );
 
 parameter PERIOD = 16'd27000;
@@ -148,7 +151,10 @@ mcu mcu(
   .stack1(cpu_stack1),
   .insn(cpu_insn),
   .load_insn(cpu_load_insn),
-  .alu_sel(cpu_alu_sel)
+  .alu_sel(cpu_alu_sel),
+  .adc_cmp(adc_cmp),
+  .adc_sh_ctl(adc_sh_ctl),
+  .adc_dac_pwm(adc_dac_pwm)
 );
 
 logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;

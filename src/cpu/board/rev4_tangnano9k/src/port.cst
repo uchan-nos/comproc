@@ -78,3 +78,10 @@ IO_PORT "gpio[4]" IO_TYPE=LVCMOS33;
 IO_PORT "gpio[5]" IO_TYPE=LVCMOS33;
 IO_PORT "gpio[6]" IO_TYPE=LVCMOS33;
 IO_PORT "gpio[7]" IO_TYPE=LVCMOS33;
+
+IO_LOC "adc_cmp"     55;
+IO_LOC "adc_sh_ctl"  56;
+IO_LOC "adc_dac_pwm" 57;
+IO_PORT "adc_cmp"     IO_TYPE=LVCMOS33;
+IO_PORT "adc_sh_ctl"  IO_TYPE=LVCMOS33;
+IO_PORT "adc_dac_pwm" IO_TYPE=LVCMOS33;

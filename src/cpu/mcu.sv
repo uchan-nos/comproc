@@ -12,9 +12,13 @@ module mcu#(
   output [15:0] wr_data, // メモリ書き込みデータバス
   output [15:0] stack0, stack1, insn,
   output [5:0] alu_sel, // デバッグ出力
-  output load_insn
+  output load_insn,
+  input  adc_cmp,     // ADC のコンパレータ出力
+  output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
+  output adc_dac_pwm  // ADC の DAC PWM 信号
 );
 
+// CPU コア
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic cpu_rd_mem, cpu_wr_mem, cpu_byt, cpu_irq;
@@ -84,6 +88,12 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .irq(cpu_irq)
 );
 
+// 周辺機能用高速クロック
+logic osc125;
+Gowin_OSC internal_osc_125mhz(
+  .oscout(osc125) //output oscout 125MHz
+);
+
 // MCU 内蔵周辺機能：カウントダウンタイマ
 logic cdtimer_to, load_cdtimer, cdtimer_ie;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
@@ -138,6 +148,19 @@ always @(posedge clk, posedge rst) begin
     uart_ie <= wr_data[1];
 end
 
+// MCU 内蔵周辺機能：ADC
+logic [7:0] adc_result;
+
+adc#(.CLOCK_HZ(CLOCK_HZ)) adc(
+  .rst(rst),
+  .clk(clk),
+  .clk125(osc125),
+  .adc_cmp(adc_cmp),
+  .adc_sh_ctl(adc_sh_ctl),
+  .adc_dac_pwm(adc_dac_pwm),
+  .adc_result(adc_result)
+);
+
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
   casex (mem_addr)
@@ -145,6 +168,7 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
     `ADDR_WIDTH'h006: read_memreg = {8'd0, recv_data[7:0]};
     `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, uart_rx_ready};
+    `ADDR_WIDTH'h00A: read_memreg = {8'd0, adc_result};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
