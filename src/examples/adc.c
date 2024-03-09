@@ -1,11 +1,11 @@
-int tim_cnt __attribute__((at(0x02)));
+int tim_count __attribute__((at(0x02)));
 int adc_result __attribute__((at(0x0A)));
-char led __attribute__((at(0x80)));
-int lcd_port __attribute__((at(0x81)));
+char led_port __attribute__((at(0x80)));
+char lcd_port __attribute__((at(0x81)));
 
 void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0) {}
+  tim_count = ms;
+  while (tim_count > 0) {}
 }
 
 void lcd_out4(int rs, int val) {
@@ -66,7 +66,7 @@ int main() {
 
   while (1) {
     v = adc_result;
-    led = v;
+    led_port = v;
 
     if (++cnt >= 3) {
       cnt = 0;
