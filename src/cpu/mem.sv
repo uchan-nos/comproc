@@ -50,4 +50,9 @@ always @(posedge rst, posedge clk) begin
   end
 end
 
+initial begin
+  $readmemh("./ipl_lo.hex", mem_lo, `ADDR_WIDTH'h300>>1);
+  $readmemh("./ipl_hi.hex", mem_hi, `ADDR_WIDTH'h300>>1);
+end
+
 endmodule

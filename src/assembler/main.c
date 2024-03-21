@@ -196,7 +196,53 @@ int DataByte(uint16_t *insn, char **operands, int num_opr) {
   return num_opr;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+  int separate_output = 0;
+  const char *input_filename = NULL;
+  const char *output_filename = NULL;
+
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--separate-output") == 0) {
+      separate_output = 1;
+    } else if (strcmp(argv[i], "-o") == 0) {
+      i++;
+      if (i >= argc) {
+        fprintf(stderr, "output file name is not specified\n");
+        exit(1);
+      }
+      output_filename = argv[i];
+    } else if (input_filename) {
+      fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
+      exit(1);
+    } else {
+      input_filename = argv[i];
+    }
+  }
+
+  FILE *input_file = stdin;
+  FILE *output_file = stdout, *output_file_hi = NULL;
+  if (input_filename && strcmp(input_filename, "-") != 0) {
+    input_file = fopen(input_filename, "r");
+  }
+  if (output_filename && strcmp(output_filename, "-") != 0) {
+    if (separate_output) {
+      char s[128] = {};
+      strncpy(s, output_filename, 120);
+      size_t l = strlen(s);
+      strcpy(s + l, "_lo.hex");
+      output_file = fopen(s, "w");
+      strcpy(s + l, "_hi.hex");
+      output_file_hi = fopen(s, "w");
+    } else {
+      output_file = fopen(output_filename, "w");
+    }
+  }
+
+  if (separate_output && output_file_hi == NULL) {
+    fprintf(stderr, "--separate-output needs '-o <basename>'\n");
+    exit(1);
+  }
+
   char line[256];
   char *label;
   char *mnemonic;
@@ -211,7 +257,7 @@ int main(void) {
   struct LabelAddr labels[128];
   int num_labels = 0;
 
-  while (fgets(line, sizeof(line), stdin) != NULL) {
+  while (fgets(line, sizeof(line), input_file) != NULL) {
     int num_opr = SplitOpcode(line, &label, &mnemonic, operands, MAX_OPERAND);
 
     if (label) {
@@ -424,7 +470,12 @@ int main(void) {
 
   for (int i = ORIGIN; i < ip; i += 2) {
     uint16_t ins = insn[i >> 1];
-    printf("%02X %02X\n", ins >> 8, ins & 0xffu);
+    if (separate_output) {
+      fprintf(output_file, "%02X\n", ins & 0xffu);
+      fprintf(output_file_hi, "%02X\n", ins >> 8);
+    } else {
+      fprintf(output_file, "%02X %02X\n", ins >> 8, ins & 0xffu);
+    }
   }
   return 0;
 }
