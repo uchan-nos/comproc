@@ -157,11 +157,6 @@ mcu mcu(
   .adc_dac_pwm(adc_dac_pwm)
 );
 
-logic bram_rst, bram_clk, bram_wr_lo, bram_wr_hi;
-logic [`ADDR_WIDTH-2:0] bram_addr_lo, bram_addr_hi;
-logic [7:0] bram_wr_data_lo, bram_wr_data_hi;
-logic [7:0] bram_rd_data_lo, bram_rd_data_hi;
-
 // メモリ
 mem mem(
   .rst(~rst_n),
@@ -170,48 +165,7 @@ mem mem(
   .wr(mem_wr),
   .byt(mem_byt),
   .wr_data(wr_data),
-  .rd_data(bram_rd_data),
-
-  .bram_rst(bram_rst),
-  .bram_clk(bram_clk),
-  .wr_lo(bram_wr_lo),
-  .wr_hi(bram_wr_hi),
-  .addr_lo(bram_addr_lo),
-  .addr_hi(bram_addr_hi),
-  .wr_data_lo(bram_wr_data_lo),
-  .wr_data_hi(bram_wr_data_hi),
-  .rd_data_lo(bram_rd_data_lo),
-  .rd_data_hi(bram_rd_data_hi)
-);
-
-// プログラムとデータを格納する BRAM（偶数アドレス）
-Gowin_SDPB mem_lo(
-  .clka(bram_clk),    //input clka
-  .cea(bram_wr_lo),   //input cea
-  .reseta(bram_rst),  //input reseta
-  .clkb(bram_clk),    //input clkb
-  .ceb(1'b1),         //input ceb
-  .resetb(bram_rst),  //input resetb
-  .oce(1'b0),         //input oce
-  .ada(bram_addr_lo), //input [10:0] ada
-  .din(bram_wr_data_lo),  //input [7:0] din
-  .adb(bram_addr_lo), //input [10:0] adb
-  .dout(bram_rd_data_lo)  //output [7:0] dout
-);
-
-// プログラムとデータを格納する BRAM（奇数アドレス）
-Gowin_SDPB mem_hi(
-  .clka(bram_clk),    //input clka
-  .cea(bram_wr_hi),   //input cea
-  .reseta(bram_rst),  //input reseta
-  .clkb(bram_clk),    //input clkb
-  .ceb(1'b1),         //input ceb
-  .resetb(bram_rst),  //input resetb
-  .oce(1'b0),         //input oce
-  .ada(bram_addr_hi), //input [10:0] ada
-  .din(bram_wr_data_hi),  //input [7:0] din
-  .adb(bram_addr_hi), //input [10:0] adb
-  .dout(bram_rd_data_hi)  //output [7:0] dout
+  .rd_data(bram_rd_data)
 );
 
 function [7:0] encode_7seg(input [4:0] n);
