@@ -50,7 +50,8 @@ assign cur_uart_in = uart_in[uart_index];
 logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx), .insn(), .load_insn()
+  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx), .insn(), .load_insn(),
+  .clk125(1'b0), .adc_cmp(1'b0), .adc_sh_ctl(), .adc_dac_pwm()
 );
 
 // 実行トレース機能
@@ -61,12 +62,12 @@ integer trace_fd;
 initial begin
   // stdin からテストデータを読む
   while ($fscanf(STDIN, "%x", uart_buf) == 1) begin
-    mem_hi.data[ip_init] <= uart_buf;
+    mem.mem_hi[ip_init] <= uart_buf;
     if ($fscanf(STDIN, "%x", uart_buf) == 0) begin
       $fdisplay(STDERR, "invalid_instruction");
       $finish(1);
     end
-    mem_lo.data[ip_init] <= uart_buf;
+    mem.mem_lo[ip_init] <= uart_buf;
     num_insn++;
     ip_init++;
   end
@@ -162,9 +163,6 @@ always @(posedge clk) begin
   end
 end
 
-logic bram_clk, bram_rst, wr_lo, wr_hi;
-logic [`ADDR_WIDTH-2:0] addr_lo, addr_hi;
-logic [7:0] wr_data_lo, wr_data_hi, rd_data_lo, rd_data_hi;
 logic [15:0] bram_rd_data;
 mem mem(
   .rst(rst),
@@ -173,36 +171,7 @@ mem mem(
   .wr(wr_mem),
   .byt(byt),
   .wr_data(wr_data),
-  .rd_data(bram_rd_data),
-
-  .bram_rst(bram_rst),
-  .bram_clk(bram_clk),
-  .wr_lo(wr_lo),
-  .wr_hi(wr_hi),
-  .addr_lo(addr_lo),
-  .addr_hi(addr_hi),
-  .wr_data_lo(wr_data_lo),
-  .wr_data_hi(wr_data_hi),
-  .rd_data_lo(rd_data_lo),
-  .rd_data_hi(rd_data_hi)
-);
-
-byte_bram mem_lo(
-  .rst(bram_rst),
-  .clk(bram_clk),
-  .wr(wr_lo),
-  .addr(addr_lo),
-  .wr_data(wr_data_lo),
-  .rd_data(rd_data_lo)
-);
-
-byte_bram mem_hi(
-  .rst(bram_rst),
-  .clk(bram_clk),
-  .wr(wr_hi),
-  .addr(addr_hi),
-  .wr_data(wr_data_hi),
-  .rd_data(rd_data_hi)
+  .rd_data(bram_rd_data)
 );
 
 logic [`ADDR_WIDTH-1:0] mem_addr_d;
@@ -298,24 +267,4 @@ always @(posedge clk) begin
   end
 end
 
-endmodule
-
-module byte_bram(
-  input rst,
-  input clk,
-  input wr,
-  input [`ADDR_WIDTH-2:0] addr,
-  input [7:0] wr_data,
-  output logic [7:0] rd_data
-);
-logic [7:0] data[0:(1<<(`ADDR_WIDTH-1))-1];
-always @(posedge clk, posedge rst) begin
-  if (rst)
-    rd_data <= 8'd0;
-  else begin
-    rd_data <= data[addr];
-    if (wr)
-      data[addr] <= wr_data;
-  end
-end
 endmodule

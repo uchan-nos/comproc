@@ -13,6 +13,7 @@ module mcu#(
   output [15:0] stack0, stack1, insn,
   output [5:0] alu_sel, // デバッグ出力
   output load_insn,
+  input  clk125,
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
   output adc_dac_pwm  // ADC の DAC PWM 信号
@@ -88,12 +89,6 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .irq(cpu_irq)
 );
 
-// 周辺機能用高速クロック
-logic osc125;
-Gowin_OSC internal_osc_125mhz(
-  .oscout(osc125) //output oscout 125MHz
-);
-
 // MCU 内蔵周辺機能：カウントダウンタイマ
 logic cdtimer_to, load_cdtimer, cdtimer_ie;
 logic [15:0] data_memreg, data_reg, cdtimer_cnt;
@@ -154,7 +149,7 @@ logic [7:0] adc_result;
 adc#(.CLOCK_HZ(CLOCK_HZ)) adc(
   .rst(rst),
   .clk(clk),
-  .clk125(osc125),
+  .clk125(clk125),
   .adc_cmp(adc_cmp),
   .adc_sh_ctl(adc_sh_ctl),
   .adc_dac_pwm(adc_dac_pwm),

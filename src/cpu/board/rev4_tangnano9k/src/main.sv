@@ -41,6 +41,7 @@ logic [5:0] cpu_alu_sel;
 logic cpu_load_insn;
 
 logic [7:0] io_led, io_lcd, io_gpio;
+logic clk125;
 
 // 継続代入
 assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
@@ -136,6 +137,11 @@ always @(posedge sys_clk, negedge rst_n) begin
     mem_addr_d <= mem_addr;
 end
 
+// 周辺機能用高速クロック
+Gowin_OSC internal_osc_125mhz(
+  .oscout(clk125) // 125MHz
+);
+
 // 自作 CPU を接続する
 mcu mcu(
   .rst(~rst_n),
@@ -151,6 +157,7 @@ mcu mcu(
   .stack1(cpu_stack1),
   .insn(cpu_insn),
   .load_insn(cpu_load_insn),
+  .clk125(clk125),
   .alu_sel(cpu_alu_sel),
   .adc_cmp(adc_cmp),
   .adc_sh_ctl(adc_sh_ctl),
