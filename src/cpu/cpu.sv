@@ -158,7 +158,7 @@ isr       割り込みハンドラ（ISR）のアドレスを保持するレジ�
 
 addr      説明
 ---------------
-000h-07fh CPU 内蔵機能
+000h-07fh MCU 内蔵機能
 080h-0ffh 周辺機器
 100h-2ffh データメモリ
 300h-fffh プログラムメモリ
@@ -173,6 +173,13 @@ addr      説明
 006h-007h UART 入出力（下位 1 バイトのみ有効）
 008h-009h UART 設定
 00Ah-00Bh ADC 変換結果
+010h-011h FLASH608K: XADR
+012h-013h FLASH608K: YADR
+014h-015h FLASH608K: 5:NVSTR 4:PROG 3:ERASE 2:SE 1:YE 0:XE
+018h-019h FLASH608K: DIN low 16 bits
+01Ah-01Bh FLASH608K: DIN high 16 bits
+01Ch-01Dh FLASH608K: DOUT low 16 bits
+01Eh-01Fh FLASH608K: DOUT high 16 bits
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h      GPIO

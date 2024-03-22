@@ -156,6 +156,59 @@ adc#(.CLOCK_HZ(CLOCK_HZ)) adc(
   .adc_result(adc_result)
 );
 
+// MCU 内蔵周辺機能：ユーザーフラッシュ
+logic [8:0] uf_xadr;
+logic [5:0] uf_yadr;
+logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr;
+logic [31:0] uf_din, uf_dout;
+FLASH608K flash608k_instance(
+  .XADR(uf_xadr),
+  .YADR(uf_yadr),
+  .XE(uf_xe),
+  .YE(uf_ye),
+  .SE(uf_se),
+  .ERASE(uf_erase),
+  .PROG(uf_prog),
+  .NVSTR(uf_nvstr),
+  .DIN(uf_din),
+  .DOUT(uf_dout)
+);
+
+always @(posedge clk, posedge cpu_rst) begin
+  if (cpu_rst) begin
+    uf_xadr <= 0;
+    uf_yadr <= 0;
+    {uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe} <= 0;
+    uf_din <= 0;
+  end
+  else if (cpu_wr_mem)
+    case (mem_addr)
+      `ADDR_WIDTH'h010: uf_xadr <= wr_data[8:0];
+      `ADDR_WIDTH'h012: uf_yadr <= wr_data[5:0];
+      `ADDR_WIDTH'h014: {uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe} <= wr_data[5:0];
+      `ADDR_WIDTH'h018: uf_din[15:0] <= wr_data;
+      `ADDR_WIDTH'h01A: uf_din[31:16] <= wr_data;
+      `ADDR_WIDTH'h01C: ; // cannot write to df_uout
+      `ADDR_WIDTH'h01E: ; // cannot write to df_uout
+    endcase
+    /*
+    if (mem_addr === `ADDR_WIDTH'h010)
+      uf_xadr <= wr_data[8:0];
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h012)
+      uf_yadr <= wr_data[5:0];
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h014)
+      {uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe} <= wr_data[5:0];
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h018)
+      uf_din[15:0] <= wr_data;
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01A)
+      uf_din[31:16] <= wr_data;
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01C)
+      uf_dout[15:0] <= wr_data;
+    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01E)
+      uf_dout[31:16] <= wr_data;
+    */
+end
+
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
   casex (mem_addr)
@@ -164,6 +217,13 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h006: read_memreg = {8'd0, recv_data[7:0]};
     `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, uart_rx_ready};
     `ADDR_WIDTH'h00A: read_memreg = {8'd0, adc_result};
+    `ADDR_WIDTH'h010: read_memreg = {7'd0, uf_xadr};
+    `ADDR_WIDTH'h012: read_memreg = {10'd0, uf_yadr};
+    `ADDR_WIDTH'h014: read_memreg = {10'd0, uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe};
+    `ADDR_WIDTH'h018: read_memreg = uf_din[15:0];
+    `ADDR_WIDTH'h01A: read_memreg = uf_din[31:16];
+    `ADDR_WIDTH'h01C: read_memreg = uf_dout[15:0];
+    `ADDR_WIDTH'h01E: read_memreg = uf_dout[31:16];
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
