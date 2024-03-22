@@ -724,12 +724,14 @@ int main(int argc, char **argv) {
 
   struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
   for (struct Symbol *sym = gen_ctx.scope->syms->next; sym; sym = sym->next) {
-    if (sym->kind == kSymGVar && sym->def->rhs) {
+    if (sym->kind == kSymGVar && sym->offset == 0) {
       size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       sym->offset = gvar_offset;
       gvar_offset += mem_size;
-      Generate(&gen_ctx, sym->def->rhs, 0);
-      InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+      if (sym->def->rhs) {
+        Generate(&gen_ctx, sym->def->rhs, 0);
+        InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+      }
     }
   }
   InsnLabelStr(&gen_ctx, "call", "main");
