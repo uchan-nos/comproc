@@ -73,11 +73,29 @@ void delay_10us() {
 int main() {
   int i;
   char buf[9];
+  int data_lo;
+  int data_hi;
   buf[8] = '\0';
 
   lcd_init();
   lcd_out8(0, 0x80);
   lcd_puts("User Flash Test");
+
+  // read XADR=0, YADR=0
+  uf_flags = 0;
+  uf_xadr = 0;
+  uf_yadr = 0;
+  uf_flags = 3;
+  uf_flags = 7;
+  uf_flags = 3;
+  data_lo = uf_dout_lo;
+  data_hi = uf_dout_hi;
+  uf_flags = 0;
+
+  data_lo++;
+  if (data_lo == 0) {
+    data_hi++;
+  }
 
   // page erase XADR=0
   uf_flags = 0;
@@ -102,8 +120,8 @@ int main() {
   delay_10us();
   uf_flags = 0x31; // NVSTR=1
   uf_yadr = 0;
-  uf_din_lo = 0xDEAD;
-  uf_din_hi = 0xCAFE;
+  uf_din_lo = data_lo;
+  uf_din_hi = data_hi;
   delay_10us();
   uf_flags = 0x33; // YE=1
   delay_10us();
@@ -113,18 +131,9 @@ int main() {
   uf_flags = 0x01; // NVSTR=0
   uf_flags = 0x00; // XE=0
 
-  // read XADR=0, YADR=0
-  uf_flags = 0;
-  uf_xadr = 0;
-  uf_yadr = 0;
-  uf_flags = 3;
-  uf_flags = 7;
-  uf_flags = 3;
-
-  int2hex(uf_dout_hi, buf, 4);
-  int2hex(uf_dout_lo, buf + 4, 4);
-
-  uf_flags = 0;
+  // show data
+  int2hex(data_hi, buf, 4);
+  int2hex(data_lo, buf + 4, 4);
 
   lcd_out8(0, 0xc0);
   lcd_puts("[0,0]=0x");
