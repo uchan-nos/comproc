@@ -142,6 +142,24 @@ Gowin_OSC internal_osc_125mhz(
   .oscout(clk125) // 125MHz
 );
 
+// MCU 内蔵周辺機能：ユーザーフラッシュ
+logic [8:0] uf_xadr;
+logic [5:0] uf_yadr;
+logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr;
+logic [31:0] uf_din, uf_dout;
+FLASH608K flash608k_instance(
+  .XADR(uf_xadr),
+  .YADR(uf_yadr),
+  .XE(uf_xe),
+  .YE(uf_ye),
+  .SE(uf_se),
+  .ERASE(uf_erase),
+  .PROG(uf_prog),
+  .NVSTR(uf_nvstr),
+  .DIN(uf_din),
+  .DOUT(uf_dout)
+);
+
 // 自作 CPU を接続する
 mcu mcu(
   .rst(~rst_n),
@@ -161,7 +179,17 @@ mcu mcu(
   .alu_sel(cpu_alu_sel),
   .adc_cmp(adc_cmp),
   .adc_sh_ctl(adc_sh_ctl),
-  .adc_dac_pwm(adc_dac_pwm)
+  .adc_dac_pwm(adc_dac_pwm),
+  .uf_xadr(uf_xadr),
+  .uf_yadr(uf_yadr),
+  .uf_xe(uf_xe),
+  .uf_ye(uf_ye),
+  .uf_se(uf_se),
+  .uf_erase(uf_erase),
+  .uf_prog(uf_prog),
+  .uf_nvstr(uf_nvstr),
+  .uf_din(uf_din),
+  .uf_dout(uf_dout)
 );
 
 // メモリ

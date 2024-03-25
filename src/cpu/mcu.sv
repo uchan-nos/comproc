@@ -16,7 +16,12 @@ module mcu#(
   input  clk125,
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
-  output adc_dac_pwm  // ADC の DAC PWM 信号
+  output adc_dac_pwm, // ADC の DAC PWM 信号
+  output logic [8:0] uf_xadr,
+  output logic [5:0] uf_yadr,
+  output logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr,
+  output logic [31:0] uf_din,
+  input  [31:0] uf_dout
 );
 
 // CPU コア
@@ -157,23 +162,6 @@ adc#(.CLOCK_HZ(CLOCK_HZ)) adc(
 );
 
 // MCU 内蔵周辺機能：ユーザーフラッシュ
-logic [8:0] uf_xadr;
-logic [5:0] uf_yadr;
-logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr;
-logic [31:0] uf_din, uf_dout;
-FLASH608K flash608k_instance(
-  .XADR(uf_xadr),
-  .YADR(uf_yadr),
-  .XE(uf_xe),
-  .YE(uf_ye),
-  .SE(uf_se),
-  .ERASE(uf_erase),
-  .PROG(uf_prog),
-  .NVSTR(uf_nvstr),
-  .DIN(uf_din),
-  .DOUT(uf_dout)
-);
-
 always @(posedge clk, posedge cpu_rst) begin
   if (cpu_rst) begin
     uf_xadr <= 0;
@@ -191,22 +179,6 @@ always @(posedge clk, posedge cpu_rst) begin
       `ADDR_WIDTH'h01C: ; // cannot write to df_uout
       `ADDR_WIDTH'h01E: ; // cannot write to df_uout
     endcase
-    /*
-    if (mem_addr === `ADDR_WIDTH'h010)
-      uf_xadr <= wr_data[8:0];
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h012)
-      uf_yadr <= wr_data[5:0];
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h014)
-      {uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe} <= wr_data[5:0];
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h018)
-      uf_din[15:0] <= wr_data;
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01A)
-      uf_din[31:16] <= wr_data;
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01C)
-      uf_dout[15:0] <= wr_data;
-    else if (cpu_wr_mem && mem_addr === `ADDR_WIDTH'h01E)
-      uf_dout[31:16] <= wr_data;
-    */
 end
 
 // MCU 内蔵周辺機能のメモリマップ
