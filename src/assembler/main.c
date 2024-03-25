@@ -200,6 +200,7 @@ int main(int argc, char **argv) {
   int separate_output = 0;
   const char *input_filename = NULL;
   const char *output_filename = NULL;
+  const char *map_filename = NULL;
 
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--separate-output") == 0) {
@@ -214,6 +215,13 @@ int main(int argc, char **argv) {
     } else if (input_filename) {
       fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
       exit(1);
+    } else if (strcmp(argv[i], "--map") == 0) {
+      i++;
+      if (i >= argc) {
+        fprintf(stderr, "map file name is not specified\n");
+        exit(1);
+      }
+      map_filename = argv[i];
     } else {
       input_filename = argv[i];
     }
@@ -236,6 +244,11 @@ int main(int argc, char **argv) {
     } else {
       output_file = fopen(output_filename, "w");
     }
+  }
+
+  FILE *map_file = NULL;
+  if (map_filename) {
+    map_file = fopen(map_filename, "w");
   }
 
   if (separate_output && output_file_hi == NULL) {
@@ -264,6 +277,10 @@ int main(int argc, char **argv) {
       labels[num_labels].label = strdup(label);
       labels[num_labels].ip = ip;
       num_labels++;
+
+      if (map_file) {
+        fprintf(map_file, "0x%04x %s\n", ip, label);
+      }
     }
 
     if (num_opr < 0) {
