@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import os.path
 import serial
 from serial.tools.list_ports import comports
 import sys
@@ -55,6 +56,11 @@ def main():
         hex_list = args.hex
     if not hex_list:
         print('no data to send', file=sys.stderr)
+        sys.exit(1)
+
+    if args.dev[0] == '/' and not os.path.exists(args.dev):
+        print('No such device: ' + args.dev, file=sys.stderr)
+        print("You may need 'sudo modprobe ftdi_sio'")
         sys.exit(1)
 
     bytes_to_send = hex_to_bytes(hex_list)
