@@ -13,9 +13,10 @@ void _ISR() {
 }
 
 int main() {
+  recv_cnt = 0;
   asm("push _ISR\n\t"
       "isr");
   uart_flag = 2; // 受信割り込みを有効化
-  while (recv_cnt < 16);
+  while (recv_cnt < 8);
   return recv_cnt;
 }

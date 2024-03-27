@@ -181,15 +181,34 @@ struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
     } \
   } while (0)
 
-void Generate(struct GenContext *ctx, struct Node *node, int lval) {
+enum ValueClass {
+  VC_RVAL,
+  VC_LVAL,
+  VC_NO_NEED,
+};
+
+#define BINOP_PREPARE(ctx, node, value_class) \
+  do { \
+    if ((value_class) == VC_NO_NEED) { \
+      (node)->type = NewType(kTypeVoid); \
+      Generate((ctx), (node)->lhs, VC_NO_NEED); \
+      Generate((ctx), (node)->rhs, VC_NO_NEED); \
+      break; \
+    } \
+  } while (0)
+
+void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
+
   switch (node->kind) {
   case kNodeInteger:
-    if (node->token->value.as_int <= 0x7ffe) {
-      InsnInt(ctx, "push", node->token->value.as_int);
-    } else {
-      InsnInt(ctx, "push", node->token->value.as_int >> 8);
-      InsnInt(ctx, "push", node->token->value.as_int & 0xff);
-      Insn(ctx, "join");
+    if (value_class == VC_RVAL) {
+      if (node->token->value.as_int <= 0x7ffe) {
+        InsnInt(ctx, "push", node->token->value.as_int);
+      } else {
+        InsnInt(ctx, "push", node->token->value.as_int >> 8);
+        InsnInt(ctx, "push", node->token->value.as_int & 0xff);
+        Insn(ctx, "join");
+      }
     }
     break;
   case kNodeId:
@@ -209,14 +228,15 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         assert(sym->type);
         node->type = sym->type;
         if (sym->type->kind == kTypeArray) {
-          if (lval) {
+          if (value_class == VC_LVAL) {
             fprintf(stderr, "array itself cannot be l-value: %.*s\n",
                     sym->name->len, sym->name->raw);
             exit(1);
+          } else {
+            InsnInt(ctx, "push", sym->offset);
           }
-          InsnInt(ctx, "push", sym->offset);
         } else {
-          if (lval) {
+          if (value_class == VC_LVAL) {
             InsnInt(ctx, "push", sym->offset);
           } else {
             if (SizeofType(sym->type) == 1) {
@@ -229,16 +249,21 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         break;
       case kSymLVar:
         assert(sym->type);
+        if (value_class == VC_NO_NEED) {
+          node->type = NewType(kTypeVoid);
+          break;
+        }
         node->type = sym->type;
         if (sym->type->kind == kTypeArray) {
-          if (lval) {
+          if (value_class == VC_LVAL) {
             fprintf(stderr, "array itself cannot be l-value: %.*s\n",
                     sym->name->len, sym->name->raw);
             exit(1);
+          } else {
+            InsnBaseOff(ctx, "push", "cstack", sym->offset);
           }
-          InsnBaseOff(ctx, "push", "cstack", sym->offset);
         } else {
-          if (lval) {
+          if (value_class == VC_LVAL) {
             InsnBaseOff(ctx, "push", "cstack", sym->offset);
           } else {
             if (SizeofType(sym->type) == 1) {
@@ -250,15 +275,24 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         }
         break;
       case kSymFunc:
+        if (value_class == VC_NO_NEED) {
+          node->type = NewType(kTypeVoid);
+          break;
+        }
         InsnLabelToken(ctx, "push", sym->name);
         break;
+      }
+      if (value_class == VC_NO_NEED) {
+        node->type = NewType(kTypeVoid);
+        Insn(ctx, "pop");
       }
     }
     break;
   case kNodeAdd:
     PRINT_NODE_COMMENT(ctx, node, "Add");
-    Generate(ctx, node->lhs, 0);
-    Generate(ctx, node->rhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->lhs, VC_RVAL);
+    Generate(ctx, node->rhs, VC_RVAL);
     if (node->lhs->type &&
         (node->lhs->type->kind == kTypePtr ||
         node->lhs->type->kind == kTypeArray)) {
@@ -273,109 +307,137 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     break;
   case kNodeSub:
     PRINT_NODE_COMMENT(ctx, node, "Sub");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "sub");
     node->type = node->lhs->type;
     break;
   case kNodeMul:
     PRINT_NODE_COMMENT(ctx, node, "Mul");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "mul");
     node->type = node->lhs->type;
     break;
   case kNodeAssign:
     PRINT_NODE_COMMENT(ctx, node, "Assign");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 1);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_LVAL);
     assert(node->lhs->type);
     if (SizeofType(node->lhs->type) == 1) {
-      Insn(ctx, lval ? "sta.1" : "std.1");
+      Insn(ctx, value_class == VC_LVAL ? "sta.1" : "std.1");
     } else {
-      Insn(ctx, lval ? "sta" : "std");
+      Insn(ctx, value_class == VC_LVAL ? "sta" : "std");
     }
-    node->type = node->lhs->type;
+    if (value_class == VC_NO_NEED) {
+      node->type = NewType(kTypeVoid);
+      Insn(ctx, "pop");
+    } else {
+      node->type = node->lhs->type;
+    }
     break;
   case kNodeLT:
     PRINT_NODE_COMMENT(ctx, node, "LT");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "lt");
     break;
   case kNodeLE:
     PRINT_NODE_COMMENT(ctx, node, "LE");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "le");
     break;
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (postfix))");
-      Generate(ctx, node->lhs, 0);
-      InsnInt(ctx, "push", 1);
-      InsnInt(ctx, "dup", 1);
+      if (value_class == VC_NO_NEED) {
+        InsnInt(ctx, "push", 1);
+        Generate(ctx, node->lhs, VC_RVAL);
+        node->type = NewType(kTypeVoid);
+      } else {
+        Generate(ctx, node->lhs, VC_RVAL);
+        InsnInt(ctx, "push", 1);
+        InsnInt(ctx, "dup", 1);
+        node->type = node->lhs->type;
+      }
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
-      Generate(ctx, node->lhs, 1);
+      Generate(ctx, node->lhs, VC_LVAL);
       Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta.1" : "sta");
       Insn(ctx, "pop");
-      node->type = node->lhs->type;
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
       InsnInt(ctx, "push", 1);
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
-      Generate(ctx, node->rhs, 1);
+      Generate(ctx, node->rhs, VC_LVAL);
       Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std.1" : "std");
-      node->type = node->rhs->type;
+      if (value_class == VC_NO_NEED) {
+        Insn(ctx, "pop");
+        node->type = NewType(kTypeVoid);
+      } else {
+        node->type = node->rhs->type;
+      }
     }
     break;
   case kNodeEq:
     PRINT_NODE_COMMENT(ctx, node, "Eq");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "eq");
     break;
   case kNodeNEq:
     PRINT_NODE_COMMENT(ctx, node, "NEq");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, "neq");
     break;
   case kNodeRef:
-    Generate(ctx, node->rhs, 1);
+    Generate(ctx, node->rhs, value_class == VC_NO_NEED ? VC_NO_NEED : VC_LVAL);
     break;
   case kNodeDeref:
-    if (lval) {
-      Generate(ctx, node->rhs, 0);
-    } else {
-      Generate(ctx, node->rhs, 0);
-      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
-    }
+    Generate(ctx, node->rhs, VC_RVAL);
     assert(node->rhs->type->base);
     node->type = node->rhs->type->base;
+    if (value_class == VC_RVAL) {
+      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
+    } else if (value_class == VC_NO_NEED) {
+      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
+      Insn(ctx, "pop");
+      node->type = NewType(kTypeVoid);
+    }
     break;
   case kNodeLAnd:
     {
       int label_false = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (eval lhs)");
-      Generate(ctx, node->lhs, 0);
+      Generate(ctx, node->lhs, VC_RVAL);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (eval rhs)");
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_false);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (true)");
-      InsnInt(ctx, "push", 1);
-      InsnLabelAutoL(ctx, "jmp", label_end);
+      if (value_class != VC_NO_NEED) {
+        InsnInt(ctx, "push", 1);
+        InsnLabelAutoL(ctx, "jmp", label_end);
+      }
       AddLabelAutoL(ctx, label_false);
-      InsnInt(ctx, "push", 0);
-      AddLabelAutoL(ctx, label_end);
+      if (value_class != VC_NO_NEED) {
+        InsnInt(ctx, "push", 0);
+        AddLabelAutoL(ctx, label_end);
+      }
     }
     break;
   case kNodeLOr:
@@ -383,52 +445,66 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_true = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "LOr (eval lhs)");
-      Generate(ctx, node->lhs, 0);
+      Generate(ctx, node->lhs, VC_RVAL);
       InsnLabelAutoL(ctx, "jnz", label_true);
       PRINT_NODE_COMMENT(ctx, node, "LOr (eval rhs)");
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
       InsnLabelAutoL(ctx, "jnz", label_true);
       PRINT_NODE_COMMENT(ctx, node, "LOr (false)");
-      InsnInt(ctx, "push", 0);
-      InsnLabelAutoL(ctx, "jmp", label_end);
+      if (value_class != VC_NO_NEED) {
+        InsnInt(ctx, "push", 0);
+        InsnLabelAutoL(ctx, "jmp", label_end);
+      }
       AddLabelAutoL(ctx, label_true);
-      InsnInt(ctx, "push", 1);
-      AddLabelAutoL(ctx, label_end);
+      if (value_class != VC_NO_NEED) {
+        InsnInt(ctx, "push", 1);
+        AddLabelAutoL(ctx, label_end);
+      }
     }
     break;
   case kNodeString:
-    ctx->strings[ctx->num_strings] = node->token;
-    InsnLabelAutoS(ctx, "push", ctx->num_strings);
-    ctx->num_strings++;
+    if (value_class != VC_NO_NEED) {
+      ctx->strings[ctx->num_strings] = node->token;
+      InsnLabelAutoS(ctx, "push", ctx->num_strings);
+      ctx->num_strings++;
+    }
     break;
   case kNodeAnd:
     PRINT_NODE_COMMENT(ctx, node, "And");
-    Generate(ctx, node->lhs, 0);
-    Generate(ctx, node->rhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->lhs, VC_RVAL);
+    Generate(ctx, node->rhs, VC_RVAL);
     Insn(ctx, "and");
     break;
   case kNodeXor:
     PRINT_NODE_COMMENT(ctx, node, "Xor");
-    Generate(ctx, node->lhs, 0);
-    Generate(ctx, node->rhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->lhs, VC_RVAL);
+    Generate(ctx, node->rhs, VC_RVAL);
     Insn(ctx, "xor");
     break;
   case kNodeOr:
     PRINT_NODE_COMMENT(ctx, node, "Or");
-    Generate(ctx, node->lhs, 0);
-    Generate(ctx, node->rhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->lhs, VC_RVAL);
+    Generate(ctx, node->rhs, VC_RVAL);
     Insn(ctx, "or");
     break;
   case kNodeNot:
     PRINT_NODE_COMMENT(ctx, node, "Not");
-    Generate(ctx, node->rhs, 0);
-    Insn(ctx, "not");
+    if (value_class == VC_NO_NEED) {
+      Generate(ctx, node->rhs, VC_NO_NEED);
+    } else {
+      Generate(ctx, node->rhs, VC_RVAL);
+      Insn(ctx, "not");
+    }
     break;
   case kNodeRShift:
   case kNodeLShift:
     PRINT_NODE_COMMENT(ctx, node, "R/LShift");
-    Generate(ctx, node->rhs, 0);
-    Generate(ctx, node->lhs, 0);
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, node->kind == kNodeRShift ? "sar" : "shl");
     break;
   case kNodeCall:
@@ -445,7 +521,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         args[num_args++] = arg;
       }
       for (int i = 0; i < num_args; i++) {
-        Generate(ctx, args[num_args - 1 - i], 0);
+        Generate(ctx, args[num_args - 1 - i], VC_RVAL);
       }
       if (node->lhs->kind == kNodeId) {
         InsnLabelToken(ctx, "call", node->lhs->token);
@@ -454,11 +530,19 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         Locate(node->lhs->token->raw);
         exit(1);
       }
+      if (value_class == VC_NO_NEED) {
+        Insn(ctx, "pop");
+      }
     }
     break;
   case kNodeCast:
-    Generate(ctx, node->rhs, lval);
-    node->type = node->lhs->type;
+    if (value_class == VC_NO_NEED) {
+      Generate(ctx, node->rhs, VC_NO_NEED);
+      node->type = NewType(kTypeVoid);
+    } else {
+      Generate(ctx, node->rhs, value_class);
+      node->type = node->lhs->type;
+    }
     break;
   case kNodeVoid:
     break;
@@ -492,7 +576,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->line_add_fp = ctx->num_line;
       // add fp のオペランド値は、関数定義の処理後に上書きされる
       InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
 
       struct Node *block_last = GetLastNode(node->rhs);
       if (block_last && block_last->kind != kNodeReturn) {
@@ -507,17 +591,14 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
     ctx->scope = EnterScope(ctx->scope);
 
     for (struct Node *n = node->next; n; n = n->next) {
-      Generate(ctx, n, 0);
-      if (ctx->is_isr) {
-        Insn(ctx, "pop");
-      }
+      Generate(ctx, n, VC_NO_NEED);
     }
 
     ctx->scope = LeaveScope(ctx->scope);
     break;
   case kNodeReturn:
     if (node->lhs) {
-      Generate(ctx, node->lhs, 0);
+      Generate(ctx, node->lhs, VC_RVAL);
     }
     InsnReg(ctx, "cpop", "fp");
     Insn(ctx, ctx->is_isr ? "iret" : "ret");
@@ -544,7 +625,7 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
         ctx->lvar_offset += mem_size;
 
         if (node->rhs) {
-          Generate(ctx, node->rhs, 0);
+          Generate(ctx, node->rhs, VC_RVAL);
           if (SizeofType(sym->type) == 1) {
             InsnBaseOff(ctx, "st.1", "cstack", sym->offset);
           } else {
@@ -559,18 +640,18 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       int label_else = node->rhs ? GenLabel(ctx) : -1;
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "If (cond eval)");
-      Generate(ctx, node->cond, 0);
+      Generate(ctx, node->cond, VC_RVAL);
       PRINT_NODE_COMMENT(ctx, node, "If (cond to bool)");
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_end);
       PRINT_NODE_COMMENT(ctx, node, "If (then)");
-      Generate(ctx, node->lhs, 0);
+      Generate(ctx, node->lhs, VC_RVAL);
       if (node->rhs) {
         InsnLabelAutoL(ctx, "jmp", label_end);
         PRINT_NODE_COMMENT(ctx, node, "If (else)");
         AddLabelAutoL(ctx, label_else);
-        Generate(ctx, node->rhs, 0);
+        Generate(ctx, node->rhs, VC_RVAL);
       }
       PRINT_NODE_COMMENT(ctx, node, "If (end)");
       AddLabelAutoL(ctx, label_end);
@@ -587,15 +668,15 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
       ctx->jump_labels.lcontinue = label_next;
 
       PRINT_NODE_COMMENT(ctx, node, "For (eval init)");
-      Generate(ctx, node->lhs, 0);
+      Generate(ctx, node->lhs, VC_RVAL);
       AddLabelAutoL(ctx, label_cond);
-      Generate(ctx, node->cond, 0);
+      Generate(ctx, node->cond, VC_RVAL);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_end);
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
       AddLabelAutoL(ctx, label_next);
-      Generate(ctx, node->lhs->next, 0);
+      Generate(ctx, node->lhs->next, VC_RVAL);
       InsnLabelAutoL(ctx, "jmp", label_cond);
       PRINT_NODE_COMMENT(ctx, node, "For (end)");
       AddLabelAutoL(ctx, label_end);
@@ -614,11 +695,11 @@ void Generate(struct GenContext *ctx, struct Node *node, int lval) {
 
       PRINT_NODE_COMMENT(ctx, node, "While");
       AddLabelAutoL(ctx, label_cond);
-      Generate(ctx, node->cond, 0);
+      Generate(ctx, node->cond, VC_RVAL);
       InsnInt(ctx, "push", 0);
       Insn(ctx, "neq");
       InsnLabelAutoL(ctx, "jz", label_end);
-      Generate(ctx, node->rhs, 0);
+      Generate(ctx, node->rhs, VC_RVAL);
       InsnLabelAutoL(ctx, "jmp", label_cond);
       PRINT_NODE_COMMENT(ctx, node, "While (end)");
       AddLabelAutoL(ctx, label_end);
@@ -729,7 +810,7 @@ int main(int argc, char **argv) {
       sym->offset = gvar_offset;
       gvar_offset += mem_size;
       if (sym->def->rhs) {
-        Generate(&gen_ctx, sym->def->rhs, 0);
+        Generate(&gen_ctx, sym->def->rhs, VC_RVAL);
         InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
       }
     }
@@ -740,7 +821,7 @@ int main(int argc, char **argv) {
   InsnLabelStr(&gen_ctx, "jmp", "fin");
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
-      Generate(&gen_ctx, n, 0);
+      Generate(&gen_ctx, n, VC_NO_NEED);
       struct AsmLine *line = &gen_ctx.asm_lines[gen_ctx.line_add_fp];
       if (line->kind != kAsmLineInsn ||
           strcmp(line->insn.opcode, "add") != 0 ||
