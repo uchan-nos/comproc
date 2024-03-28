@@ -199,6 +199,24 @@ enum ValueClass {
 
 void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
 
+  if (100 <= node->kind && node->kind < 200) { // normal binary expression
+    BINOP_PREPARE(ctx, node, value_class);
+    Generate(ctx, node->lhs, VC_RVAL);
+    Generate(ctx, node->rhs, VC_RVAL);
+    if (node->lhs->type &&
+        (node->lhs->type->kind == kTypePtr ||
+        node->lhs->type->kind == kTypeArray)) {
+      size_t element_size = SizeofType(node->lhs->type->base);
+      if (element_size > 1) {
+        InsnInt(ctx, "push", (int)element_size);
+        Insn(ctx, "mul");
+      }
+    }
+    Insn(ctx, "add");
+    node->type = node->lhs->type;
+    break;
+  }
+
   switch (node->kind) {
   case kNodeInteger:
     if (value_class == VC_RVAL) {

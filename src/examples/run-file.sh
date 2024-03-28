@@ -13,12 +13,12 @@ case "$file" in
     asm=$(../compiler/ucc -o - "$file")
     echo "===================================== ASM ====================================="
     echo "$asm"
-    bin=$(cat "$file" | ./build.sh)
+    bin=$(echo "$asm" | ../assembler/uasm -o - -)
     echo "===================================== BIN ====================================="
     echo $bin | fold -s -w 80
     ;;
   *\.asm)
-    bin=$(cat "$file" | ../assembler/uasm)
+    bin=$(../assembler/uasm -o - "$file")
     echo "===================================== BIN ====================================="
     echo $bin | fold -s -w 80
     ;;

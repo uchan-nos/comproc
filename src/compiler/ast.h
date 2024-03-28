@@ -9,33 +9,32 @@ enum NodeKind {
   // 式（値をスタックに積むもの）
   kNodeInteger,
   kNodeId,
-  kNodeAdd,
-  kNodeSub,
-  kNodeMul,
-  kNodeAssign,
-  kNodeLT, // <
-  kNodeLE, // <=
+  kNodeString,// string literal
   kNodeInc,
   kNodeDec,
-  kNodeEq,
-  kNodeNEq,
   kNodeRef,   // & exp
   kNodeDeref, // * exp
-  kNodeLAnd,  // &&
-  kNodeLOr,   // ||
-  kNodeString,// string literal
-  kNodeAnd,   // &
-  kNodeXor,   // ^
-  kNodeOr,    // |
-  kNodeNot,   // ~
-  kNodeRShift,// >>
-  kNodeLShift,// <<
   kNodeCall,
   kNodeCast,
   kNodeVoid,  // 空の式（単なる ;）
-  kNodeExprEnd,
+  kNodeLAnd,  // &&
+  kNodeLOr,   // ||
+  kNodeAssign,
+  kNodeAdd = 100,
+  kNodeSub,
+  kNodeMul,
+  kNodeLT,    // <
+  kNodeLE,    // <=
+  kNodeEq,
+  kNodeNEq,
+  kNodeAnd,   // &
+  kNodeXor,   // ^
+  kNodeNot,   // ~
+  kNodeOr,    // |
+  kNodeRShift,// >>
+  kNodeLShift,// <<
   // 式以外（値をスタックに積まないもの）
-  kNodeDefFunc,
+  kNodeDefFunc = 200,
   kNodeBlock,
   kNodeReturn,
   kNodeDefVar,
