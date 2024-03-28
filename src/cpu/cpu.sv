@@ -65,21 +65,21 @@ INC        |0111000000000001| stack[0]++
 INC2       |0111000000000010| stack[0] += 2
 NOT        |0111000000000100| stack[0] = ~stack[0]
 
-AND        |0111000001010000| stack[0] &= stack[1]
-OR         |0111000001010001| stack[0] |= stack[1]
-XOR        |0111000001010010| stack[0] ^= stack[1]
-SHR        |0111000001010100| stack[0] >>= stack[1]（符号なしシフト）
-SAR        |0111000001010101| stack[0] >>= stack[1]（符号付きシフト）
-SHL        |0111000001010110| stack[0] <<= stack[1]
-JOIN       |0111000001010111| stack[0] |= (stack[1] << 8)
+AND        |0111000001010000| stack[0] = stack[1] & stack[0]
+OR         |0111000001010001| stack[0] = stack[1] | stack[0]
+XOR        |0111000001010010| stack[0] = stack[1] ^ stack[0]
+SHR        |0111000001010100| stack[0] = stack[1] >> stack[0]（符号なしシフト）
+SAR        |0111000001010101| stack[0] = stack[1] >> stack[0]（符号付きシフト）
+SHL        |0111000001010110| stack[0] = stack[1] << stack[0]
+JOIN       |0111000001010111| stack[0] = stack[1] | (stack[0] << 8)
 
-ADD        |0111000001100000| stack[0] += stack[1]
-SUB        |0111000001100001| stack[0] -= stack[1]
-MUL        |0111000001100010| stack[0] *= stack[1]
-LT         |0111000001101000| stack[0] = stack[0] < stack[1]
-EQ         |0111000001101001| stack[0] = stack[0] == stack[1]
-NEQ        |0111000001101010| stack[0] = stack[0] != stack[1]
-LE         |0111000001101011| stack[0] = stack[0] <= stack[1]
+ADD        |0111000001100000| stack[0] = stack[1] + stack[0]
+SUB        |0111000001100001| stack[0] = stack[1] - stack[0]
+MUL        |0111000001100010| stack[0] = stack[1] * stack[0]
+LT         |0111000001101000| stack[0] = stack[1] < stack[0]
+EQ         |0111000001101001| stack[0] = stack[1] == stack[0]
+NEQ        |0111000001101010| stack[0] = stack[1] != stack[0]
+LE         |0111000001101011| stack[0] = stack[1] <= stack[0]
 
 DUP        |0111000010000000| stack[0] を stack にプッシュ
 DUP 1      |0111000010001111| stack[1] を stack にプッシュ

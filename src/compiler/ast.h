@@ -14,13 +14,14 @@ enum NodeKind {
   kNodeDec,
   kNodeRef,   // & exp
   kNodeDeref, // * exp
+  kNodeNot,   // ~
   kNodeCall,
   kNodeCast,
   kNodeVoid,  // 空の式（単なる ;）
   kNodeLAnd,  // &&
   kNodeLOr,   // ||
   kNodeAssign,
-  kNodeAdd = 100,
+  kNodeAdd = 100, // standard binary expression
   kNodeSub,
   kNodeMul,
   kNodeLT,    // <
@@ -28,9 +29,8 @@ enum NodeKind {
   kNodeEq,
   kNodeNEq,
   kNodeAnd,   // &
-  kNodeXor,   // ^
-  kNodeNot,   // ~
   kNodeOr,    // |
+  kNodeXor,   // ^
   kNodeRShift,// >>
   kNodeLShift,// <<
   // 式以外（値をスタックに積まないもの）

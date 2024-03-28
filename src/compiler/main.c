@@ -187,34 +187,24 @@ enum ValueClass {
   VC_NO_NEED,
 };
 
-#define BINOP_PREPARE(ctx, node, value_class) \
-  do { \
-    if ((value_class) == VC_NO_NEED) { \
-      (node)->type = NewType(kTypeVoid); \
-      Generate((ctx), (node)->lhs, VC_NO_NEED); \
-      Generate((ctx), (node)->rhs, VC_NO_NEED); \
-      break; \
-    } \
-  } while (0)
-
 void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
 
-  if (100 <= node->kind && node->kind < 200) { // normal binary expression
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Generate(ctx, node->rhs, VC_RVAL);
-    if (node->lhs->type &&
-        (node->lhs->type->kind == kTypePtr ||
-        node->lhs->type->kind == kTypeArray)) {
-      size_t element_size = SizeofType(node->lhs->type->base);
-      if (element_size > 1) {
-        InsnInt(ctx, "push", (int)element_size);
-        Insn(ctx, "mul");
-      }
+  if (100 <= node->kind && node->kind < 200) { // standard binary expression
+    switch (value_class) {
+    case VC_RVAL:
+      Generate(ctx, node->lhs, VC_RVAL);
+      Generate(ctx, node->rhs, VC_RVAL);
+      break;
+    case VC_LVAL:
+      fprintf(stderr, "standard binary expression cannot be an lvalue\n");
+      Locate(node->token->raw);
+      exit(1);
+    case VC_NO_NEED:
+      node->type = NewType(kTypeVoid);
+      Generate(ctx, node->lhs, VC_NO_NEED);
+      Generate(ctx, node->rhs, VC_NO_NEED);
+      return;
     }
-    Insn(ctx, "add");
-    node->type = node->lhs->type;
-    break;
   }
 
   switch (node->kind) {
@@ -223,8 +213,8 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       if (node->token->value.as_int <= 0x7ffe) {
         InsnInt(ctx, "push", node->token->value.as_int);
       } else {
-        InsnInt(ctx, "push", node->token->value.as_int >> 8);
         InsnInt(ctx, "push", node->token->value.as_int & 0xff);
+        InsnInt(ctx, "push", node->token->value.as_int >> 8);
         Insn(ctx, "join");
       }
     }
@@ -257,6 +247,8 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
           if (value_class == VC_LVAL) {
             InsnInt(ctx, "push", sym->offset);
           } else {
+            // value_class == VC_NO_NEED だとしても ld 命令は発効する。
+            // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
             if (SizeofType(sym->type) == 1) {
               InsnBaseOff(ctx, "ld.1", "zero", sym->offset);
             } else {
@@ -306,82 +298,24 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       }
     }
     break;
-  case kNodeAdd:
-    PRINT_NODE_COMMENT(ctx, node, "Add");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Generate(ctx, node->rhs, VC_RVAL);
-    if (node->lhs->type &&
-        (node->lhs->type->kind == kTypePtr ||
-        node->lhs->type->kind == kTypeArray)) {
-      size_t element_size = SizeofType(node->lhs->type->base);
-      if (element_size > 1) {
-        InsnInt(ctx, "push", (int)element_size);
-        Insn(ctx, "mul");
-      }
+  case kNodeString:
+    if (value_class != VC_NO_NEED) {
+      ctx->strings[ctx->num_strings] = node->token;
+      InsnLabelAutoS(ctx, "push", ctx->num_strings);
+      ctx->num_strings++;
     }
-    Insn(ctx, "add");
-    node->type = node->lhs->type;
-    break;
-  case kNodeSub:
-    PRINT_NODE_COMMENT(ctx, node, "Sub");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "sub");
-    node->type = node->lhs->type;
-    break;
-  case kNodeMul:
-    PRINT_NODE_COMMENT(ctx, node, "Mul");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "mul");
-    node->type = node->lhs->type;
-    break;
-  case kNodeAssign:
-    PRINT_NODE_COMMENT(ctx, node, "Assign");
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_LVAL);
-    assert(node->lhs->type);
-    if (SizeofType(node->lhs->type) == 1) {
-      Insn(ctx, value_class == VC_LVAL ? "sta.1" : "std.1");
-    } else {
-      Insn(ctx, value_class == VC_LVAL ? "sta" : "std");
-    }
-    if (value_class == VC_NO_NEED) {
-      node->type = NewType(kTypeVoid);
-      Insn(ctx, "pop");
-    } else {
-      node->type = node->lhs->type;
-    }
-    break;
-  case kNodeLT:
-    PRINT_NODE_COMMENT(ctx, node, "LT");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "lt");
-    break;
-  case kNodeLE:
-    PRINT_NODE_COMMENT(ctx, node, "LE");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "le");
     break;
   case kNodeInc:
   case kNodeDec:
     if (node->lhs) { // 後置インクリメント 'exp ++'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (postfix))");
+      Generate(ctx, node->lhs, VC_RVAL);
       if (value_class == VC_NO_NEED) {
         InsnInt(ctx, "push", 1);
-        Generate(ctx, node->lhs, VC_RVAL);
         node->type = NewType(kTypeVoid);
       } else {
-        Generate(ctx, node->lhs, VC_RVAL);
+        InsnInt(ctx, "dup", 0);
         InsnInt(ctx, "push", 1);
-        InsnInt(ctx, "dup", 1);
         node->type = node->lhs->type;
       }
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
@@ -390,8 +324,8 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       Insn(ctx, "pop");
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
-      InsnInt(ctx, "push", 1);
       Generate(ctx, node->rhs, VC_RVAL);
+      InsnInt(ctx, "push", 1);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->rhs, VC_LVAL);
       Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std.1" : "std");
@@ -402,20 +336,6 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
         node->type = node->rhs->type;
       }
     }
-    break;
-  case kNodeEq:
-    PRINT_NODE_COMMENT(ctx, node, "Eq");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "eq");
-    break;
-  case kNodeNEq:
-    PRINT_NODE_COMMENT(ctx, node, "NEq");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Insn(ctx, "neq");
     break;
   case kNodeRef:
     Generate(ctx, node->rhs, value_class == VC_NO_NEED ? VC_NO_NEED : VC_LVAL);
@@ -431,6 +351,54 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       Insn(ctx, "pop");
       node->type = NewType(kTypeVoid);
     }
+    break;
+  case kNodeNot:
+    PRINT_NODE_COMMENT(ctx, node, "Not");
+    if (value_class == VC_NO_NEED) {
+      Generate(ctx, node->rhs, VC_NO_NEED);
+    } else {
+      Generate(ctx, node->rhs, VC_RVAL);
+      Insn(ctx, "not");
+    }
+    break;
+  case kNodeCall:
+    {
+      PRINT_NODE_COMMENT(ctx, node, "Call");
+      struct Node *args[10];
+      int num_args = 0;
+      for (struct Node *arg = node->rhs; arg; arg = arg->next) {
+        if (num_args >= 10) {
+          fprintf(stderr, "the number of arguments must be < 10\n");
+          Locate(arg->token->raw);
+          exit(1);
+        }
+        args[num_args++] = arg;
+      }
+      for (int i = 0; i < num_args; i++) {
+        Generate(ctx, args[num_args - 1 - i], VC_RVAL);
+      }
+      if (node->lhs->kind == kNodeId) {
+        InsnLabelToken(ctx, "call", node->lhs->token);
+      } else {
+        fprintf(stderr, "not implemented call of non-id expression\n");
+        Locate(node->lhs->token->raw);
+        exit(1);
+      }
+      if (value_class == VC_NO_NEED) {
+        Insn(ctx, "pop");
+      }
+    }
+    break;
+  case kNodeCast:
+    if (value_class == VC_NO_NEED) {
+      Generate(ctx, node->rhs, VC_NO_NEED);
+      node->type = NewType(kTypeVoid);
+    } else {
+      Generate(ctx, node->rhs, value_class);
+      node->type = node->lhs->type;
+    }
+    break;
+  case kNodeVoid:
     break;
   case kNodeLAnd:
     {
@@ -480,94 +448,84 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       }
     }
     break;
-  case kNodeString:
-    if (value_class != VC_NO_NEED) {
-      ctx->strings[ctx->num_strings] = node->token;
-      InsnLabelAutoS(ctx, "push", ctx->num_strings);
-      ctx->num_strings++;
+  case kNodeAssign:
+    PRINT_NODE_COMMENT(ctx, node, "Assign");
+    Generate(ctx, node->rhs, VC_RVAL);
+    Generate(ctx, node->lhs, VC_LVAL);
+    assert(node->lhs->type);
+    if (SizeofType(node->lhs->type) == 1) {
+      Insn(ctx, value_class == VC_LVAL ? "sta.1" : "std.1");
+    } else {
+      Insn(ctx, value_class == VC_LVAL ? "sta" : "std");
     }
+    if (value_class == VC_NO_NEED) {
+      node->type = NewType(kTypeVoid);
+      Insn(ctx, "pop");
+    } else {
+      node->type = node->lhs->type;
+    }
+    break;
+
+  // standard binary expression
+  case kNodeAdd:
+    PRINT_NODE_COMMENT(ctx, node, "Add");
+    if (node->lhs->type &&
+        (node->lhs->type->kind == kTypePtr ||
+        node->lhs->type->kind == kTypeArray)) {
+      size_t element_size = SizeofType(node->lhs->type->base);
+      if (element_size > 1) {
+        InsnInt(ctx, "push", (int)element_size);
+        Insn(ctx, "mul");
+      }
+    }
+    Insn(ctx, "add");
+    node->type = node->lhs->type;
+    break;
+  case kNodeSub:
+    PRINT_NODE_COMMENT(ctx, node, "Sub");
+    Insn(ctx, "sub");
+    node->type = node->lhs->type;
+    break;
+  case kNodeMul:
+    PRINT_NODE_COMMENT(ctx, node, "Mul");
+    Insn(ctx, "mul");
+    node->type = node->lhs->type;
+    break;
+  case kNodeLT:
+    PRINT_NODE_COMMENT(ctx, node, "LT");
+    Insn(ctx, "lt");
+    break;
+  case kNodeLE:
+    PRINT_NODE_COMMENT(ctx, node, "LE");
+    Insn(ctx, "le");
+    break;
+  case kNodeEq:
+    PRINT_NODE_COMMENT(ctx, node, "Eq");
+    Insn(ctx, "eq");
+    break;
+  case kNodeNEq:
+    PRINT_NODE_COMMENT(ctx, node, "NEq");
+    Insn(ctx, "neq");
     break;
   case kNodeAnd:
     PRINT_NODE_COMMENT(ctx, node, "And");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Generate(ctx, node->rhs, VC_RVAL);
     Insn(ctx, "and");
-    break;
-  case kNodeXor:
-    PRINT_NODE_COMMENT(ctx, node, "Xor");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Insn(ctx, "xor");
     break;
   case kNodeOr:
     PRINT_NODE_COMMENT(ctx, node, "Or");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->lhs, VC_RVAL);
-    Generate(ctx, node->rhs, VC_RVAL);
     Insn(ctx, "or");
     break;
-  case kNodeNot:
-    PRINT_NODE_COMMENT(ctx, node, "Not");
-    if (value_class == VC_NO_NEED) {
-      Generate(ctx, node->rhs, VC_NO_NEED);
-    } else {
-      Generate(ctx, node->rhs, VC_RVAL);
-      Insn(ctx, "not");
-    }
+  case kNodeXor:
+    PRINT_NODE_COMMENT(ctx, node, "Xor");
+    Insn(ctx, "xor");
     break;
   case kNodeRShift:
   case kNodeLShift:
     PRINT_NODE_COMMENT(ctx, node, "R/LShift");
-    BINOP_PREPARE(ctx, node, value_class);
-    Generate(ctx, node->rhs, VC_RVAL);
-    Generate(ctx, node->lhs, VC_RVAL);
     Insn(ctx, node->kind == kNodeRShift ? "sar" : "shl");
     break;
-  case kNodeCall:
-    {
-      PRINT_NODE_COMMENT(ctx, node, "Call");
-      struct Node *args[10];
-      int num_args = 0;
-      for (struct Node *arg = node->rhs; arg; arg = arg->next) {
-        if (num_args >= 10) {
-          fprintf(stderr, "the number of arguments must be < 10\n");
-          Locate(arg->token->raw);
-          exit(1);
-        }
-        args[num_args++] = arg;
-      }
-      for (int i = 0; i < num_args; i++) {
-        Generate(ctx, args[num_args - 1 - i], VC_RVAL);
-      }
-      if (node->lhs->kind == kNodeId) {
-        InsnLabelToken(ctx, "call", node->lhs->token);
-      } else {
-        fprintf(stderr, "not implemented call of non-id expression\n");
-        Locate(node->lhs->token->raw);
-        exit(1);
-      }
-      if (value_class == VC_NO_NEED) {
-        Insn(ctx, "pop");
-      }
-    }
-    break;
-  case kNodeCast:
-    if (value_class == VC_NO_NEED) {
-      Generate(ctx, node->rhs, VC_NO_NEED);
-      node->type = NewType(kTypeVoid);
-    } else {
-      Generate(ctx, node->rhs, value_class);
-      node->type = node->lhs->type;
-    }
-    break;
-  case kNodeVoid:
-    break;
-  case kNodeExprEnd:
-    fprintf(stderr, "kNodeExprEnd must not be used\n");
-    exit(1);
-    break;
+  // end of standard binary expression
+
   case kNodeDefFunc:
     {
       ctx->scope = EnterScope(ctx->scope);

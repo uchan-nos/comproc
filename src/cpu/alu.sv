@@ -11,22 +11,22 @@ ALU 機能
 03h   INC3  A + 3
 04h   NOT   ~A
 0fh   B     B
-10h   AND   A & B
-11h   OR    A | B
-12h   XOR   A ^ B
-14h   SHR   A >> B
-15h   SAR   A >> B (符号付きシフト)
-16h   SHL   A << B
-17h   JOIN  A | (B << 8)
-20h   ADD   A + B
-21h   SUB   A - B
-22h   MUL   A * B
-28h   LT    A < B
-29h   EQ    A == B
-2ah   NEQ   A != B
-2bh   LE    A <= B
-30h   ADDZ  cond ? A : A+B
-31h   ADDNZ cond ? A+B : A
+10h   AND   B & A
+11h   OR    B | A
+12h   XOR   B ^ A
+14h   SHR   B >> A
+15h   SAR   B >> A (符号付きシフト)
+16h   SHL   B << A
+17h   JOIN  B | (A << 8)
+20h   ADD   B + A
+21h   SUB   B - A
+22h   MUL   B * A
+28h   LT    B < A
+29h   EQ    B == A
+2ah   NEQ   B != A
+2bh   LE    B <= A
+30h   ADDZ  cond ? A : B+A
+31h   ADDNZ cond ? B+A : A
 */
 
 module alu#(
@@ -52,28 +52,28 @@ begin
   logic zf;
   logic sf; // sign flag
   logic lt; // less than
-  logic signed [WIDTH-1:0] sa;
-  add = a + b;
-  sub = a - b;
+  logic signed [WIDTH-1:0] sb;
+  add = b + a;
+  sub = b - a;
   of = is_overflow(a[15], b[15], sub[15]);
   zf = sub == {WIDTH{1'b0}};
   sf = sub[15];
   lt = sf ^ of;
-  sa = a;
+  sb = b;
   casex (sel)
     6'b0000xx: alu = a + sel[1:0];
     6'b0001xx: alu = ~a;
     6'b001xxx: alu = b;
-    6'b010000: alu = a & b;
-    6'b010001: alu = a | b;
-    6'b01001x: alu = a ^ b;
-    6'b010100: alu = a >> b;
-    6'b010101: alu = sa >>> b;
-    6'b010110: alu = a << b;
-    6'b010111: alu = a | (b << 8);
+    6'b010000: alu = b & a;
+    6'b010001: alu = b | a;
+    6'b01001x: alu = b ^ a;
+    6'b010100: alu = b >> a;
+    6'b010101: alu = sb >>> a;
+    6'b010110: alu = b << a;
+    6'b010111: alu = b | (a << 8);
     6'b100000: alu = add;
     6'b100001: alu = sub;
-    6'b100010: alu = a * b;
+    6'b100010: alu = b * a;
     6'b101000: alu = lt;
     6'b101001: alu = {{WIDTH-1{1'b0}}, zf};
     6'b101010: alu = {{WIDTH-1{1'b0}}, ~zf};
@@ -85,9 +85,9 @@ begin
 end
 endfunction
 
-function is_overflow(input a, input b, input a_sub_b);
+function is_overflow(input a, input b, input b_sub_a);
 begin
-  is_overflow = (a & ~b & ~a_sub_b) | (~a & b & a_sub_b);
+  is_overflow = (b & ~a & ~b_sub_a) | (~b & a & b_sub_a);
 end
 endfunction
 
