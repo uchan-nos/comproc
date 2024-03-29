@@ -40,14 +40,14 @@ JMP simm12     |0000   simm11  0| pc+simm12 にジャンプ
 CALL simm12    |0000   simm11  1| コールスタックに pc+2 をプッシュし、pc+simm12 にジャンプ
 JZ simm12      |0001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
 JNZ simm12     |0001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
-LD.1 X+simm10  |0010xx  simm10  | バイトバージョン
-ST.1 X+simm10  |0011xx  simm10  | バイトバージョン
-LD X+simm10    |0100xx  simm9  0| mem[X+simm10] から読んだ値を stack にプッシュ
-ST X+simm10    |0100xx  simm9  1| stack からポップした値を mem[X+simm10] に書く
-PUSH X+simm10  |0101xx  simm10  | X+simm10 を stack にプッシュ
+LD.1 X+uimm10  |0010xx  uimm10  | バイトバージョン
+ST.1 X+uimm10  |0011xx  uimm10  | バイトバージョン
+LD X+uimm10    |0100xx  uimm9  0| mem[X+uimm10] から読んだ値を stack にプッシュ
+ST X+uimm10    |0100xx  uimm9  1| stack からポップした値を mem[X+uimm10] に書く
+PUSH X+uimm10  |0101xx  uimm10  | X+uimm10 を stack にプッシュ
                                   X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
                |011000xxxxxxxxxx| 予約
-ADD FP,simm10  |011001  simm10  | fp += simm10
+ADD FP,uimm10  |011001  uimm10  | fp += uimm10
                |01101xxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxx| 即値なし命令（別表）
 

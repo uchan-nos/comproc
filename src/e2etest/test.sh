@@ -163,3 +163,4 @@ test_value 01 'int main(){int *t=2; int *c=4; if(*c){return 4;} *t=3; while(*t);
 test_value 05 'void _ISR(){*(int*)0x2f0+=1;*(int*)2=0;} int main(){int*t=2;int*p=0x2f0; asm("push _ISR\n\tisr"); *p=3;*(int*)4=2;*t=1;while(*t); *t=1;while(*t); return *p;}'
 test_value 01 'int *t=2; int main(){ *t=3; while (*t>0); return 1; }'
 test_value 01 'int tim_cnt __attribute__((at(2))); int main(){ tim_cnt=3; while (tim_cnt>0); return 1; }'
+test_value 01 'char large[300]; char c __attribute__((at(546))); int main(){ large[290] = 3; return c - 2; }'
