@@ -48,22 +48,22 @@ initial begin
   #1 sel <= `ALU_XOR;
   #1 if (out !== 16'h6042) $error("out must be 0x6042");
 
-  #1 sel <= `ALU_SHR; b <= 16'h4;
-  #1 if (out !== 16'h0DEA) $error("out must be 0x0DEA");
+  #1 sel <= `ALU_SHR; a <= 16'h4;
+  #1 if (out !== 16'h0BEE) $error("out must be 0x0BEE");
 
   #1 sel <= `ALU_SHL;
-  #1 if (out !== 16'hEAD0) $error("out must be 0xEAD0");
+  #1 if (out !== 16'hEEF0) $error("out must be 0xEEF0");
 
   #1 sel <= `ALU_SAR;
-  #1 if (out !== 16'hFDEA) $error("out must be 0xFDEA");
+  #1 if (out !== 16'hFBEE) $error("out must be 0xFBEE");
 
-  #1 b <= 16'd16;
+  #1 a <= 16'd16;
   #1 if (out !== 16'hFFFF) $error("out must be 0xFFFF");
 
-  #1 sel <= `ALU_JOIN; a <= 16'h00FE; b <= 16'h00CA;
+  #1 sel <= `ALU_JOIN; a <= 16'h00CA; b <= 16'h00FE;
   #1 if (out !== 16'hCAFE) $error("out must be 0xCAFE");
 
-  #1 sel <= `ALU_ADD; a <= 16'h2101; b <= 16'h70FF;
+  #1 sel <= `ALU_ADD; a <= 16'h70FF; b <= 16'h2101;
   #1 if (out !== 16'h9200) $error("out must be 0x9200");
 
   #1 sel <= `ALU_SUB;
@@ -85,13 +85,13 @@ initial begin
   #1 if (out !== 16'h9200) $error("out must be 0x9200"); // 9200 = a+b
 
   #1 cond <= 1'b1;
-  #1 if (out !== 16'h2101) $error("out must be 0x2101");
+  #1 if (out !== 16'h70FF) $error("out must be 0x70FF");
 
   #1 sel <= `ALU_ADDNZ;
   #1 if (out !== 16'h9200) $error("out must be 0x9200"); // 9200 = a+b
 
   #1 cond <= 1'b0;
-  #1 if (out !== 16'h2101) $error("out must be 0x2101");
+  #1 if (out !== 16'h70FF) $error("out must be 0x70FF");
 end
 
 endmodule
