@@ -137,8 +137,8 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h2BCE;  // ld.1 ip-0x32
-  #1 test_sig(1,        // sign,
+  #1 insn <= 16'h2BCE;  // ld.1 ip+0x3CE
+  #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRC_IP,  // src_a
               `SRC_IMM, // src_b
@@ -181,7 +181,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h4c20;  // ld cstack+0x20
+  #1 insn <= 16'h4e20;  // ld cstack+0x220
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRC_CSTK,// src_a
