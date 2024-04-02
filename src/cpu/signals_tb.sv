@@ -232,7 +232,7 @@ initial begin
                   );
 
   @(posedge clk)
-    insn <= 16'h7809; // LDD.1
+    insn <= 16'h7809; // LDD1
   @(negedge clk)
     if (~signals.phase_decode) $error("phase_decode must be 1");
     test_sig_decode(0);

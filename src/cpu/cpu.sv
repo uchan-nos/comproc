@@ -40,8 +40,8 @@ JMP simm12     |0000   simm11  0| pc+simm12 にジャンプ
 CALL simm12    |0000   simm11  1| コールスタックに pc+2 をプッシュし、pc+simm12 にジャンプ
 JZ simm12      |0001   simm11  0| stack から値をポップし、0 なら pc+simm12 にジャンプ
 JNZ simm12     |0001   simm11  1| stack から値をポップし、1 なら pc+simm12 にジャンプ
-LD.1 X+uimm10  |0010xx  uimm10  | バイトバージョン
-ST.1 X+uimm10  |0011xx  uimm10  | バイトバージョン
+LD1  X+uimm10  |0010xx  uimm10  | バイトバージョン
+ST1  X+uimm10  |0011xx  uimm10  | バイトバージョン
 LD X+uimm10    |0100xx  uimm9  0| mem[X+uimm10] から読んだ値を stack にプッシュ
 ST X+uimm10    |0100xx  uimm9  1| stack からポップした値を mem[X+uimm10] に書く
 PUSH X+uimm10  |0101xx  uimm10  | X+uimm10 を stack にプッシュ
@@ -59,7 +59,7 @@ mnemonic    15     87      0  説明
 NOP        |0111000000000000| stack[0] に ALU-A をロードするので、ALU=00h
 POP        |0111000001001111| stack をポップ
                               stack[0] に ALU-B をロードするので、ALU=0fh
-POP 1      |0111000001000000| stack[1] 以降をポップ（stack[0] を保持）
+POP1       |0111000001000000| stack[1] 以降をポップ（stack[0] を保持）
                               stack[0] に ALU-A をロードするので、ALU=00h
 INC        |0111000000000001| stack[0]++
 INC2       |0111000000000010| stack[0] += 2
@@ -82,7 +82,7 @@ NEQ        |0111000001101010| stack[0] = stack[1] != stack[0]
 LE         |0111000001101011| stack[0] = stack[1] <= stack[0]
 
 DUP        |0111000010000000| stack[0] を stack にプッシュ
-DUP 1      |0111000010001111| stack[1] を stack にプッシュ
+DUP1       |0111000010001111| stack[1] を stack にプッシュ
 RET        |0111100000000000| コールスタックからアドレスをポップし、ジャンプ
 CPOP FP    |0111100000000010| コールスタックから値をポップし FP に書く
 CPUSH FP   |0111100000000011| コールスタックに FP をプッシュ
@@ -90,9 +90,9 @@ LDD        |0111100000001000| stack からアドレスをポップし、mem[addr
 STA        |0111100000001100| stack から値とアドレスをポップしメモリに書き、アドレスをプッシュ
 STD        |0111100000001110| stack から値とアドレスをポップしメモリに書き、値をプッシュ
                               stack[1] = data, stack[0] = addr
-LDD.1      |0111100000001001| byte version
-STA.1      |0111100000001101| byte version
-STD.1      |0111100000001111| byte version
+LDD1       |0111100000001001| byte version
+STA1       |0111100000001101| byte version
+STD1       |0111100000001111| byte version
 INT        |0111100000010000| ソフトウェア割り込みを発生
 ISR        |0111100000010001| stack から値を取り出し、ISR レジスタに書く
 IRET       |0111100000010010| 割り込みハンドラから戻る

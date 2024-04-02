@@ -196,6 +196,16 @@ int DataByte(uint16_t *insn, char **operands, int num_opr) {
   return num_opr;
 }
 
+// 即値付きロードストア命令
+// insn: 機械語テンプレート
+// opr: "X+off" 形式の文字列
+// mask: 即値のビットマスク
+uint16_t GenLoadStoreImm(uint16_t insn, char *operand, uint16_t mask) {
+  uint16_t off;
+  enum AddrBase ab = ParseAddrOffset(operand, &off);
+  return insn | (ab << 10) | (mask & off);
+}
+
 int main(int argc, char **argv) {
   int separate_output = 0;
   const char *input_filename = NULL;
@@ -288,21 +298,6 @@ int main(int argc, char **argv) {
     }
     ToLower(mnemonic);
 
-    char *sep = strchr(mnemonic, '.');
-    int postfix = 0;
-    if (sep) {
-      *sep = '\0';
-      char *endptr;
-      postfix = strtol(sep + 1, &endptr, 10);
-      if (*endptr != '\0') {
-        fprintf(stderr, "postfix must be an integer: '%s'\n", sep + 1);
-        exit(1);
-      } else if (!(postfix == 0 || postfix == 1)) {
-        fprintf(stderr, "only 0 or 1 is suported as postfix: %d\n", postfix);
-        exit(1);
-      }
-    }
-
     if (strcmp(mnemonic, "push") == 0) {
       if (strchr(GET_STR(0), '+') == NULL) {
         insn[ip >> 1] = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
@@ -327,16 +322,14 @@ int main(int argc, char **argv) {
       InitBackpatch(backpatches + num_backpatches++,
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       insn[ip >> 1] = 0x1001;
+    } else if (strcmp(mnemonic, "ld1") == 0) {
+      insn[ip >> 1] = GenLoadStoreImm(0x2000, GET_STR(0), 0x3ff);
+    } else if (strcmp(mnemonic, "st1") == 0) {
+      insn[ip >> 1] = GenLoadStoreImm(0x3000, GET_STR(0), 0x3ff);
     } else if (strcmp(mnemonic, "ld") == 0) {
-      uint16_t off;
-      enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = postfix ? 0x2000 : 0x4000;
-      insn[ip >> 1] |= (ab << 10) | ((0x3fe + postfix) & off);
+      insn[ip >> 1] = GenLoadStoreImm(0x4000, GET_STR(0), 0x3fe);
     } else if (strcmp(mnemonic, "st") == 0) {
-      uint16_t off;
-      enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-      insn[ip >> 1] = postfix ? 0x3000 : 0x4001;
-      insn[ip >> 1] |= (ab << 10) | ((0x3fe + postfix) & off);
+      insn[ip >> 1] = GenLoadStoreImm(0x4001, GET_STR(0), 0x3fe);
     } else if (strcmp(mnemonic, "add") == 0) {
       if (num_opr == 0) {
         insn[ip >> 1] = 0x7060;
@@ -428,11 +421,17 @@ int main(int argc, char **argv) {
       }
       insn[ip >> 1] = 0x7803;
     } else if (strcmp(mnemonic, "ldd") == 0) {
-      insn[ip >> 1] = 0x7808 | postfix;
+      insn[ip >> 1] = 0x7808;
+    } else if (strcmp(mnemonic, "ldd1") == 0) {
+      insn[ip >> 1] = 0x7809;
     } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      insn[ip >> 1] = 0x780c | postfix;
+      insn[ip >> 1] = 0x780c;
+    } else if (strcmp(mnemonic, "sta1") == 0) { // store, remaining address
+      insn[ip >> 1] = 0x780d;
     } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      insn[ip >> 1] = 0x780e | postfix;
+      insn[ip >> 1] = 0x780e;
+    } else if (strcmp(mnemonic, "std1") == 0) { // store, remaining data
+      insn[ip >> 1] = 0x780f;
     } else if (strcmp(mnemonic, "db") == 0) {
       ip += DataByte(&insn[ip >> 1], operands, num_opr);
       if (ip & 1) {

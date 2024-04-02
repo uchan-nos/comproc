@@ -250,7 +250,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
             // value_class == VC_NO_NEED だとしても ld 命令は発効する。
             // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
             if (SizeofType(sym->type) == 1) {
-              InsnBaseOff(ctx, "ld.1", "zero", sym->offset);
+              InsnBaseOff(ctx, "ld1", "zero", sym->offset);
             } else {
               InsnBaseOff(ctx, "ld", "zero", sym->offset);
             }
@@ -277,7 +277,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
             InsnBaseOff(ctx, "push", "cstack", sym->offset);
           } else {
             if (SizeofType(sym->type) == 1) {
-              InsnBaseOff(ctx, "ld.1", "cstack", sym->offset);
+              InsnBaseOff(ctx, "ld1", "cstack", sym->offset);
             } else {
               InsnBaseOff(ctx, "ld", "cstack", sym->offset);
             }
@@ -320,7 +320,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       }
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->lhs, VC_LVAL);
-      Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta.1" : "sta");
+      Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta1" : "sta");
       Insn(ctx, "pop");
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
@@ -328,7 +328,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       InsnInt(ctx, "push", 1);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->rhs, VC_LVAL);
-      Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std.1" : "std");
+      Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std1" : "std");
       if (value_class == VC_NO_NEED) {
         Insn(ctx, "pop");
         node->type = NewType(kTypeVoid);
@@ -345,9 +345,9 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
     assert(node->rhs->type->base);
     node->type = node->rhs->type->base;
     if (value_class == VC_RVAL) {
-      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
+      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
     } else if (value_class == VC_NO_NEED) {
-      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd.1" : "ldd");
+      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
       Insn(ctx, "pop");
       node->type = NewType(kTypeVoid);
     }
@@ -454,7 +454,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
     Generate(ctx, node->lhs, VC_LVAL);
     assert(node->lhs->type);
     if (SizeofType(node->lhs->type) == 1) {
-      Insn(ctx, value_class == VC_LVAL ? "sta.1" : "std.1");
+      Insn(ctx, value_class == VC_LVAL ? "sta1" : "std1");
     } else {
       Insn(ctx, value_class == VC_LVAL ? "sta" : "std");
     }
@@ -603,7 +603,7 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
         if (node->rhs) {
           Generate(ctx, node->rhs, VC_RVAL);
           if (SizeofType(sym->type) == 1) {
-            InsnBaseOff(ctx, "st.1", "cstack", sym->offset);
+            InsnBaseOff(ctx, "st1", "cstack", sym->offset);
           } else {
             InsnBaseOff(ctx, "st", "cstack", sym->offset);
           }

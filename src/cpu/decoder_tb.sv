@@ -73,7 +73,7 @@ initial begin
            " byt=%d rd=%d wr=%d set/clr_ien=%d/%d",
            byt, rd_mem, wr_mem, set_ien, clear_ien);
 
-  insn <= 16'h8BEF;     // push uimm15
+  insn <= 16'h8BEF;     // PUSH uimm15
   #1 test_sig(0,        // sign,
               16'h7fff, // imm_mask
               `SRCA_X,  // src_a
@@ -95,7 +95,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h0020;  // jmp ip+0x20
+  #1 insn <= 16'h0020;  // JMP ip+0x20
   #1 test_sig(0,        // sign,
               16'h0ffe, // imm_mask
               `SRCA_IP, // src_a
@@ -117,7 +117,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h0ff1;  // call ip+0xff0
+  #1 insn <= 16'h0ff1;  // CALL ip+0xff0
   #1 test_sig(1,        // sign,
               16'h0ffe, // imm_mask
               `SRCA_IP, // src_a
@@ -139,7 +139,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h2BCE;  // ld.1 ip+0x3CE
+  #1 insn <= 16'h2BCE;  // LD1 ip+0x3CE
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_IP, // src_a
@@ -161,7 +161,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h3439;  // st.1 bar+0x39
+  #1 insn <= 16'h3439;  // ST1 bar+0x39
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_BAR,// src_a
@@ -183,7 +183,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h4e20;  // ld cstack+0x220
+  #1 insn <= 16'h4e20;  // LD cstack+0x220
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_CSTK,// src_a
@@ -205,7 +205,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h4439;  // st bar+0x38
+  #1 insn <= 16'h4439;  // ST bar+0x38
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_BAR,// src_a
@@ -227,7 +227,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h4039;  // st 0+0x38
+  #1 insn <= 16'h4039;  // ST 0+0x38
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_X,  // src_a
@@ -249,7 +249,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h6420;  // add fp,0x20
+  #1 insn <= 16'h6420;  // ADD fp,0x20
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_FP, // src_a
@@ -271,7 +271,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7001;  // inc
+  #1 insn <= 16'h7001;  // INC
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -293,7 +293,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7050;  // and
+  #1 insn <= 16'h7050;  // AND
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -315,7 +315,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h708F;  // dup 1
+  #1 insn <= 16'h708F;  // DUP1
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_X,  // src_a
@@ -337,7 +337,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7800;  // ret
+  #1 insn <= 16'h7800;  // RET
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_CSTK,// src_a
@@ -359,7 +359,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7808;  // ldd
+  #1 insn <= 16'h7808;  // LDD
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -381,7 +381,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h780C;  // sta
+  #1 insn <= 16'h780C;  // STA
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -403,7 +403,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h780E;  // std
+  #1 insn <= 16'h780E;  // STD
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -425,7 +425,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7810;  // int
+  #1 insn <= 16'h7810;  // INT
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_IP, // src_a
@@ -447,7 +447,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7811;  // isr
+  #1 insn <= 16'h7811;  // ISR
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -469,7 +469,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7812;  // iret
+  #1 insn <= 16'h7812;  // IRET
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_CSTK,// src_a

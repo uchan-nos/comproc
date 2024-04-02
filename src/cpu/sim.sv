@@ -223,8 +223,8 @@ always @(posedge clk) begin
       16'b0000_xxxx_xxxx_xxx1: insn_name <= "call";
       16'b0001_xxxx_xxxx_xxx0: insn_name <= "jz";
       16'b0001_xxxx_xxxx_xxx1: insn_name <= "jnz";
-      16'b0010_xxxx_xxxx_xxxx: insn_name <= "ld.1";
-      16'b0011_xxxx_xxxx_xxxx: insn_name <= "st.1";
+      16'b0010_xxxx_xxxx_xxxx: insn_name <= "ld1";
+      16'b0011_xxxx_xxxx_xxxx: insn_name <= "st1";
       16'b0100_xxxx_xxxx_xxx0: insn_name <= "ld";
       16'b0100_xxxx_xxxx_xxx1: insn_name <= "st";
       16'b0101_xxxx_xxxx_xxxx: insn_name <= "push";
@@ -256,9 +256,9 @@ always @(posedge clk) begin
       16'b0111_1000_0000_1000: insn_name <= "ldd";
       16'b0111_1000_0000_1100: insn_name <= "sta";
       16'b0111_1000_0000_1110: insn_name <= "std";
-      16'b0111_1000_0000_1001: insn_name <= "ldd.1";
-      16'b0111_1000_0000_1101: insn_name <= "sta.1";
-      16'b0111_1000_0000_1111: insn_name <= "std.1";
+      16'b0111_1000_0000_1001: insn_name <= "ldd1";
+      16'b0111_1000_0000_1101: insn_name <= "sta1";
+      16'b0111_1000_0000_1111: insn_name <= "std1";
       16'b0111_1000_0001_0000: insn_name <= "int";
       16'b0111_1000_0001_0001: insn_name <= "isr";
       default:                 insn_name <= "UNDEF";
