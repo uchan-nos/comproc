@@ -39,10 +39,6 @@ logic [1:0] phase_num;
 assign phase_num = mcu.cpu.signals.phase_decode ? 0
                    : mcu.cpu.signals.phase_exec ? 1
                    : mcu.cpu.signals.phase_rdmem ? 2 : 3;
-logic [1:0] src_a_sel;
-assign src_a_sel = mcu.cpu.src_a_fp ? 2'd1
-                   : mcu.cpu.src_a_ip ? 2'd2
-                   : mcu.cpu.src_a_cstk ? 2'd3 : 2'd0;
 
 assign cur_uart_in = uart_in[uart_index];
 
@@ -149,7 +145,7 @@ always @(posedge clk) begin
               stack0, mcu.cpu.fp, mcu.cpu.ip, mcu.cpu.insn, mcu.cpu.cstack0,
               // セレクト信号
               "alu_sel=%x src_a_sel=%x src_b_sel=%x ",
-              mcu.cpu.signals.alu_sel, src_a_sel, mcu.cpu.src_b_sel,
+              mcu.cpu.signals.alu_sel, mcu.cpu.src_a_sel, mcu.cpu.src_b_sel,
               "rd_mem=%x wr_stk1=%x ",
               mcu.cpu.rd_mem, mcu.cpu.wr_stk1,
               // 制御信号

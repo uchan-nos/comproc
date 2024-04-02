@@ -4,23 +4,29 @@ module signals_tb;
 
 logic rst, clk, irq;
 logic [15:0] insn;
-logic sign, src_a_stk0, src_a_bar, src_a_ip, src_a_cstk, src_a_fp,
+logic sign,
   wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, byt, rd_mem, wr_mem,
   set_ien, clear_ien;
+logic [2:0] src_a_sel;
 logic [1:0] src_b_sel;
 logic [15:0] imm_mask;
 logic [5:0] alu_sel;
 
 signals signals(.*);
 
+//`define x 1'bx
+logic x;
+assign x = 1'bx;
+`define SRC_X 2'hx
+
 initial begin
   $dumpvars;
   $monitor("%d: rst=%d phase=%d%d%d%d irq=%d insn=%04x imm_mask=%04x",
            $time, rst, signals.phase_decode, signals.phase_exec,
            signals.phase_rdmem, signals.phase_fetch, irq, insn, imm_mask,
-           " src_a=%d%d%d%d%d src_b_sel=%d alu=%02x",
-           src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, src_a_fp, src_b_sel, alu_sel,
+           " src_a_sel=%d src_b_sel=%d alu=%02x",
+           src_a_sel, src_b_sel, alu_sel,
            " wr_stk1=%d pop/sh=%d%d load=%d%d%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
            wr_stk1, pop, push, load_stk, load_fp, load_ip, load_insn, load_isr,
            cpop, cpush, byt, rd_mem, wr_mem,
@@ -45,10 +51,7 @@ initial begin
     insn <= 16'h80A5; // PUSH 0xA5
     test_sig_phases(0,         // call
                     16'h7fff,  // imm_mask
-                    x,         // src_a_stk0
-                    x,         // src_a_fp
-                    x,         // src_a_ip
-                    x,         // src_a_cstk
+                    `SRCA_X,   // src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_B,    // alu_sel
                     x,         // wr_stk1
@@ -71,10 +74,7 @@ initial begin
     insn <= 16'h0234; // JMP 0x234
     test_sig_phases(0,         // call
                     16'h0ffe,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    1,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_IP,  // src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_ADD,  // alu_sel
                     x,         // wr_stk1
@@ -97,10 +97,7 @@ initial begin
     insn <= 16'h0235; // CALL 0x234
     test_sig_phases(1,         // call
                     16'h0ffe,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    1,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_IP,  // src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_ADD,  // alu_sel
                     x,         // wr_stk1
@@ -123,10 +120,7 @@ initial begin
     insn <= 16'h1234; // JZ 0x234
     test_sig_phases(0,         // call
                     16'h0ffe,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    1,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_IP,  // src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_ADDZ, // alu_sel
                     x,         // wr_stk1
@@ -146,13 +140,10 @@ initial begin
                   );
 
   @(posedge clk)
-    insn <= 16'h4421; // ST FP+0x20
+    insn <= 16'h4421; // ST BAR+0x20
     test_sig_phases(0,         // call
                     16'h03fe,  // imm_mask
-                    0,         // src_a_stk0
-                    1,         // src_a_fp
-                    0,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_BAR, // src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_ADD,  // alu_sel
                     0,         // wr_stk1
@@ -175,10 +166,7 @@ initial begin
     insn <= 16'h5FFE; // PUSH CSTACK+0x3FE
     test_sig_phases(0,         // call
                     16'h03ff,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    0,         // src_a_ip
-                    1,         // src_a_cstk
+                    `SRCA_CSTK,// src_a_sel
                     `SRC_IMM,  // src_b_sel
                     `ALU_ADD,  // alu_sel
                     0,         // wr_stk1
@@ -201,10 +189,7 @@ initial begin
     insn <= 16'h704F; // POP
     test_sig_phases(0,         // call
                     16'hxxxx,  // imm_mask
-                    x,         // src_a_stk0
-                    x,         // src_a_fp
-                    x,         // src_a_ip
-                    x,         // src_a_cstk
+                    `SRCA_X,   // src_a_sel
                     `SRC_X,    // src_b_sel
                     `ALU_B,    // alu_sel
                     x,         // wr_stk1
@@ -227,10 +212,7 @@ initial begin
     insn <= 16'h7004; // NOT
     test_sig_phases(0,         // call
                     16'hxxxx,  // imm_mask
-                    1,         // src_a_stk0
-                    0,         // src_a_fp
-                    0,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_STK0,// src_a_sel
                     `SRC_X,    // src_b_sel
                     `ALU_NOT,  // alu_sel
                     x,         // wr_stk1
@@ -258,10 +240,7 @@ initial begin
   @(negedge clk)
     if (~signals.phase_exec) $error("phase_exec must be 1");
     test_sig(16'hxxxx,  // imm_mask
-             1,         // src_a_stk0
-             0,         // src_a_fp
-             0,         // src_a_ip
-             0,         // src_a_cstk
+             `SRCA_STK0,// src_a_sel
              `SRC_X,    // src_b_sel
              `ALU_A,    // alu_sel
              x,         // wr_stk1
@@ -284,10 +263,7 @@ initial begin
   @(negedge clk)
     if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
     test_sig(16'hxxxx,  // imm_mask
-             0,         // src_a_stk0
-             0,         // src_a_fp
-             1,         // src_a_ip
-             0,         // src_a_cstk
+             `SRCA_IP,  // src_a_sel
              `SRC_X,    // src_b_sel
              `ALU_A,    // alu_sel
              x,         // wr_stk1
@@ -315,10 +291,7 @@ initial begin
     insn <= 16'h7800; // RET
     test_sig_phases(0,         // call
                     16'hxxxx,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    0,         // src_a_ip
-                    1,         // src_a_cstk
+                    `SRCA_CSTK,// src_a_sel
                     `SRC_X,    // src_b_sel
                     `ALU_A,    // alu_sel
                     x,         // wr_stk1
@@ -341,10 +314,7 @@ initial begin
     insn <= 16'h7810; // INT
     test_sig_phases(1,         // call
                     16'hxxxx,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    1,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_IP,  // src_a_sel
                     `SRC_ISR,  // src_b_sel
                     `ALU_B,    // alu_sel
                     x,         // wr_stk1
@@ -367,10 +337,7 @@ initial begin
     insn <= 16'h7811; // ISR
     test_sig_phases(0,         // call
                     16'hxxxx,  // imm_mask
-                    1,         // src_a_stk0
-                    0,         // src_a_fp
-                    0,         // src_a_ip
-                    0,         // src_a_cstk
+                    `SRCA_STK0,// src_a_sel
                     `SRC_X,    // src_b_sel
                     `ALU_A,    // alu_sel
                     x,         // wr_stk1
@@ -400,10 +367,7 @@ initial begin
   @(negedge clk)
     if (~signals.phase_exec) $error("phase_exec must be 1");
     test_sig(16'h7FFF,  // imm_mask
-             x,         // src_a_stk0
-             x,         // src_a_fp
-             x,         // src_a_ip
-             x,         // src_a_cstk
+             `SRCA_X,   // src_a_sel
              `SRC_IMM,  // src_b_sel
              `ALU_B,    // alu_sel
              x,         // wr_stk1
@@ -430,10 +394,7 @@ initial begin
   @(negedge clk)
     if (~signals.phase_fetch) $error("phase_fetch must be 1");
     test_sig(16'hxxxx,  // imm_mask
-             x,         // src_a_stk0
-             x,         // src_a_fp
-             x,         // src_a_ip
-             x,         // src_a_cstk
+             `SRCA_X,   // src_a_sel
              `SRC_X,    // src_b_sel
              `ALU_INC2, // alu_sel
              x,         // wr_stk1
@@ -458,10 +419,7 @@ initial begin
     insn <= 16'h80FE; // PUSH 0xFE
     test_sig_phases(1,         // call
                     16'hxxxx,  // imm_mask
-                    x,         // src_a_stk0
-                    x,         // src_a_fp
-                    x,         // src_a_ip
-                    x,         // src_a_cstk
+                    `SRCA_X,   // src_a_sel
                     `SRC_ISR,  // src_b_sel
                     `ALU_B,    // alu_sel
                     x,         // wr_stk1
@@ -485,10 +443,7 @@ initial begin
     insn <= 16'h7812; // IRET
     test_sig_phases(0,         // call
                     16'hxxxx,  // imm_mask
-                    0,         // src_a_stk0
-                    0,         // src_a_fp
-                    0,         // src_a_ip
-                    1,         // src_a_cstk
+                    `SRCA_CSTK,// src_a_sel
                     `SRC_X,    // src_b_sel
                     `ALU_A,    // alu_sel
                     x,         // wr_stk1
@@ -519,10 +474,7 @@ end
 
 task test_sig(
   input [15:0] e_imm_mask,
-  input e_src_a_stk0,
-  input e_src_a_fp,
-  input e_src_a_ip,
-  input e_src_a_cstk,
+  input [2:0] e_src_a_sel,
   input [1:0] e_src_b_sel,
   input [5:0] e_alu_sel,
   input e_wr_stk1,
@@ -542,10 +494,8 @@ task test_sig(
 begin
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
     $error("imm_mask must be 0x%04x", e_imm_mask);
-  `test_sig1(src_a_stk0);
-  `test_sig1(src_a_fp);
-  `test_sig1(src_a_ip);
-  `test_sig1(src_a_cstk);
+  if (e_src_a_sel !== 3'hx && src_a_sel !== e_src_a_sel)
+    $error("src_a_sel must be %d", e_src_a_sel);
   if (e_src_b_sel !== 2'hx && src_b_sel !== e_src_b_sel)
     $error("src_b_sel must be %d", e_src_b_sel);
   if (e_alu_sel !== 6'hxx && alu_sel !== e_alu_sel)
@@ -572,10 +522,7 @@ task test_sig_decode(input call);
 begin
   if (call)
     test_sig(16'hxxxx,  // imm_mask
-             0,         // src_a_stk0
-             0,         // src_a_fp
-             1,         // src_a_ip
-             0,         // src_a_cstk
+             `SRCA_IP,  // src_a_sel
              `SRC_X,    // src_b_sel
              `ALU_A,    // alu_sel
              x,         // wr_stk1
@@ -596,10 +543,7 @@ begin
            );
   else
     test_sig(16'hxxxx,  // imm_mask
-             x,         // src_a_stk0
-             x,         // src_a_fp
-             x,         // src_a_ip
-             x,         // src_a_cstk
+             `SRCA_X,   // src_a_sel
              `SRC_X,    // src_b_sel
              6'hxx,     // alu_sel
              x,         // wr_stk1
@@ -625,10 +569,7 @@ task test_sig_rdmem;
 begin
   if (~signals.phase_rdmem) $error("phase_rdmem must be 1");
   test_sig(16'hxxxx,  // imm_mask
-           0,         // src_a_stk0
-           0,         // src_a_fp
-           1,         // src_a_ip
-           0,         // src_a_cstk
+           `SRCA_IP,  // src_a_sel
            `SRC_X,    // src_b_sel
            `ALU_A,    // alu_sel
            x,         // wr_stk1
@@ -654,10 +595,7 @@ task test_sig_fetch;
 begin
   if (~signals.phase_fetch) $error("phase_fetch must be 1");
   test_sig(16'hxxxx,  // imm_mask
-           0,         // src_a_stk0
-           0,         // src_a_fp
-           1,         // src_a_ip
-           0,         // src_a_cstk
+           `SRCA_IP,  // src_a_sel
            `SRC_X,    // src_b_sel
            `ALU_INC2, // alu_sel
            x,         // wr_stk1
@@ -682,10 +620,7 @@ endtask
 task test_sig_phases(
   input call,
   input [15:0] e_imm_mask,
-  input e_src_a_stk0,
-  input e_src_a_fp,
-  input e_src_a_ip,
-  input e_src_a_cstk,
+  input [2:0] e_src_a_sel,
   input [1:0] e_src_b_sel,
   input [5:0] e_alu_sel,
   input e_wr_stk1,
@@ -708,7 +643,7 @@ begin
 
   @(negedge clk)
     if (~signals.phase_exec) $error("phase_exec must be 1");
-    test_sig(e_imm_mask, e_src_a_stk0, e_src_a_fp, e_src_a_ip, e_src_a_cstk, e_src_b_sel,
+    test_sig(e_imm_mask, e_src_a_sel, e_src_b_sel,
              e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_ip,
              0 /* load_insn */, e_load_isr, e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem,
              e_set_ien, e_clear_ien);
@@ -722,9 +657,5 @@ begin
     test_sig_fetch;
 end
 endtask
-
-//`define x 1'bx
-logic x;
-assign x = 1'bx;
 
 endmodule

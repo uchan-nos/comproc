@@ -211,23 +211,23 @@ doc/signal-timing-design に記載
 */
 
 // CPU コアの信号
-logic sign, src_a_sel, //src_a_bar, src_a_ip, src_a_cstk, src_a_fp,
-  wr_stk1, pop, push,
+logic sign, wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_isr, cpop, cpush,
   irq_masked, ien, set_ien, clear_ien;
+logic [2:0] src_a_sel;
 logic [1:0] src_b_sel;
 logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
 
 // レジスタ群
-logic [15:0] fp, ip, isr;
+logic [15:0] bar, ip, isr, fp;
 logic [`ADDR_WIDTH-1:0] addr_d;
 
 // 結線
-//assign src_a = src_a_sel === SRC_BAR ? bar
-//               : src_a_sel === SRC_IP ? ip
-//               : src_a_sel === SRC_CSTK ? cstack
-//               : src_a_sel === SRC_FP ? fp : stack0;
-assign src_a = select_src_a();
+assign src_a = src_a_sel === `SRCA_BAR  ? bar
+             : src_a_sel === `SRCA_IP   ? ip
+             : src_a_sel === `SRCA_CSTK ? cstack0
+             : src_a_sel === `SRCA_FP   ? fp
+             : stack0;
 assign src_b = src_b_sel === 2'd0 ? stack1
                : src_b_sel === 2'd1 ? mask_imm(insn, imm_mask, sign)
                : isr;
@@ -236,16 +236,6 @@ assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data_raw = wr_stk1 ? stack1 : stack0;
 assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
 assign irq_masked = ien & irq;
-
-function [15:0] select_src_a();
-  case (src_a_sel)
-    SRC_STK0: return stack0;
-    SRC_BAR:  return bar;
-    SRC_IP:   return ip;
-    SRC_CSTK: return cstack;
-    SRC_FP:   return fp;
-  endcase
-endfunction
 
 // CPU コアモジュール群
 alu alu(

@@ -1,10 +1,8 @@
-`include "common.sv"
-
 module decoder(
   input [15:0] insn,
   output sign,
   output [15:0] imm_mask,
-  output srca_t src_a,
+  output [2:0] src_a,
   output [1:0] src_b,
   output [5:0] alu_sel,
   output wr_stk1,
@@ -62,18 +60,18 @@ begin
 end
 endfunction
 
-function srca_t calc_src_a(input [15:0] insn);
+function [2:0] calc_src_a(input [15:0] insn);
 begin
   casex (insn)
-    16'b000x_xxxx_xxxx_xxxx: calc_src_a = SRCA_IP;     // JMP, CALL, JZ, JNZ
+    16'b000x_xxxx_xxxx_xxxx: calc_src_a = `SRCA_IP;     // JMP, CALL, JZ, JNZ
     16'b001x_xxxx_xxxx_xxxx: calc_src_a = {1'b0, insn[11:10]}; // LD.1, ST.1
     16'b010x_xxxx_xxxx_xxxx: calc_src_a = {1'b0, insn[11:10]}; // LD, ST, PUSH
-    16'b0110_01xx_xxxx_xxxx: calc_src_a = SRCA_FP;     // ADD FP
-    16'b0111_1xxx_xxx1_xx1x: calc_src_a = SRCA_CSTK;   // IRET
-    16'b0111_1xxx_xxx1_xxx0: calc_src_a = SRCA_IP;     // INT
-    16'b0111_1xxx_xxxx_00x0: calc_src_a = SRCA_CSTK;   // RET, CPOP FP
-    16'b0111_1xxx_xxxx_0011: calc_src_a = SRCA_FP;     // CPUSH FP
-    default:                 calc_src_a = SRCA_STK0;
+    16'b0110_01xx_xxxx_xxxx: calc_src_a = `SRCA_FP;     // ADD FP
+    16'b0111_1xxx_xxx1_xx1x: calc_src_a = `SRCA_CSTK;   // IRET
+    16'b0111_1xxx_xxx1_xxx0: calc_src_a = `SRCA_IP;     // INT
+    16'b0111_1xxx_xxxx_00x0: calc_src_a = `SRCA_CSTK;   // RET, CPOP FP
+    16'b0111_1xxx_xxxx_0011: calc_src_a = `SRCA_FP;     // CPUSH FP
+    default:                 calc_src_a = `SRCA_STK0;
   endcase
 end
 endfunction

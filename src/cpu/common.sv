@@ -26,21 +26,12 @@
 `define ALU_ADDNZ 6'h31
 
 // Source A
-typedef enum logic [2:0] {
-  SRCA_STK0,
-  SRCA_BAR,
-  SRCA_IP,
-  SRCA_CSTK,
-  SRCA_FP,
-  SRCA_X = 3'hx
-} srca_t;
-/*
-`define SRC_STK0 3'h0
-`define SRC_BAR  3'h1
-`define SRC_IP   3'h2
-`define SRC_CSTK 3'h3
-`define SRC_FP   3'h4
-*/
+`define SRCA_STK0 3'h0
+`define SRCA_BAR  3'h1
+`define SRCA_IP   3'h2
+`define SRCA_CSTK 3'h3
+`define SRCA_FP   3'h4
+`define SRCA_X    3'hx
 
 // Source B
 `define SRC_STK1 2'h0
