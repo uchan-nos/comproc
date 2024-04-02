@@ -45,7 +45,7 @@ ST.1 X+uimm10  |0011xx  uimm10  | バイトバージョン
 LD X+uimm10    |0100xx  uimm9  0| mem[X+uimm10] から読んだ値を stack にプッシュ
 ST X+uimm10    |0100xx  uimm9  1| stack からポップした値を mem[X+uimm10] に書く
 PUSH X+uimm10  |0101xx  uimm10  | X+uimm10 を stack にプッシュ
-                                  X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
+                                  X の選択: 0=0, 1=bar, 2=ip, 3=cstack[0]
                |011000xxxxxxxxxx| 予約
 ADD FP,uimm10  |011001  uimm10  | fp += uimm10
                |01101xxxxxxxxxxx| 予約
@@ -115,7 +115,7 @@ IRET       |0111100000010010| 割り込みハンドラから戻る
 -----------------------
 alu_sel   ALU の機能選択
 alu_out   ALU 出力
-src_a     ALU-A 入力（stack[0], FP, IP, cstack[0]）
+src_a     ALU-A 入力（stack[0], BAR, IP, cstack[0], FP）
 src_a_X   ALU-A に入力する値の選択
           4 つの信号線のうち 1 本だけが 1、その他は 0 となる
 src_b     ALU-B 入力
@@ -211,7 +211,8 @@ doc/signal-timing-design に記載
 */
 
 // CPU コアの信号
-logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+logic sign, src_a_sel, //src_a_bar, src_a_ip, src_a_cstk, src_a_fp,
+  wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_isr, cpop, cpush,
   irq_masked, ien, set_ien, clear_ien;
 logic [1:0] src_b_sel;
@@ -222,9 +223,11 @@ logic [15:0] fp, ip, isr;
 logic [`ADDR_WIDTH-1:0] addr_d;
 
 // 結線
-assign src_a = src_a_fp ? fp
-               : src_a_ip ? ip
-               : src_a_cstk ? cstack0 : stack0;
+//assign src_a = src_a_sel === SRC_BAR ? bar
+//               : src_a_sel === SRC_IP ? ip
+//               : src_a_sel === SRC_CSTK ? cstack
+//               : src_a_sel === SRC_FP ? fp : stack0;
+assign src_a = select_src_a();
 assign src_b = src_b_sel === 2'd0 ? stack1
                : src_b_sel === 2'd1 ? mask_imm(insn, imm_mask, sign)
                : isr;
@@ -233,6 +236,16 @@ assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign wr_data_raw = wr_stk1 ? stack1 : stack0;
 assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
 assign irq_masked = ien & irq;
+
+function [15:0] select_src_a();
+  case (src_a_sel)
+    SRC_STK0: return stack0;
+    SRC_BAR:  return bar;
+    SRC_IP:   return ip;
+    SRC_CSTK: return cstack;
+    SRC_FP:   return fp;
+  endcase
+endfunction
 
 // CPU コアモジュール群
 alu alu(
@@ -271,10 +284,10 @@ signals signals(
   .insn(insn),
   .sign(sign),
   .imm_mask(imm_mask),
-  .src_a_stk0(src_a_stk0),
-  .src_a_fp(src_a_fp),
-  .src_a_ip(src_a_ip),
-  .src_a_cstk(src_a_cstk),
+  .src_a_sel(src_a_sel),
+  //.src_a_fp(src_a_fp),
+  //.src_a_ip(src_a_ip),
+  //.src_a_cstk(src_a_cstk),
   .src_b_sel(src_b_sel),
   .alu_sel(alu_sel),
   .wr_stk1(wr_stk1),

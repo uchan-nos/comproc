@@ -1,3 +1,6 @@
+`ifndef COMMON_SV
+`define COMMON_SV
+
 `define ADDR_WIDTH 12
 
 `define ALU_A     6'h00
@@ -23,14 +26,25 @@
 `define ALU_ADDNZ 6'h31
 
 // Source A
-`define SRC_STK0 2'h0
-`define SRC_FP   2'h1
-`define SRC_IP   2'h2
-`define SRC_CSTK 2'h3
+typedef enum logic [2:0] {
+  SRCA_STK0,
+  SRCA_BAR,
+  SRCA_IP,
+  SRCA_CSTK,
+  SRCA_FP,
+  SRCA_X = 3'hx
+} srca_t;
+/*
+`define SRC_STK0 3'h0
+`define SRC_BAR  3'h1
+`define SRC_IP   3'h2
+`define SRC_CSTK 3'h3
+`define SRC_FP   3'h4
+*/
 
 // Source B
 `define SRC_STK1 2'h0
 `define SRC_IMM  2'h1
 `define SRC_ISR  2'h2
 
-`define SRC_X    2'hx
+`endif // `ifndef COMMON_SV

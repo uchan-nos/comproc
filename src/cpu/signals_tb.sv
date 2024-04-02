@@ -4,7 +4,8 @@ module signals_tb;
 
 logic rst, clk, irq;
 logic [15:0] insn;
-logic sign, src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, wr_stk1, pop, push,
+logic sign, src_a_stk0, src_a_bar, src_a_ip, src_a_cstk, src_a_fp,
+  wr_stk1, pop, push,
   load_stk, load_fp, load_ip, load_insn, load_isr, cpop, cpush, byt, rd_mem, wr_mem,
   set_ien, clear_ien;
 logic [1:0] src_b_sel;
@@ -18,8 +19,8 @@ initial begin
   $monitor("%d: rst=%d phase=%d%d%d%d irq=%d insn=%04x imm_mask=%04x",
            $time, rst, signals.phase_decode, signals.phase_exec,
            signals.phase_rdmem, signals.phase_fetch, irq, insn, imm_mask,
-           " src_a=%d%d%d%d src_b_sel=%d alu=%02x",
-           src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, src_b_sel, alu_sel,
+           " src_a=%d%d%d%d%d src_b_sel=%d alu=%02x",
+           src_a_stk0, src_a_fp, src_a_ip, src_a_cstk, src_a_fp, src_b_sel, alu_sel,
            " wr_stk1=%d pop/sh=%d%d load=%d%d%d%d%d cpop/sh=%d%d byt=%d rd=%d wr=%d",
            wr_stk1, pop, push, load_stk, load_fp, load_ip, load_insn, load_isr,
            cpop, cpush, byt, rd_mem, wr_mem,
