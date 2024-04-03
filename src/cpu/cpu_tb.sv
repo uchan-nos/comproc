@@ -125,7 +125,7 @@ initial begin
     rd_data <= 16'h8900; // 34a: PUSH 0x900
 
   @(posedge cpu.load_insn)
-    rd_data <= 16'h7811; // 34c: ISR
+    rd_data <= 16'h7822; // 34c: POP ISR
 
   @(posedge cpu.load_insn)
     rd_data <= 16'h80FE; // 34e: PUSH 0xFE

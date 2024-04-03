@@ -206,6 +206,29 @@ uint16_t GenLoadStoreImm(uint16_t insn, char *operand, uint16_t mask) {
   return insn | (ab << 10) | (mask & off);
 }
 
+enum PopReg {
+  POP_FP,
+  POP_IP,
+  POP_ISR,
+  POP_BAR,
+};
+
+enum PopReg ParsePopReg(char *opr) {
+  ToLower(opr);
+  if (strcmp(opr, "fp") == 0) {
+    return POP_FP;
+  } else if (strcmp(opr, "ip") == 0) {
+    return POP_IP;
+  } else if (strcmp(opr, "isr") == 0) {
+    return POP_ISR;
+  } else if (strcmp(opr, "bar") == 0) {
+    return POP_BAR;
+  }
+
+  fprintf(stderr, "invalid register for POP X: '%s'\n", opr);
+  exit(1);
+}
+
 int main(int argc, char **argv) {
   int separate_output = 0;
   const char *input_filename = NULL;
@@ -348,15 +371,8 @@ int main(int argc, char **argv) {
       if (num_opr == 0) {
         insn[ip >> 1] = 0x704f;
       } else {
-        long n = GET_LONG_NO_BP(0);
-        if (n == 0) {
-          insn[ip >> 1] = 0x704f;
-        } else if (n == 1) {
-          insn[ip >> 1] = 0x7040;
-        } else {
-          fprintf(stderr, "POP takes 0 or 1: %ld\n", n);
-          exit(1);
-        }
+        enum PopReg pr = ParsePopReg(GET_STR(0));
+        insn[ip >> 1] = 0x7820 | pr;
       }
     } else if (strcmp(mnemonic, "inc") == 0) {
       insn[ip >> 1] = 0x7001;
@@ -440,8 +456,6 @@ int main(int argc, char **argv) {
       continue;
     } else if (strcmp(mnemonic, "int") == 0) {
       insn[ip >> 1] = 0x7810;
-    } else if (strcmp(mnemonic, "isr") == 0) {
-      insn[ip >> 1] = 0x7811;
     } else if (strcmp(mnemonic, "iret") == 0) {
       insn[ip >> 1] = 0x7812;
     } else {

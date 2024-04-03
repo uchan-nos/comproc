@@ -21,6 +21,7 @@ module signals(
   output load_ip,
   output load_insn,
   output load_isr,
+  output load_bar,
   output cpop,
   output cpush,
   output byt,
@@ -49,6 +50,7 @@ assign load_fp = (insn_fp & ~irq_pend) & phase_exec;
 assign load_ip = reload_ip | (phase_fetch & ~irq /* not irq_pend */);
 assign load_insn = phase_fetch;
 assign load_isr = (insn_isr & ~irq_pend) & phase_exec;
+assign load_bar = (insn_bar & ~irq_pend) & phase_exec;
 assign cpop = (insn_cpop & ~irq_pend) & phase_exec;
 assign cpush = (insn_cpush | irq_pend) & phase_decode;
 assign byt = (insn_byt & ~irq_pend);
@@ -63,7 +65,7 @@ signalizer signalizer(.*);
 logic [2:0] insn_src_a;
 logic [1:0] insn_src_b;
 logic [5:0] insn_alu_sel;
-logic insn_pop, insn_push, insn_stk, insn_fp, insn_ip, insn_isr,
+logic insn_pop, insn_push, insn_stk, insn_fp, insn_ip, insn_isr, insn_bar,
   insn_cpop, insn_cpush, insn_byt, insn_rd, insn_wr,
   insn_set_ien, insn_clear_ien;
 decoder decoder(
@@ -80,6 +82,7 @@ decoder decoder(
   .load_fp(insn_fp),
   .load_ip(insn_ip),
   .load_isr(insn_isr),
+  .load_bar(insn_bar),
   .cpop(insn_cpop),
   .cpush(insn_cpush),
   .byt(insn_byt),

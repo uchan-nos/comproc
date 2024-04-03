@@ -94,8 +94,9 @@ LDD1       |0111100000001001| byte version
 STA1       |0111100000001101| byte version
 STD1       |0111100000001111| byte version
 INT        |0111100000010000| ソフトウェア割り込みを発生
-ISR        |0111100000010001| stack から値を取り出し、ISR レジスタに書く
 IRET       |0111100000010010| 割り込みハンドラから戻る
+POP X      |01111000001000xx| stack から値を取り出し、レジスタ X に書く
+                              X の選択: 0=fp, 1=ip, 2=isr, 3=bar
 
            |011111xxxxxxxxxx| UART データ受信（PC -> CPU）
            |0111111111111111| プログラム送信終了マーク
@@ -115,9 +116,8 @@ IRET       |0111100000010010| 割り込みハンドラから戻る
 -----------------------
 alu_sel   ALU の機能選択
 alu_out   ALU 出力
-src_a     ALU-A 入力（stack[0], BAR, IP, cstack[0], FP）
-src_a_X   ALU-A に入力する値の選択
-          4 つの信号線のうち 1 本だけが 1、その他は 0 となる
+src_a     ALU-A 入力
+src_a_sel ALU-A 入力選択（`SRCA_xxx マクロ）
 src_b     ALU-B 入力
 src_b_sel ALU-B 入力選択
           0: stack[1]
@@ -131,6 +131,7 @@ load_fp   FP に alu_out をロード
 load_ip   IP に alu_out をロード
 load_insn INSN に rd_data をロード
 load_isr  ISR に alu_out をロード
+load_bar  BAR に alu_out をロード
 cpop      cstack をポップ
 cpush     cstack に値をプッシュ
 rd_mem    stack_in に接続する値の選択

@@ -3,7 +3,7 @@
 module decoder_tb;
 
 logic [15:0] insn;
-logic sign, wr_stk1, pop, push, load_stk, load_fp, load_ip, load_isr,
+logic sign, wr_stk1, pop, push, load_stk, load_fp, load_ip, load_isr, load_bar,
   cpop, cpush, byt, rd_mem, wr_mem, set_ien, clear_ien;
 logic [15:0] imm_mask;
 logic [2:0] src_a;
@@ -28,6 +28,7 @@ task test_sig(
   input e_load_fp,
   input e_load_ip,
   input e_load_isr,
+  input e_load_bar,
   input e_cpop,
   input e_cpush,
   input e_byt,
@@ -52,6 +53,7 @@ begin
   `test_sig1(load_fp);
   `test_sig1(load_ip);
   `test_sig1(load_isr);
+  `test_sig1(load_bar);
   `test_sig1(cpop);
   `test_sig1(cpush);
   `test_sig1(byt);
@@ -68,8 +70,10 @@ endtask
 initial begin
   $monitor("%d: insn=%04x sign=%d mask=%04x src_a=%d src_b=%d alu=%02x wr_stk1=%d",
            $time, insn, sign, imm_mask, src_a, src_b, alu_sel, wr_stk1,
-           " pop=%d push=%d load_stk=%d fp=%d ip=%d isr=%d cpop=%d cpush=%d",
-           pop, push, load_stk, load_fp, load_ip, load_isr, cpop, cpush,
+           " pop=%d push=%d load_stk=%d fp=%d ip=%d isr=%d bar=%d",
+           pop, push, load_stk, load_fp, load_ip, load_isr, load_bar,
+           " cpop=%d cpush=%d",
+           cpop, cpush,
            " byt=%d rd=%d wr=%d set/clr_ien=%d/%d",
            byt, rd_mem, wr_mem, set_ien, clear_ien);
 
@@ -86,6 +90,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -108,6 +113,7 @@ initial begin
               0,        // load_fp
               1,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -130,6 +136,7 @@ initial begin
               0,        // load_fp
               1,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               1,        // cpush
               `x,       // byt
@@ -152,6 +159,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               1,        // byt
@@ -174,6 +182,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               1,        // byt
@@ -196,6 +205,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -218,6 +228,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -240,6 +251,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -262,6 +274,7 @@ initial begin
               1,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -284,6 +297,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -306,6 +320,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -328,6 +343,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -350,6 +366,7 @@ initial begin
               0,        // load_fp
               1,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               1,        // cpop
               0,        // cpush
               0,        // byt
@@ -372,6 +389,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -394,6 +412,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -416,6 +435,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               0,        // byt
@@ -438,6 +458,7 @@ initial begin
               0,        // load_fp
               1,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               0,        // cpop
               1,        // cpush
               `x,       // byt
@@ -447,7 +468,7 @@ initial begin
               0         // clear_ien
             );
 
-  #1 insn <= 16'h7811;  // ISR
+  #1 insn <= 16'h7822;  // POP isr
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
@@ -460,6 +481,7 @@ initial begin
               0,        // load_fp
               0,        // load_ip
               1,        // load_isr
+              0,        // load_bar
               0,        // cpop
               0,        // cpush
               `x,       // byt
@@ -482,12 +504,36 @@ initial begin
               0,        // load_fp
               1,        // load_ip
               0,        // load_isr
+              0,        // load_bar
               1,        // cpop
               0,        // cpush
               `x,       // byt
               0,        // rd_mem
               0,        // wr_mem
               1,        // set_ien
+              0         // clear_ien
+            );
+
+  #1 insn <= 16'h7820;  // POP fp
+  #1 test_sig(`x,       // sign,
+              16'hxxxx, // imm_mask
+              `SRCA_STK0,// src_a
+              `SRC_X,   // src_b
+              `ALU_A,   // alu
+              `x,       // wr_stk1
+              1,        // pop
+              0,        // push
+              0,        // load_stk
+              1,        // load_fp
+              0,        // load_ip
+              0,        // load_isr
+              0,        // load_bar
+              0,        // cpop
+              0,        // cpush
+              `x,       // byt
+              0,        // rd_mem
+              0,        // wr_mem
+              0,        // set_ien
               0         // clear_ien
             );
 
