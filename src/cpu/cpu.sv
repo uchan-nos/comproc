@@ -153,12 +153,12 @@ isr       割り込みハンドラ（ISR）のアドレスを保持するレジ�
 
 メモリマップ
 
-addr      説明
----------------
-000h-07fh MCU 内蔵機能
-080h-0ffh 周辺機器
-100h-2ffh データメモリ
-300h-fffh プログラムメモリ
+addr        説明
+-----------------
+0000h-007fh MCU 内蔵機能
+0080h-00ffh 周辺機器
+0100h-3fffh データメモリ（約 16KiB）
+4000h-bfffh プログラムメモリ（32KiB）
 
 メモリマップトレジスタ
 
@@ -304,7 +304,7 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    ip <= 16'h0300;
+    ip <= 16'h4000;
   else if (load_ip)
     ip <= alu_out;
 end

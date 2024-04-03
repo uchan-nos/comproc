@@ -18,7 +18,7 @@ logic [15:0] wr_data_mon;
 assign wr_data_mon = wr_mem ? mcu.wr_data : 16'hzzzz;
 
 integer num_insn = 0;
-integer ip_init = `ADDR_WIDTH'h300 >> 1;
+integer ip_init = `ADDR_WIDTH'h4000 >> 1;
 
 string uart_in_file;
 integer uart_in_fd;

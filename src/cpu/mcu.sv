@@ -246,7 +246,7 @@ end
 // recv_addr は命令の受信が完了するたびにインクリメントされる
 always @(posedge rst, posedge clk) begin
   if (rst | recv_compl)
-    recv_addr <= `ADDR_WIDTH'h300;
+    recv_addr <= `ADDR_WIDTH'h4000;
   else if (recv_data_v)
     recv_addr <= recv_addr + `ADDR_WIDTH'd2;
 end
