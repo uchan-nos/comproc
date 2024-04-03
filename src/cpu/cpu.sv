@@ -119,11 +119,7 @@ alu_out   ALU 出力
 src_a     ALU-A 入力
 src_a_sel ALU-A 入力選択（`SRCA_xxx マクロ）
 src_b     ALU-B 入力
-src_b_sel ALU-B 入力選択
-          0: stack[1]
-          1: insn & imm_mask
-          2: isr
-          3: reserved
+src_b_sel ALU-B 入力選択（`SRCB_xxx マクロ）
 wr_stk1   0/1: wr_data に stack[0/1] を出力
 pop/push  stack をポップ/プッシュ
 load_stk  stack[0] に stack_in をロード

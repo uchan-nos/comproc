@@ -37,9 +37,9 @@ assign {sign, src_a, src_b, alu_sel,
 `define CSTK `SRCA_CSTK
 `define FP   `SRCA_FP
 
-`define STK1 `SRC_STK1
-`define IMM  `SRC_IMM
-`define ISR  `SRC_ISR
+`define STK1 `SRCB_STK1
+`define IMM  `SRCB_IMM
+`define ISR  `SRCB_ISR
 
 // 27bits = sign:1 + src_a:3 + src_b:2 + alu:6 + signals:15
 function [27:0] decode(input [15:0] insn);

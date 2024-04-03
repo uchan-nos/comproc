@@ -41,7 +41,7 @@ assign src_a_bar = phase_half & (insn_src_a === `SRCA_BAR) & ~irq_pend;
 assign src_a_ip = ~phase_half | (insn_src_a === `SRCA_IP) | irq_pend;
 assign src_a_cstk = phase_half & (insn_src_a === `SRCA_CSTK) & ~irq_pend;
 assign src_a_fp = phase_half & (insn_src_a === `SRCA_FP) & ~irq_pend;
-assign src_b_sel = irq_pend ? `SRC_ISR : insn_src_b;
+assign src_b_sel = irq_pend ? `SRCB_ISR : insn_src_b;
 assign alu_sel = phase_exec ? (irq_pend ? `ALU_B : insn_alu_sel) : phase_fetch ? `ALU_INC2 : `ALU_A;
 assign pop = (insn_pop & ~irq_pend) & phase_exec;
 assign push = (insn_push & ~irq_pend) & (insn_rd ? phase_rdmem : phase_exec);

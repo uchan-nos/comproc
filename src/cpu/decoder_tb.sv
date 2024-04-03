@@ -65,7 +65,6 @@ end
 endtask
 
 `define x 1'bx
-`define SRC_X 2'hx
 
 initial begin
   $monitor("%d: insn=%04x sign=%d mask=%04x src_a=%d src_b=%d alu=%02x wr_stk1=%d",
@@ -81,7 +80,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h7fff, // imm_mask
               `SRCA_X,  // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_B,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -104,7 +103,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h0ffe, // imm_mask
               `SRCA_IP, // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               `x,       // wr_stk1
               0,        // pop
@@ -127,7 +126,7 @@ initial begin
   #1 test_sig(1,        // sign,
               16'h0ffe, // imm_mask
               `SRCA_IP, // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               `x,       // wr_stk1
               0,        // pop
@@ -150,7 +149,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_IP, // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               0,        // wr_stk1
               0,        // pop
@@ -173,7 +172,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_BAR,// src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               0,        // wr_stk1
               1,        // pop
@@ -196,7 +195,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_CSTK,// src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               0,        // wr_stk1
               0,        // pop
@@ -219,7 +218,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_BAR,// src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               0,        // wr_stk1
               1,        // pop
@@ -242,7 +241,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03fe, // imm_mask
               `SRCA_X,  // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_B,   // alu
               0,        // wr_stk1
               1,        // pop
@@ -265,7 +264,7 @@ initial begin
   #1 test_sig(0,        // sign,
               16'h03ff, // imm_mask
               `SRCA_FP, // src_a
-              `SRC_IMM, // src_b
+              `SRCB_IMM,// src_b
               `ALU_ADD, // alu
               `x,       // wr_stk1
               0,        // pop
@@ -288,7 +287,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_INC, // alu
               `x,       // wr_stk1
               0,        // pop
@@ -311,7 +310,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_STK1,// src_b
+              `SRCB_STK1,// src_b
               `ALU_AND, // alu
               `x,       // wr_stk1
               1,        // pop
@@ -334,7 +333,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_X,  // src_a
-              `SRC_STK1,// src_b
+              `SRCB_STK1,// src_b
               `ALU_B,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -357,7 +356,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_CSTK,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -380,7 +379,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -403,7 +402,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               1,        // wr_stk1
               1,        // pop
@@ -426,7 +425,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               1,        // wr_stk1
               1,        // pop
@@ -449,7 +448,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_IP, // src_a
-              `SRC_ISR, // src_b
+              `SRCB_ISR,// src_b
               `ALU_B,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -472,7 +471,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               `x,       // wr_stk1
               1,        // pop
@@ -495,7 +494,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_CSTK,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               `x,       // wr_stk1
               0,        // pop
@@ -518,7 +517,7 @@ initial begin
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask
               `SRCA_STK0,// src_a
-              `SRC_X,   // src_b
+              `SRCB_X,  // src_b
               `ALU_A,   // alu
               `x,       // wr_stk1
               1,        // pop

@@ -34,8 +34,9 @@
 `define SRCA_X    3'hx
 
 // Source B
-`define SRC_STK1 2'h0
-`define SRC_IMM  2'h1
-`define SRC_ISR  2'h2
+`define SRCB_STK1 2'h0
+`define SRCB_IMM  2'h1
+`define SRCB_ISR  2'h2
+`define SRCB_X    2'hx
 
 `endif // `ifndef COMMON_SV
