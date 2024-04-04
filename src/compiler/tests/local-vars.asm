@@ -1,6 +1,6 @@
 	add fp,256
 	call main
-	st 130
+	st 6
 fin:
 	jmp fin
 main:
@@ -11,8 +11,8 @@ main:
 	st cstack+2
 	push 2
 	st cstack+4
-	push 1
 	ld cstack+2
+	push 1
 	sub
 	cpop fp
 	ret

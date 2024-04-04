@@ -1,6 +1,6 @@
 	add fp,256
 	call main
-	st 130
+	st 6
 fin:
 	jmp fin
 _ISRfoo:
