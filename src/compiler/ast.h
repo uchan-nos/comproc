@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "token.h"
@@ -69,6 +70,9 @@ struct Node {
   // kNodeAsm     文字列    NULL      NULL
   // kNodeCast    型指定子  式        NULL
   struct Node *lhs, *rhs, *cond;
+
+  int has_const_value; // 定数式なら 1、非定数式なら 0
+  int16_t const_value; // 定数式の値（has_const_value == 1 のときのみ有効）
 };
 
 struct Symbol;

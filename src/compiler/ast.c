@@ -18,6 +18,14 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token) {
   n->token = token;
   n->next = n->lhs = n->rhs = n->cond = NULL;
   n->type = NULL;
+  n->has_const_value = n->const_value = 0;
+  return n;
+}
+
+struct Node *NewNodeInteger(struct Token *token) {
+  struct Node *n = NewNode(kNodeInteger, token);
+  n->has_const_value = 1;
+  n->const_value = token->value.as_int;
   return n;
 }
 
@@ -26,6 +34,9 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   struct Node *n = NewNode(kind, op);
   n->lhs = lhs;
   n->rhs = rhs;
+  if (lhs && rhs) {
+    n->has_const_value = lhs->has_const_value & rhs->has_const_value;
+  }
   return n;
 }
 
@@ -249,12 +260,15 @@ struct Node *Assignment() {
   struct Token *op;
   if ((op = Consume('='))) {
     node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
+    node->const_value = node->rhs->const_value;
   } else if ((op = Consume(kTokenCompAssign + '+'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
                         NewNodeBinOp(kNodeAdd, op, node, Assignment()));
+    node->has_const_value = 0;
   } else if ((op = Consume(kTokenCompAssign + '-'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
                         NewNodeBinOp(kNodeSub, op, node, Assignment()));
+    node->has_const_value = 0;
   }
 
   return node;
@@ -266,6 +280,7 @@ struct Node *LogicalOr() {
   struct Token *op;
   if ((op = Consume(kTokenOr))) {
     node = NewNodeBinOp(kNodeLOr, op, node, LogicalOr());
+    node->const_value = node->lhs->const_value || node->rhs->const_value;
   }
 
   return node;
@@ -277,6 +292,7 @@ struct Node *LogicalAnd() {
   struct Token *op;
   if ((op = Consume(kTokenAnd))) {
     node = NewNodeBinOp(kNodeLAnd, op, node, LogicalAnd());
+    node->const_value = node->lhs->const_value && node->rhs->const_value;
   }
 
   return node;
@@ -288,6 +304,7 @@ struct Node *BitwiseOr() {
   struct Token *op;
   if ((op = Consume('|'))) {
     node = NewNodeBinOp(kNodeOr, op, node, BitwiseOr());
+    node->const_value = node->lhs->const_value | node->rhs->const_value;
   }
 
   return node;
@@ -299,6 +316,7 @@ struct Node *BitwiseXor() {
   struct Token *op;
   if ((op = Consume('^'))) {
     node = NewNodeBinOp(kNodeXor, op, node, BitwiseXor());
+    node->const_value = node->lhs->const_value ^ node->rhs->const_value;
   }
 
   return node;
@@ -310,6 +328,7 @@ struct Node *BitwiseAnd() {
   struct Token *op;
   if ((op = Consume('&'))) {
     node = NewNodeBinOp(kNodeAnd, op, node, BitwiseAnd());
+    node->const_value = node->lhs->const_value & node->rhs->const_value;
   }
 
   return node;
@@ -321,8 +340,10 @@ struct Node *Equality() {
   struct Token *op;
   if ((op = Consume(kTokenEq))) {
     node = NewNodeBinOp(kNodeEq, op, node, Equality());
+    node->const_value = node->lhs->const_value == node->rhs->const_value;
   } else if ((op = Consume(kTokenNEq))) {
     node = NewNodeBinOp(kNodeNEq, op, node, Equality());
+    node->const_value = node->lhs->const_value != node->rhs->const_value;
   }
 
   return node;
@@ -334,12 +355,16 @@ struct Node *Relational() {
   struct Token *op;
   if ((op = Consume('<'))) {
     node = NewNodeBinOp(kNodeLT, op, node, Relational());
+    node->const_value = node->lhs->const_value < node->rhs->const_value;
   } else if ((op = Consume('>'))) {
     node = NewNodeBinOp(kNodeLT, op, Relational(), node);
+    node->const_value = node->lhs->const_value < node->rhs->const_value;
   } else if ((op = Consume(kTokenLE))) {
     node = NewNodeBinOp(kNodeLE, op, node, Relational());
+    node->const_value = node->lhs->const_value <= node->rhs->const_value;
   } else if ((op = Consume(kTokenGE))) {
     node = NewNodeBinOp(kNodeLE, op, Relational(), node);
+    node->const_value = node->lhs->const_value <= node->rhs->const_value;
   }
 
   return node;
@@ -351,8 +376,10 @@ struct Node *BitwiseShift() {
   struct Token *op;
   if ((op = Consume(kTokenRShift))) {
     node = NewNodeBinOp(kNodeRShift, op, node, BitwiseShift());
+    node->const_value = node->lhs->const_value << node->rhs->const_value;
   } else if ((op = Consume(kTokenLShift))) {
     node = NewNodeBinOp(kNodeLShift, op, node, BitwiseShift());
+    node->const_value = node->lhs->const_value >> node->rhs->const_value;
   }
 
   return node;
@@ -365,8 +392,10 @@ struct Node *Additive() {
   while (1) {
     if ((op = Consume('+'))) {
       node = NewNodeBinOp(kNodeAdd, op, node, Multiplicative());
+      node->const_value = node->lhs->const_value + node->rhs->const_value;
     } else if ((op = Consume('-'))) {
       node = NewNodeBinOp(kNodeSub, op, node, Multiplicative());
+      node->const_value = node->lhs->const_value - node->rhs->const_value;
     } else {
       break;
     }
@@ -381,6 +410,7 @@ struct Node *Multiplicative() {
   struct Token *op;
   if ((op = Consume('*'))) {
     node = NewNodeBinOp(kNodeMul, op, node, Multiplicative());
+    node->const_value = node->lhs->const_value * node->rhs->const_value;
   }
 
   return node;
@@ -401,7 +431,12 @@ struct Node *Cast() {
   }
 
   Expect(')');
-  return NewNodeBinOp(kNodeCast, op, tspec, Cast());
+  struct Node *node = NewNodeBinOp(kNodeCast, op, tspec, Cast());
+
+  // `(int*)2 + 1` などの式で計算間違いを防ぐため、保守的に false とする
+  node->has_const_value = 0;
+
+  return node;
 }
 
 struct Node *Unary() {
@@ -410,19 +445,25 @@ struct Node *Unary() {
   struct Token *op;
   if ((op = Consume(kTokenInc))) {
     node = NewNodeBinOp(kNodeInc, op, NULL, Unary());
+    node->has_const_value = 0;
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, NULL, Unary());
+    node->has_const_value = 0;
   } else if ((op = Consume('&'))) {
     node = NewNodeBinOp(kNodeRef, op, NULL, Cast());
+    node->has_const_value = 0;
   } else if ((op = Consume('*'))) {
     node = NewNodeBinOp(kNodeDeref, op, NULL, Cast());
+    node->has_const_value = 0;
   } else if ((op = Consume('-'))) {
     struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
     zero_tk->value.as_int = 0;
-    struct Node *zero = NewNode(kNodeInteger, zero_tk);
+    struct Node *zero = NewNodeInteger(zero_tk);
     node = NewNodeBinOp(kNodeSub, op, zero, Unary());
+    node->const_value = -node->rhs->const_value;
   } else if ((op = Consume('~'))) {
     node = NewNodeBinOp(kNodeNot, op, NULL, Cast());
+    node->const_value = ~node->rhs->const_value;
   } else {
     node = Postfix();
   }
@@ -436,14 +477,20 @@ struct Node *Postfix() {
   struct Token *op;
   if ((op = Consume(kTokenInc))) {
     node = NewNodeBinOp(kNodeInc, op, node, NULL);
+    node->has_const_value = 0;
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, node, NULL);
+    node->has_const_value = 0;
   } else if ((op = Consume('['))) {
-    node = NewNodeBinOp(kNodeDeref, op, NULL,
-                        NewNodeBinOp(kNodeAdd, op, node, Expression()));
+    struct Node *ind = NewNodeBinOp(kNodeAdd, op, node, Expression());
+    ind->const_value = ind->lhs->const_value +
+      SizeofType(ind->lhs->type) * ind->rhs->const_value;
+    node = NewNodeBinOp(kNodeDeref, op, NULL, ind);
+    node->has_const_value = 0;
     Expect(']');
   } else if ((op = Consume('('))) {
     node = NewNodeBinOp(kNodeCall, op, node, NULL);
+    node->has_const_value = 0;
     if (!Consume(')')) {
       node->rhs = Expression();
       struct Node *arg = node->rhs;
@@ -465,10 +512,10 @@ struct Node *Primary() {
     node = Expression();
     Expect(')');
   } else if ((tk = Consume(kTokenInteger))) {
-    node = NewNode(kNodeInteger, tk);
+    node = NewNodeInteger(tk);
     node->type = NewType(kTypeInt);
   } else if ((tk = Consume(kTokenCharacter))) {
-    node = NewNode(kNodeInteger, tk);
+    node = NewNodeInteger(tk);
     node->type = NewType(kTypeInt);
   } else if ((tk = Consume(kTokenString))) {
     node = NewNode(kNodeString, tk);

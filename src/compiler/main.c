@@ -188,6 +188,10 @@ enum ValueClass {
 };
 
 void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
+  if (node->has_const_value) {
+    InsnInt(ctx, "push", node->const_value);
+    return;
+  }
 
   if (100 <= node->kind && node->kind < 200) { // standard binary expression
     switch (value_class) {
