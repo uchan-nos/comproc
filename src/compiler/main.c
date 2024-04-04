@@ -187,11 +187,19 @@ enum ValueClass {
   VC_NO_NEED,
 };
 
-void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
+void ConvertToBoolean(struct GenContext *ctx) {
+  InsnInt(ctx, "push", 0);
+  Insn(ctx, "neq");
+}
+
+// 生成された値が boolean value なら true、それ以外は false を返す。
+int Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class) {
   if (node->has_const_value) {
     InsnInt(ctx, "push", node->const_value);
-    return;
+    return node->const_value == 0 || node->const_value == 1;
   }
+
+  int is_boolean = 0;
 
   if (100 <= node->kind && node->kind < 200) { // standard binary expression
     switch (value_class) {
@@ -207,8 +215,12 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       node->type = NewType(kTypeVoid);
       Generate(ctx, node->lhs, VC_NO_NEED);
       Generate(ctx, node->rhs, VC_NO_NEED);
-      return;
+      return is_boolean;
     }
+  }
+  if ((kNodeLT <= node->kind && node->kind <= kNodeNEq)
+      || node->kind == kNodeLAnd || node->kind == kNodeLOr) {
+    is_boolean = 1;
   }
 
   switch (node->kind) {
@@ -409,14 +421,14 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       int label_false = GenLabel(ctx);
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (eval lhs)");
-      Generate(ctx, node->lhs, VC_RVAL);
-      InsnInt(ctx, "push", 0);
-      Insn(ctx, "neq");
+      if (!Generate(ctx, node->lhs, VC_RVAL)) {
+        ConvertToBoolean(ctx);
+      }
       InsnLabelAutoL(ctx, "jz", label_false);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (eval rhs)");
-      Generate(ctx, node->rhs, VC_RVAL);
-      InsnInt(ctx, "push", 0);
-      Insn(ctx, "neq");
+      if (!Generate(ctx, node->rhs, VC_RVAL)) {
+        ConvertToBoolean(ctx);
+      }
       InsnLabelAutoL(ctx, "jz", label_false);
       PRINT_NODE_COMMENT(ctx, node, "LAnd (true)");
       if (value_class != VC_NO_NEED) {
@@ -620,10 +632,10 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       int label_else = node->rhs ? GenLabel(ctx) : -1;
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "If (cond eval)");
-      Generate(ctx, node->cond, VC_RVAL);
-      PRINT_NODE_COMMENT(ctx, node, "If (cond to bool)");
-      InsnInt(ctx, "push", 0);
-      Insn(ctx, "neq");
+      if (!Generate(ctx, node->cond, VC_RVAL)) {
+        PRINT_NODE_COMMENT(ctx, node, "If (cond to bool)");
+        ConvertToBoolean(ctx);
+      }
       InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_end);
       PRINT_NODE_COMMENT(ctx, node, "If (then)");
       Generate(ctx, node->lhs, VC_RVAL);
@@ -650,9 +662,9 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
       PRINT_NODE_COMMENT(ctx, node, "For (eval init)");
       Generate(ctx, node->lhs, VC_RVAL);
       AddLabelAutoL(ctx, label_cond);
-      Generate(ctx, node->cond, VC_RVAL);
-      InsnInt(ctx, "push", 0);
-      Insn(ctx, "neq");
+      if (!Generate(ctx, node->cond, VC_RVAL)) {
+        ConvertToBoolean(ctx);
+      }
       InsnLabelAutoL(ctx, "jz", label_end);
       Generate(ctx, node->rhs, VC_RVAL);
       AddLabelAutoL(ctx, label_next);
@@ -675,9 +687,9 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
 
       PRINT_NODE_COMMENT(ctx, node, "While");
       AddLabelAutoL(ctx, label_cond);
-      Generate(ctx, node->cond, VC_RVAL);
-      InsnInt(ctx, "push", 0);
-      Insn(ctx, "neq");
+      if (!Generate(ctx, node->cond, VC_RVAL)) {
+        ConvertToBoolean(ctx);
+      }
       InsnLabelAutoL(ctx, "jz", label_end);
       Generate(ctx, node->rhs, VC_RVAL);
       InsnLabelAutoL(ctx, "jmp", label_cond);
@@ -709,6 +721,8 @@ void Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_c
     }
     break;
   }
+
+  return is_boolean;
 }
 
 int main(int argc, char **argv) {
