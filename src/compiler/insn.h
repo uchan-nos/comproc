@@ -23,6 +23,12 @@ struct Label {
 
 void PrintLabel(FILE *out, struct Label *label);
 
+enum InsnKind {
+  kInsnNormal, // 通常のアセンブラ命令
+  kInsnInterp, // アセンブラ内インタープリター命令
+  kInsnInterpResult, // インタープリターの結果を取得
+};
+
 enum OperandKind {
   kOprNone, // オペランド末尾を示すマーカー
   kOprInt,
@@ -45,11 +51,13 @@ struct Operand {
 };
 
 struct Instruction {
+  enum InsnKind kind;
   const char *opcode;
   struct Operand operands[MAX_OPERANDS];
 };
 
-void SetInsnNoOpr(struct Instruction *insn, const char *opcode);
+void SetInsnNoOpr(struct Instruction *insn,
+                  enum InsnKind kind, const char *opcode);
 
 enum AsmLineKind {
   kAsmLineDeleted,

@@ -229,6 +229,29 @@ enum PopReg ParsePopReg(char *opr) {
   exit(1);
 }
 
+struct Interp {
+  int16_t stack[16];
+};
+
+void Push(struct Interp *interp, int16_t v) {
+  for (int i = 14; i >= 0; i--) {
+    interp->stack[i + 1] = interp->stack[i];
+  }
+  interp->stack[0] = v;
+}
+
+int16_t Pop(struct Interp *interp) {
+  int16_t top = interp->stack[0];
+  for (int i = 0; i <= 14; i++) {
+    interp->stack[i] = interp->stack[i + 1];
+  }
+  return top;
+}
+
+int16_t Top(struct Interp *interp) {
+  return interp->stack[0];
+}
+
 int main(int argc, char **argv) {
   int separate_output = 0;
   const char *input_filename = NULL;
@@ -303,6 +326,8 @@ int main(int argc, char **argv) {
   struct LabelAddr labels[128];
   int num_labels = 0;
 
+  struct Interp interp;
+
   while (fgets(line, sizeof(line), input_file) != NULL) {
     int num_opr = SplitOpcode(line, &label, &mnemonic, operands, MAX_OPERAND);
 
@@ -323,9 +348,71 @@ int main(int argc, char **argv) {
 
     uint16_t *cur_insn = &insn[(ip - ORIGIN) >> 1];
 
+    if (mnemonic[0] == '.') {
+      // 内蔵インタプリタ用命令
+      if (strcmp(mnemonic + 1, "push") == 0) {
+        Push(&interp, GET_LONG_NO_BP(0));
+      } else if (strcmp(mnemonic + 1, "join") == 0) {
+        uint16_t rhs = Pop(&interp);
+        Push(&interp, (uint16_t)Pop(&interp) | (rhs << 8));
+      } else if (strcmp(mnemonic + 1, "add") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) + rhs);
+      } else if (strcmp(mnemonic + 1, "sub") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) - rhs);
+      } else if (strcmp(mnemonic + 1, "mul") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) * rhs);
+      } else if (strcmp(mnemonic + 1, "lt") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) < rhs);
+      } else if (strcmp(mnemonic + 1, "le") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) <= rhs);
+      } else if (strcmp(mnemonic + 1, "eq") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) == rhs);
+      } else if (strcmp(mnemonic + 1, "neq") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) != rhs);
+      } else if (strcmp(mnemonic + 1, "not") == 0) {
+        Push(&interp, ~(uint16_t)Pop(&interp));
+      } else if (strcmp(mnemonic + 1, "and") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) & rhs);
+      } else if (strcmp(mnemonic + 1, "or") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) | rhs);
+      } else if (strcmp(mnemonic + 1, "xor") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) ^ rhs);
+      } else if (strcmp(mnemonic + 1, "shr") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, (uint16_t)Pop(&interp) >> rhs);
+      } else if (strcmp(mnemonic + 1, "sar") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, (int16_t)Pop(&interp) >> rhs);
+      } else if (strcmp(mnemonic + 1, "shl") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, (int16_t)Pop(&interp) << rhs);
+      }
+      continue;
+    }
+
     if (strcmp(mnemonic, "push") == 0) {
-      if (strchr(GET_STR(0), '+') == NULL) {
-        *cur_insn = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
+      char *opr = GET_STR(0);
+      if (strchr(opr, '+') == NULL) {
+        if (opr[0] == '$') {
+          if (strcmp(opr + 1, "top") == 0) {
+            *cur_insn = 0x8000 | Top(&interp);
+          } else {
+            fprintf(stderr, "unknown variable: '%s'\n", opr);
+            exit(1);
+          }
+        } else {
+          *cur_insn = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
+        }
       } else {
         uint16_t off;
         enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);

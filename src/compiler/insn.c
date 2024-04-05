@@ -19,7 +19,9 @@ void PrintLabel(FILE *out, struct Label *label) {
   }
 }
 
-void SetInsnNoOpr(struct Instruction *insn, const char *opcode) {
+void SetInsnNoOpr(struct Instruction *insn,
+                  enum InsnKind kind, const char *opcode) {
+  insn->kind = kind;
   insn->opcode = opcode;
   for (int i = 0; i < MAX_OPERANDS; i++) {
     insn->operands[i].kind = kOprNone;
