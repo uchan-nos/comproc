@@ -27,10 +27,13 @@ cpu_tb.exe: cpu_tb.sv cpu.sv alu.sv stack.sv signals.sv cdtimer.sv \
 	signalizer.sv decoder.sv
 	iverilog -g2012 -o $@ $^
 
-uart_tb.exe: uart_tb.sv uart.sv
+uart_tb.exe: uart_tb.sv uart.sv simple_timer.sv
 	iverilog -g2012 -o $@ $^
 
-uart_mux_tb.exe: uart_mux_tb.sv uart.sv uart_mux.sv
+uart_mux_tb.exe: uart_mux_tb.sv uart.sv simple_timer.sv uart_mux.sv
+	iverilog -g2012 -o $@ $^
+
+spi_tb.exe: spi_tb.sv spi.sv simple_timer.sv
 	iverilog -g2012 -o $@ $^
 
 .PHONY: clean
@@ -40,7 +43,7 @@ clean:
 .PHONY: test_modules
 test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
 	signals_tb.exe clkdiv_tb.exe cdtimer_tb.exe cpu_tb.exe uart_tb.exe \
-	uart_mux_tb.exe
+	uart_mux_tb.exe spi_tb.exe
 	@./test_module.sh stack_tb.exe
 	@./test_module.sh alu_tb.exe
 	@./test_module.sh decoder_tb.exe
@@ -51,3 +54,4 @@ test_modules: stack_tb.exe alu_tb.exe decoder_tb.exe signalizer_tb.exe \
 	@./test_module.sh cpu_tb.exe
 	@./test_module.sh uart_tb.exe
 	@./test_module.sh uart_mux_tb.exe
+	@./test_module.sh spi_tb.exe

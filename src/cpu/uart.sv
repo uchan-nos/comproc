@@ -1,27 +1,3 @@
-module timer#(
-  parameter PERIOD=27_000_000/9600,
-  parameter BITS=24
-) (
-  input rst, clk,
-  output half, full
-);
-
-logic [BITS-1:0] cnt, inc, next;
-
-assign inc  = cnt + 1;
-assign next = inc < PERIOD ? inc : 0;
-assign full = next == {BITS{1'b0}};
-assign half = cnt == (PERIOD >> 1);
-
-always @(posedge rst, posedge clk) begin
-  if (rst)
-    cnt <= 0;
-  else
-    cnt <= next;
-end
-
-endmodule
-
 module uart#(
   parameter CLOCK_HZ=27_000_000,
   parameter BAUD=9600,
@@ -60,14 +36,14 @@ logic rxtim_full, txtim_full; // タイマが次のクロックでオーバー�
 logic rxtim_half, txtim_half;
 
 // 1 ビットのタイミングを作り出すタイマ
-timer #(.PERIOD(BIT_PERIOD), .BITS(TIM_WIDTH))
+simple_timer #(.PERIOD(BIT_PERIOD), .BITS(TIM_WIDTH))
   rxtim(
     .rst(rxtim_rst),
     .clk(clk),
     .half(rxtim_half),
     .full(rxtim_full)
   );
-timer #(.PERIOD(BIT_PERIOD), .BITS(TIM_WIDTH))
+simple_timer #(.PERIOD(BIT_PERIOD), .BITS(TIM_WIDTH))
   txtim(
     .rst(txtim_rst),
     .clk(clk),
