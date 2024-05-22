@@ -11,7 +11,8 @@
 #include "type.h"
 
 #define INDENT "\t"
-#define MAX_LINE 4096
+#define MAX_STRING 256
+#define MAX_LINE (32*1024/2)
 
 char *src;
 void Locate(char *p) {
@@ -40,7 +41,7 @@ struct GenContext {
   int line_add_fp; // add fp, N 命令が最後に配置された行番号
   int num_label;
   int num_strings;
-  struct Token *strings[4];
+  struct Token *strings[MAX_STRING];
   struct JumpLabels jump_labels;
   int num_line;
   struct AsmLine asm_lines[MAX_LINE];
@@ -361,6 +362,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     break;
   case kNodeString:
     if (value_class != VC_NO_NEED) {
+      if (ctx->num_strings == MAX_STRING) {
+        fprintf(stderr, "too many string constants\n");
+        Locate(node->token->raw);
+        exit(1);
+      }
       ctx->strings[ctx->num_strings] = node->token;
       InsnLabelAutoS(ctx, "push", ctx->num_strings);
       ctx->num_strings++;
@@ -822,8 +828,8 @@ int main(int argc, char **argv) {
     output_file = fopen(output_filename, "w");
   }
 
-  src = malloc(MAX_LINE * 10);
-  size_t src_len = fread(src, 1, MAX_LINE * 10 - 1, input_file);
+  src = malloc(MAX_LINE);
+  size_t src_len = fread(src, 1, MAX_LINE - 1, input_file);
   src[src_len] = '\0';
   if (input_file != stdin) {
     fclose(input_file);
