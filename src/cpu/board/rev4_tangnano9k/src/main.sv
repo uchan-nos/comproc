@@ -6,7 +6,9 @@ module main(
   input uart_rx,
   output uart_tx,
   output [7:0] led_col,
-  output [8:0] led_row,
+  output [7:3] led_row,
+  output tf_cs, tf_mosi, tf_sclk,
+  input  tf_miso,
   output lcd_e,
   output lcd_rw,
   output lcd_rs,
@@ -189,7 +191,11 @@ mcu mcu(
   .uf_prog(uf_prog),
   .uf_nvstr(uf_nvstr),
   .uf_din(uf_din),
-  .uf_dout(uf_dout)
+  .uf_dout(uf_dout),
+  .spi_cs(tf_cs),
+  .spi_sclk(tf_sclk),
+  .spi_mosi(tf_mosi),
+  .spi_miso(tf_miso)
 );
 
 // メモリ

@@ -5,6 +5,7 @@ logic sclk, miso, mosi, tx_start, tx_ready;
 logic [7:0] tx_data, rx_data;
 
 logic tx_data_bit;
+localparam logic [7:0] mosi_dat = 8'hC5;
 localparam logic [7:0] miso_dat = 8'hDE;
 
 integer i;
@@ -13,7 +14,7 @@ initial begin
   rst <= 1;
   clk <= 1;
   miso <= 0;
-  tx_data <= 8'hC5;
+  tx_data <= 0;
   tx_start <= 0;
 
   $monitor("%5t: rst=%d sclk=%d miso=%d mosi=%d tx_start=%d tx_ready=%d rx_data=%x sreg=%b",
@@ -31,8 +32,10 @@ initial begin
     if (sclk !== 0) $error("sclk must be 0");
 
   @(posedge clk);
+  tx_data <= mosi_dat;
   tx_start <= 1;
   @(posedge clk);
+  tx_data <= 0;
   tx_start <= 0;
 
   miso <= miso_dat[7];
@@ -47,7 +50,7 @@ initial begin
 
   for (i = 1; i < 8; i = i+1) begin
     miso <= miso_dat[7 - i];
-    tx_data_bit = tx_data[7 - i];
+    tx_data_bit = mosi_dat[7 - i];
 
     #50
     if (sclk !== 0) $error("sclk must be 0");

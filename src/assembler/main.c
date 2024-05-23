@@ -6,6 +6,7 @@
 
 #define MAX_OPERAND 128
 #define ORIGIN 0x4000
+#define MAX_BP 256
 
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
@@ -320,7 +321,7 @@ int main(int argc, char **argv) {
   uint16_t insn[1024 * 2];
   int ip = ORIGIN;
 
-  struct Backpatch backpatches[128];
+  struct Backpatch backpatches[MAX_BP];
   int num_backpatches = 0;
 
   struct LabelAddr labels[128];
@@ -419,18 +420,34 @@ int main(int argc, char **argv) {
         *cur_insn = 0x5000 | (ab << 10) | (0x3ff & off);
       }
     } else if (strcmp(mnemonic, "jmp") == 0) {
+      if (num_backpatches == MAX_BP) {
+        fprintf(stderr, "too many backpatches\n");
+        exit(1);
+      }
       InitBackpatch(backpatches + num_backpatches++,
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       *cur_insn = 0x0000;
     } else if (strcmp(mnemonic, "call") == 0) {
+      if (num_backpatches == MAX_BP) {
+        fprintf(stderr, "too many backpatches\n");
+        exit(1);
+      }
       InitBackpatch(backpatches + num_backpatches++,
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       *cur_insn = 0x0001;
     } else if (strcmp(mnemonic, "jz") == 0) {
+      if (num_backpatches == MAX_BP) {
+        fprintf(stderr, "too many backpatches\n");
+        exit(1);
+      }
       InitBackpatch(backpatches + num_backpatches++,
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       *cur_insn = 0x1000;
     } else if (strcmp(mnemonic, "jnz") == 0) {
+      if (num_backpatches == MAX_BP) {
+        fprintf(stderr, "too many backpatches\n");
+        exit(1);
+      }
       InitBackpatch(backpatches + num_backpatches++,
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       *cur_insn = 0x1001;

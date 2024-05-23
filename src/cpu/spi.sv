@@ -5,8 +5,8 @@ module spi#(
 ) (
   input  rst, clk,
   output logic sclk,// SPI clock signal
-  input  miso,      // SPI master-in signal
   output mosi,      // SPI master-out signal
+  input  miso,      // SPI master-in signal
   input  [7:0] tx_data, // initial value of shift registor
   output [7:0] rx_data, // current value of shift registor
   input  tx_start,  // start to transmit data
@@ -49,7 +49,7 @@ end
 
 always @(posedge rst, posedge clk) begin
   if (rst)
-    sreg <= 8'd0;
+    sreg <= 8'hA5;
   else if (tx_start)
     sreg <= tx_data;
   else if (tim_full)

@@ -177,6 +177,8 @@ addr      説明
 01Ah-01Bh FLASH608K: DIN high 16 bits
 01Ch-01Dh FLASH608K: DOUT low 16 bits
 01Eh-01Fh FLASH608K: DOUT high 16 bits
+020h-021h SPI シフトレジスタ（書き込みで送信開始）
+022h-023h SPI ステータスレジスタ（1: CS, 0: TX_READY）
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h      GPIO

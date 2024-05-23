@@ -21,7 +21,9 @@ module mcu#(
   output logic [5:0] uf_yadr,
   output logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr,
   output logic [31:0] uf_din,
-  input  [31:0] uf_dout
+  input  [31:0] uf_dout,
+  output spi_cs, spi_sclk, spi_mosi,
+  input  spi_miso
 );
 
 // CPU コア
@@ -181,6 +183,31 @@ always @(posedge clk, posedge cpu_rst) begin
     endcase
 end
 
+// MCU 内蔵周辺機能：SPI
+logic spi_cs, spi_tx_start, spi_tx_ready;
+logic [7:0] spi_rx_data;
+
+assign spi_tx_start = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h020;
+
+spi#(.CLOCK_HZ(CLOCK_HZ), .BAUD(100_000)) spi(
+  .rst(rst),
+  .clk(clk),
+  .sclk(spi_sclk),
+  .mosi(spi_mosi),
+  .miso(spi_miso),
+  .tx_data(wr_data[7:0]),
+  .rx_data(spi_rx_data),
+  .tx_start(spi_tx_start),
+  .tx_ready(spi_tx_ready)
+);
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    spi_cs <= 1;
+  else if (cpu_wr_mem & mem_addr === `ADDR_WIDTH'h022)
+    spi_cs <= wr_data[1];
+end
+
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
   casex (mem_addr)
@@ -196,6 +223,8 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
     `ADDR_WIDTH'h01A: read_memreg = uf_din[31:16];
     `ADDR_WIDTH'h01C: read_memreg = uf_dout[15:0];
     `ADDR_WIDTH'h01E: read_memreg = uf_dout[31:16];
+    `ADDR_WIDTH'h020: read_memreg = {8'd0, spi_rx_data};
+    `ADDR_WIDTH'h022: read_memreg = {14'd0, spi_cs, spi_tx_ready};
     default:          read_memreg = CLK_DIV >= 2 ? rd_data_d : rd_data;
   endcase
 endfunction
