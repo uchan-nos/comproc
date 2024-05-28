@@ -406,7 +406,16 @@ int main(int argc, char **argv) {
       if (strchr(opr, '+') == NULL) {
         if (opr[0] == '$') {
           if (strcmp(opr + 1, "top") == 0) {
-            *cur_insn = 0x8000 | Top(&interp);
+            uint16_t stack_top = Top(&interp);
+            if ((stack_top & 0x8000) == 0) {
+              *cur_insn = 0x8000 | stack_top;
+            } else {
+              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top & 0xffu);
+              ip += 2;
+              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top >> 8);
+              ip += 2;
+              insn[(ip - ORIGIN) >> 1] = 0x7057;
+            }
           } else {
             fprintf(stderr, "unknown variable: '%s'\n", opr);
             exit(1);
