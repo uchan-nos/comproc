@@ -306,6 +306,29 @@ initial begin
               0         // clear_ien
             );
 
+  #1 insn <= 16'h7005;  // SIGN
+  #1 test_sig(`x,       // sign,
+              16'hxxxx, // imm_mask
+              `SRCA_STK0,// src_a
+              `SRCB_X,  // src_b
+              `ALU_SIGN,// alu
+              `x,       // wr_stk1
+              0,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_ip
+              0,        // load_isr
+              0,        // load_bar
+              0,        // cpop
+              0,        // cpush
+              `x,       // byt
+              0,        // rd_mem
+              0,        // wr_mem
+              0,        // set_ien
+              0         // clear_ien
+            );
+
   #1 insn <= 16'h7050;  // AND
   #1 test_sig(`x,       // sign,
               16'hxxxx, // imm_mask

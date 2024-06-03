@@ -34,6 +34,9 @@ initial begin
   #1 sel <= `ALU_NOT;
   #1 if (out !== 16'h2152) $error("out must be 0x2152");
 
+  #1 sel <= `ALU_SIGN;
+  #1 if (out !== 16'h5EAD) $error("out must be 0x5EAD");
+
   #1 sel <= `ALU_B;
   #1 if (out !== 16'hBEEF) $error("out must be 0xBEEF");
 
@@ -59,9 +62,6 @@ initial begin
 
   #1 a <= 16'd16;
   #1 if (out !== 16'hFFFF) $error("out must be 0xFFFF");
-
-  #1 sel <= `ALU_JOIN; a <= 16'h00CA; b <= 16'h00FE;
-  #1 if (out !== 16'hCAFE) $error("out must be 0xCAFE");
 
   #1 sel <= `ALU_ADD; a <= 16'h70FF; b <= 16'h2101;
   #1 if (out !== 16'h9200) $error("out must be 0x9200");

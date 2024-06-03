@@ -353,9 +353,8 @@ int main(int argc, char **argv) {
       // 内蔵インタプリタ用命令
       if (strcmp(mnemonic + 1, "push") == 0) {
         Push(&interp, GET_LONG_NO_BP(0));
-      } else if (strcmp(mnemonic + 1, "join") == 0) {
-        uint16_t rhs = Pop(&interp);
-        Push(&interp, (uint16_t)Pop(&interp) | (rhs << 8));
+      } else if (strcmp(mnemonic + 1, "sign") == 0) {
+        Push(&interp, (uint16_t)Pop(&interp) ^ 0x8000);
       } else if (strcmp(mnemonic + 1, "add") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) + rhs);
@@ -410,11 +409,9 @@ int main(int argc, char **argv) {
             if ((stack_top & 0x8000) == 0) {
               *cur_insn = 0x8000 | stack_top;
             } else {
-              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top & 0xffu);
+              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top & 0x7fffu);
               ip += 2;
-              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top >> 8);
-              ip += 2;
-              insn[(ip - ORIGIN) >> 1] = 0x7057;
+              insn[(ip - ORIGIN) >> 1] = 0x7005; // SIGN
             }
           } else {
             fprintf(stderr, "unknown variable: '%s'\n", opr);
@@ -495,6 +492,8 @@ int main(int argc, char **argv) {
       *cur_insn = 0x7002;
     } else if (strcmp(mnemonic, "not") == 0) {
       *cur_insn = 0x7004;
+    } else if (strcmp(mnemonic, "sign") == 0) {
+      *cur_insn = 0x7005;
     } else if (strcmp(mnemonic, "and") == 0) {
       *cur_insn = 0x7050;
     } else if (strcmp(mnemonic, "or") == 0) {
@@ -507,8 +506,6 @@ int main(int argc, char **argv) {
       *cur_insn = 0x7055;
     } else if (strcmp(mnemonic, "shl") == 0) {
       *cur_insn = 0x7056;
-    } else if (strcmp(mnemonic, "join") == 0) {
-      *cur_insn = 0x7057;
     } else if (strcmp(mnemonic, "sub") == 0) {
       *cur_insn = 0x7061;
     } else if (strcmp(mnemonic, "mul") == 0) {

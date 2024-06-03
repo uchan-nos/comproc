@@ -64,6 +64,7 @@ POP1       |0111000001000000| stack[1] 以降をポップ（stack[0] を保持�
 INC        |0111000000000001| stack[0]++
 INC2       |0111000000000010| stack[0] += 2
 NOT        |0111000000000100| stack[0] = ~stack[0]
+SIGN       |0111000000000101| stack[0] = stack[0] ^ 0x8000
 
 AND        |0111000001010000| stack[0] = stack[1] & stack[0]
 OR         |0111000001010001| stack[0] = stack[1] | stack[0]
@@ -71,7 +72,6 @@ XOR        |0111000001010010| stack[0] = stack[1] ^ stack[0]
 SHR        |0111000001010100| stack[0] = stack[1] >> stack[0]（符号なしシフト）
 SAR        |0111000001010101| stack[0] = stack[1] >> stack[0]（符号付きシフト）
 SHL        |0111000001010110| stack[0] = stack[1] << stack[0]
-JOIN       |0111000001010111| stack[0] = stack[1] | (stack[0] << 8)
 
 ADD        |0111000001100000| stack[0] = stack[1] + stack[0]
 SUB        |0111000001100001| stack[0] = stack[1] - stack[0]

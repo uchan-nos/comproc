@@ -8,6 +8,7 @@
 `define ALU_INC2  6'h02
 `define ALU_INC3  6'h03
 `define ALU_NOT   6'h04
+`define ALU_SIGN  6'h05
 `define ALU_B     6'h0f
 `define ALU_AND   6'h10
 `define ALU_OR    6'h11
@@ -15,7 +16,6 @@
 `define ALU_SHR   6'h14
 `define ALU_SAR   6'h15
 `define ALU_SHL   6'h16
-`define ALU_JOIN  6'h17
 `define ALU_ADD   6'h20
 `define ALU_SUB   6'h21
 `define ALU_MUL   6'h22

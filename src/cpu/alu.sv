@@ -10,6 +10,7 @@ ALU 機能
 02h   INC2  A + 2
 03h   INC3  A + 3
 04h   NOT   ~A
+05h   SIGN  A ^ 0x8000
 0fh   B     B
 10h   AND   B & A
 11h   OR    B | A
@@ -17,7 +18,6 @@ ALU 機能
 14h   SHR   B >> A
 15h   SAR   B >> A (符号付きシフト)
 16h   SHL   B << A
-17h   JOIN  B | (A << 8)
 20h   ADD   B + A
 21h   SUB   B - A
 22h   MUL   B * A
@@ -62,7 +62,8 @@ begin
   sb = b;
   casex (sel)
     6'b0000xx: alu = a + sel[1:0];
-    6'b0001xx: alu = ~a;
+    6'b0001x0: alu = ~a;
+    6'b0001x1: alu = a ^ 16'h8000;
     6'b001xxx: alu = b;
     6'b010000: alu = b & a;
     6'b010001: alu = b | a;
@@ -70,7 +71,6 @@ begin
     6'b010100: alu = b >> a;
     6'b010101: alu = sb >>> a;
     6'b010110: alu = b << a;
-    6'b010111: alu = b | (a << 8);
     6'b100000: alu = add;
     6'b100001: alu = sub;
     6'b100010: alu = b * a;

@@ -265,20 +265,23 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   switch (node->kind) {
   case kNodeInteger:
     if (value_class == VC_RVAL) {
-      if (node->token->value.as_int <= 0x7ffe) {
-        InsnInt(ctx, "push", node->token->value.as_int)->kind = kInsnInterp;
+      if (node->token->value.as_int <= 0x7fff) {
         if (req_onstack) {
-          GetLastInsn(ctx)->kind = kInsnNormal;
+          InsnInt(ctx, "push", node->token->value.as_int);
+        } else {
+          InsnInt(ctx, "push", node->token->value.as_int)->kind = kInsnInterp;
+          gen_result |= GEN_INTERP;
         }
       } else {
-        InsnInt(ctx, "push", node->token->value.as_int & 0xff)->kind = kInsnInterp;
-        InsnInt(ctx, "push", node->token->value.as_int >> 8)->kind = kInsnInterp;
-        Insn(ctx, "join")->kind = kInsnInterp;
         if (req_onstack) {
-          GetLastInsn(ctx)->kind = kInsnInterpResult;
+          InsnInt(ctx, "push", node->token->value.as_int & 0x7fff);
+          Insn(ctx, "sign");
+        } else {
+          InsnInt(ctx, "push", node->token->value.as_int & 0x7fff)->kind = kInsnInterp;
+          Insn(ctx, "sign")->kind = kInsnInterp;
+          gen_result |= GEN_INTERP;
         }
       }
-      gen_result |= GEN_INTERP;
     }
     break;
   case kNodeId:

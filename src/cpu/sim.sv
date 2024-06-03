@@ -236,13 +236,13 @@ always @(posedge clk) begin
       16'b0111_0000_0000_0001: insn_name <= "inc";
       16'b0111_0000_0000_0010: insn_name <= "inc2";
       16'b0111_0000_0000_0100: insn_name <= "not";
+      16'b0111_0000_0000_0101: insn_name <= "sign";
       16'b0111_0000_0101_0000: insn_name <= "and";
       16'b0111_0000_0101_0001: insn_name <= "or";
       16'b0111_0000_0101_0010: insn_name <= "xor";
       16'b0111_0000_0101_0100: insn_name <= "shr";
       16'b0111_0000_0101_0101: insn_name <= "sar";
       16'b0111_0000_0101_0110: insn_name <= "shl";
-      16'b0111_0000_0101_0111: insn_name <= "join";
       16'b0111_0000_0110_0000: insn_name <= "add";
       16'b0111_0000_0110_0001: insn_name <= "sub";
       16'b0111_0000_0110_0010: insn_name <= "mul";
