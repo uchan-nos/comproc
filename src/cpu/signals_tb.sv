@@ -325,6 +325,30 @@ initial begin
                   );
 
   @(posedge clk)
+    insn <= 16'h7801; // CALL
+    test_sig_phases(1,         // call
+                    16'hxxxx,  // imm_mask
+                    `SRCA_STK0,// src_a_sel
+                    `SRCB_X,   // src_b_sel
+                    `ALU_A,    // alu_sel
+                    x,         // wr_stk1
+                    1,         // pop
+                    0,         // push
+                    0,         // load_stk
+                    0,         // load_fp
+                    1,         // load_ip
+                    0,         // load_isr
+                    0,         // load_bar
+                    0,         // cpop
+                    0,         // cpush
+                    x,         // byt
+                    0,         // rd_mem
+                    0,         // wr_mem
+                    0,         // set_ien
+                    0          // clear_ien
+                  );
+
+  @(posedge clk)
     insn <= 16'h7810; // INT
     test_sig_phases(1,         // call
                     16'hxxxx,  // imm_mask

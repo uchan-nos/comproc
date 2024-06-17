@@ -252,6 +252,7 @@ always @(posedge clk) begin
       16'b0111_0000_1000_0000: insn_name <= "dup";
       16'b0111_0000_1000_1111: insn_name <= "dup1";
       16'b0111_1000_0000_0000: insn_name <= "ret";
+      16'b0111_1000_0000_0001: insn_name <= "call";
       16'b0111_1000_0000_0010: insn_name <= "cpop";
       16'b0111_1000_0000_0011: insn_name <= "cpush";
       16'b0111_1000_0000_1000: insn_name <= "ldd";

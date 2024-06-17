@@ -434,13 +434,17 @@ int main(int argc, char **argv) {
                     ip, strdup(GET_STR(0)), BP_IP_REL12);
       *cur_insn = 0x0000;
     } else if (strcmp(mnemonic, "call") == 0) {
-      if (num_backpatches == MAX_BP) {
-        fprintf(stderr, "too many backpatches\n");
-        exit(1);
+      if (num_opr == 0) {
+        *cur_insn = 0x7801;
+      } else {
+        if (num_backpatches == MAX_BP) {
+          fprintf(stderr, "too many backpatches\n");
+          exit(1);
+        }
+        InitBackpatch(backpatches + num_backpatches++,
+                      ip, strdup(GET_STR(0)), BP_IP_REL12);
+        *cur_insn = 0x0001;
       }
-      InitBackpatch(backpatches + num_backpatches++,
-                    ip, strdup(GET_STR(0)), BP_IP_REL12);
-      *cur_insn = 0x0001;
     } else if (strcmp(mnemonic, "jz") == 0) {
       if (num_backpatches == MAX_BP) {
         fprintf(stderr, "too many backpatches\n");
@@ -587,12 +591,21 @@ int main(int argc, char **argv) {
 
       int ins_pc = backpatches[i].ip;
       uint16_t ins = insn[(ins_pc - ORIGIN) >> 1];
+      int diff_pc = labels[l].ip - ins_pc - 2;
       switch (backpatches[i].type) {
       case BP_IP_REL12:
-        ins = (ins & 0xf001u) | ((labels[l].ip - ins_pc - 2) & 0xffeu);
+        if (diff_pc < -0x0800 || 0x0800 <= diff_pc) {
+          fprintf(stderr, "jump target is too far (BP_IP_REL12): diff=%d\n", diff_pc);
+          exit(1);
+        }
+        ins = (ins & 0xf001u) | (diff_pc & 0xffeu);
         break;
       case BP_IP_REL10:
-        ins = (ins & 0xfc01u) | ((labels[l].ip - ins_pc - 2) & 0x3feu);
+        if (diff_pc < -0x0200 || 0x200 <= diff_pc) {
+          fprintf(stderr, "jump target is too far (BP_IP_REL10): diff=%d\n", diff_pc);
+          exit(1);
+        }
+        ins = (ins & 0xfc01u) | (diff_pc & 0x3feu);
         break;
       case BP_ABS10:
         ins = (ins & 0xfc00u) | (labels[l].ip & 0x3ffu);

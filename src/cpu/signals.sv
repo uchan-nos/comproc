@@ -38,7 +38,7 @@ assign src_a_sel = src_a_bar ? `SRCA_BAR
                    : src_a_fp ? `SRCA_FP
                    : `SRCA_STK0;
 assign src_a_bar = phase_half & (insn_src_a === `SRCA_BAR) & ~irq_pend;
-assign src_a_ip = ~phase_half | (insn_src_a === `SRCA_IP) | irq_pend;
+assign src_a_ip = ~phase_half | (insn_src_a === `SRCA_IP) | irq_pend | (insn_call & phase_decode);
 assign src_a_cstk = phase_half & (insn_src_a === `SRCA_CSTK) & ~irq_pend;
 assign src_a_fp = phase_half & (insn_src_a === `SRCA_FP) & ~irq_pend;
 assign src_b_sel = irq_pend ? `SRCB_ISR : insn_src_b;
@@ -67,7 +67,7 @@ logic [1:0] insn_src_b;
 logic [5:0] insn_alu_sel;
 logic insn_pop, insn_push, insn_stk, insn_fp, insn_ip, insn_isr, insn_bar,
   insn_cpop, insn_cpush, insn_byt, insn_rd, insn_wr,
-  insn_set_ien, insn_clear_ien;
+  insn_set_ien, insn_clear_ien, insn_call;
 decoder decoder(
   .insn(insn),
   .sign(sign),
@@ -89,7 +89,8 @@ decoder decoder(
   .rd_mem(insn_rd),
   .wr_mem(insn_wr),
   .set_ien(insn_set_ien),
-  .clear_ien(insn_clear_ien)
+  .clear_ien(insn_clear_ien),
+  .call(insn_call)
 );
 
 logic reload_ip;

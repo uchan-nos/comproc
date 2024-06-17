@@ -878,7 +878,8 @@ int main(int argc, char **argv) {
       }
     }
   }
-  InsnLabelStr(&gen_ctx, "call", "main");
+  InsnLabelStr(&gen_ctx, "push", "main");
+  Insn(&gen_ctx, "call");
   InsnBaseOff(&gen_ctx, "st", NULL, 0x06);
   AddLabelStr(&gen_ctx, "fin");
   InsnLabelStr(&gen_ctx, "jmp", "fin");

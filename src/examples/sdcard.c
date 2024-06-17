@@ -116,6 +116,26 @@ void int2hex(int val, char *s, int n) {
   }
 }
 
+void int2dec(int val, char *s, int n) {
+  int i;
+  int dec_arr[6];
+  int digit;
+  dec_arr[0] = 1;
+  for (i = 1; i < n; i++) {
+    dec_arr[i] = dec_arr[i - 1] * 10;
+  }
+
+  for (i = 0; i < n; i++) {
+    int dec = dec_arr[n - i - 1];
+    int digit = 0;
+    while (val >= dec) {
+      val -= dec;
+      digit++;
+    }
+    s[i] = digit + '0';
+  }
+}
+
 void send_sd_cmd(char cmd, int arg_high, int arg_low, char crc) {
   send_spi(0x40 + cmd);
   send_spi(arg_high >> 8);
@@ -348,22 +368,24 @@ int main() {
     return 1;
   }
 
-  lcd_puts("SD:V");
+  lcd_puts("SDv");
   if (sdinfo & 0x0001) {
     lcd_puts("2+");
   } else {
     lcd_puts("1 ");
   }
   if (sdinfo & 0x0002) {
-    lcd_puts(" HC");
+    lcd_puts("HC");
   } else {
-    lcd_puts(" SC");
+    lcd_puts("SC");
   }
 
   cap_mib = sd_get_capacity_mib();
-  lcd_puts(" ");
-  int2hex(cap_mib, buf, 4);
+  lcd_puts(" 0x");
+  //int2hex(cap_mib, buf, 4);
+  int2dec(cap_mib, buf, 4);
   buf[4] = 0;
   lcd_puts(buf);
-  lcd_puts("MiB");
+  while (1) {}
+  lcd_puts("MB");
 }
