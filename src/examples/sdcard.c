@@ -381,11 +381,11 @@ int main() {
   }
 
   cap_mib = sd_get_capacity_mib();
-  lcd_puts(" 0x");
+  //lcd_puts(" 0x");
   //int2hex(cap_mib, buf, 4);
+  lcd_puts(" ");
   int2dec(cap_mib, buf, 4);
   buf[4] = 0;
   lcd_puts(buf);
-  while (1) {}
   lcd_puts("MB");
 }

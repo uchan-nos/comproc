@@ -453,7 +453,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         Generate(ctx, args[num_args - 1 - i], VC_RVAL, 1);
       }
       if (node->lhs->kind == kNodeId) {
-        InsnLabelToken(ctx, "call", node->lhs->token);
+        InsnLabelToken(ctx, "push", node->lhs->token);
+        Insn(ctx, "call");
       } else {
         fprintf(stderr, "not implemented call of non-id expression\n");
         Locate(node->lhs->token->raw);
