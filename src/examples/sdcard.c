@@ -275,6 +275,10 @@ int sd_init() {
   return res;
 }
 
+int sd_get_read_bl_len(int *csd) {
+  return csd[2] & 0x000f; // [83:80]
+}
+
 int sd_get_capacity_mib_csdv1(int *csd) {
   int c_size;
   int c_size_mult;
@@ -285,7 +289,7 @@ int sd_get_capacity_mib_csdv1(int *csd) {
   c_size = c_size | ((csd[4] >> 14) & 3); // [63:62]
   c_size_mult = (csd[4] & 3) << 1;                  // [49:48]
   c_size_mult = c_size_mult | ((csd[5] >> 15) & 1); // [47]
-  read_bl_len = csd[2] & 0x000f; // [83:80]
+  read_bl_len = sd_get_read_bl_len(csd);
 
   // memory capacity = (C_SIZE + 1) * 2^(C_SIZE_MULT + 2 + READ_BL_LEN)
   shift =
@@ -326,12 +330,10 @@ int sd_get_capacity_mib_csdv2(int *csd) {
   return cap_mib;
 }
 
-// MiB 単位の容量
-int sd_get_capacity_mib() {
+// CSD レジスタを取得する
+int sd_read_csd(int *csd) {
   int i;
   int r1;
-  int csd[9]; // 末尾は 16 ビットの CRC
-  int csdv;
 
   assert_cs();
   send_sd_cmd(9, 0, 0, 0); // CMD9 (SEND_CSD)
@@ -347,6 +349,12 @@ int sd_get_capacity_mib() {
     csd[i] = recv_spi_16();
   }
   deassert_cs();
+  return 0;
+}
+
+// MiB 単位の容量
+int sd_get_capacity_mib(int *csd) {
+  int csdv;
 
   csdv = (csd[0] >> 14) & 3;
   if (csdv == 0) { // Ver.1
@@ -354,12 +362,14 @@ int sd_get_capacity_mib() {
   } else if (csdv >= 1) { // Ver.2 or Ver.3
     return sd_get_capacity_mib_csdv2(csd);
   }
+  return -1;
 }
 
 int main() {
   int sdinfo;
   int cap_mib;
   char buf[5];
+  int csd[9]; // 末尾は 16 ビットの CRC
 
   lcd_init();
 
@@ -380,7 +390,11 @@ int main() {
     lcd_puts("SC");
   }
 
-  cap_mib = sd_get_capacity_mib();
+  if (sd_read_csd(csd) < 0) {
+    return 1;
+  }
+
+  cap_mib = sd_get_capacity_mib(csd);
   //lcd_puts(" 0x");
   //int2hex(cap_mib, buf, 4);
   lcd_puts(" ");
@@ -388,4 +402,15 @@ int main() {
   buf[4] = 0;
   lcd_puts(buf);
   lcd_puts("MB");
+
+  buf[0] = sd_get_read_bl_len(csd);
+  if (buf[0] < 10) {
+    buf[0] += '0';
+  } else {
+    buf[0] += 'A' - 10;
+  }
+  lcd_puts_addr(0x40, "READ_BL_LEN=");
+  lcd_out8(4, buf[0]);
+
+  // TODO: READ_BL_LEN != 9 なら CMD16 で 512 に設定する
 }
