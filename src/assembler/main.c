@@ -7,6 +7,7 @@
 #define MAX_OPERAND 128
 #define ORIGIN 0x4000
 #define MAX_BP 256
+#define MAX_LABEL 256
 
 // line をニーモニックとオペランドに分割する
 // 戻り値: オペランドの数
@@ -324,7 +325,7 @@ int main(int argc, char **argv) {
   struct Backpatch backpatches[MAX_BP];
   int num_backpatches = 0;
 
-  struct LabelAddr labels[128];
+  struct LabelAddr labels[MAX_LABEL];
   int num_labels = 0;
 
   struct Interp interp;

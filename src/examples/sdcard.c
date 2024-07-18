@@ -75,6 +75,10 @@ int recv_spi_16() {
 }
 
 // SD の R1 レスポンスは最上位ビットが 0
+//
+// 戻り値
+// >=0: SD からのレスポンス
+// <0:  レスポンス受信がタイムアウト
 int wait_sd_response() {
   int i;
   int resp = spi_dat;
@@ -365,11 +369,62 @@ int sd_get_capacity_mib(int *csd) {
   return -1;
 }
 
+int sd_set_block_len_512() {
+  int r1;
+
+  assert_cs(); // CS = 0
+  send_sd_cmd(16, 0, 512, 0); // CMD16
+  r1 = wait_sd_r1();
+  deassert_cs(); // CS = 1
+  if (r1 != 0) {
+    show_sd_cmd_error(16, r1, "FAILED");
+    return -1;
+  }
+  return 0;
+}
+
+// 1 ブロック読み込み
+int sd_read_block(int *buf, int block_addr, int ccs) {
+  int i;
+  int r1;
+
+  int addr_hi;
+  int addr_lo;
+  if (ccs) {
+    addr_lo = block_addr;
+    addr_hi = 0;
+  } else {
+    // バイトアドレスに変換
+    addr_lo = block_addr << 9;
+    addr_hi = block_addr >> (16 - 9);
+  }
+
+  assert_cs();
+  send_sd_cmd(17, addr_hi, addr_lo, 0); // CMD17 (SEND_SINGLE_BLOCK)
+  r1 = wait_sd_r1();
+  if (r1 != 0) {
+    show_sd_cmd_error(17, r1, "FAILED");
+    return -1;
+  }
+
+  while (spi_dat != 0xfe) { // Start Block トークンを探す
+    send_spi(0xff);
+  }
+  for (i = 0; i < 256; i++) {
+    buf[i] = recv_spi_16();
+  }
+  deassert_cs();
+  return 0;
+}
+
 int main() {
+  int i;
   int sdinfo;
+  int block_len;
   int cap_mib;
   char buf[5];
   int csd[9]; // 末尾は 16 ビットの CRC
+  int block_buf[256];
 
   lcd_init();
 
@@ -403,14 +458,23 @@ int main() {
   lcd_puts(buf);
   lcd_puts("MB");
 
-  buf[0] = sd_get_read_bl_len(csd);
-  if (buf[0] < 10) {
-    buf[0] += '0';
-  } else {
-    buf[0] += 'A' - 10;
-  }
-  lcd_puts_addr(0x40, "READ_BL_LEN=");
-  lcd_out8(4, buf[0]);
+  block_len = sd_get_read_bl_len(csd);
 
-  // TODO: READ_BL_LEN != 9 なら CMD16 で 512 に設定する
+  if (block_len != 9) {
+    if (sd_set_block_len_512() < 0) {
+      return 1;
+    }
+  }
+
+  // sdinfo bit1 が CCS
+  if (sd_read_block(block_buf, 0, (sdinfo & 2) != 0) < 0) {
+    return 1;
+  }
+  lcd_out8(0, 0xc0);
+  for (i = 0; i < 4; i++) {
+    //int2hex(block_buf[(0x1c0>>1) + i], buf, 4);
+    int2hex(block_buf[(0x1f8>>1) + i], buf, 4);
+    buf[4] = 0;
+    lcd_puts(buf);
+  }
 }
