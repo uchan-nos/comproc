@@ -425,6 +425,7 @@ int main() {
   char buf[5];
   int csd[9]; // 末尾は 16 ビットの CRC
   int block_buf[256];
+  int lba_start_lo;
 
   lcd_init();
 
@@ -471,10 +472,30 @@ int main() {
     return 1;
   }
   lcd_out8(0, 0xc0);
-  for (i = 0; i < 4; i++) {
-    //int2hex(block_buf[(0x1c0>>1) + i], buf, 4);
-    int2hex(block_buf[(0x1f8>>1) + i], buf, 4);
+
+  // MBR か PBR の判定
+  if (block_buf[255] != 0x55AA) { // 最終 2 バイトが 55 AA ではない
+    lcd_puts("not found 55 AA");
+    return 1;
+  }
+  if ((((block_buf[0] & 0x00ff) == 0xEB && (block_buf[1] >> 8) == 0x90)) ||
+      ((block_buf[0] & 0x00ff) == 0xE9)) {
+    lcd_puts("PBR");
+  } else if (((block_buf[223] >> 8) & 0x7f) == 0) {
+    lcd_puts("MBR ");
+    int2hex(block_buf[223 + 2] >> 8, buf, 2);
+    buf[2] = 0;
+    lcd_puts(buf);
+    lcd_puts(" ");
+
+    lba_start_lo = block_buf[223 + 4];
+    // LBA Start はリトルエンディアンなので、エンディアンを変換する
+    lba_start_lo = ((lba_start_lo >> 8) & 0xff) | (lba_start_lo << 8);
+
+    int2hex(lba_start_lo, buf, 4);
     buf[4] = 0;
     lcd_puts(buf);
+  } else {
+    lcd_puts("Unknown BS");
   }
 }
