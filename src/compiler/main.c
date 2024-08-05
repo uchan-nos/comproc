@@ -233,9 +233,19 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     switch (value_class) {
     case VC_RVAL:
       lhs_res = Generate(ctx, node->lhs, VC_RVAL, 0);
+      if (node->lhs->type->kind == kTypeChar &&
+          (node->lhs->type->attr & TYPE_ATTR_SIGNED) != 0) { // signed char
+        Insn(ctx, "exts")->kind = GetLastInsn(ctx)->kind;
+      }
       lhs_insn = GetLastInsn(ctx);
+
       rhs_res = Generate(ctx, node->rhs, VC_RVAL, 0);
+      if (node->rhs->type->kind == kTypeChar &&
+          (node->rhs->type->attr & TYPE_ATTR_SIGNED) != 0) { // signed char
+        Insn(ctx, "exts")->kind = GetLastInsn(ctx)->kind;
+      }
       rhs_insn = GetLastInsn(ctx);
+
       gen_result |= (lhs_res & rhs_res & GEN_INTERP);
       if ((lhs_res & GEN_INTERP) && !(rhs_res & GEN_INTERP)) {
         assert(lhs_insn->kind == kInsnInterp);
@@ -598,7 +608,13 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   case kNodeRShift:
   case kNodeLShift:
     PRINT_NODE_COMMENT(ctx, node, "R/LShift");
-    Insn(ctx, node->kind == kNodeRShift ? "sar" : "shl");
+    if (node->kind == kNodeLShift) {
+      Insn(ctx, "shl");
+    } else if (node->lhs->type->attr & TYPE_ATTR_SIGNED) {
+      Insn(ctx, "sar");
+    } else { // unsigned shift
+      Insn(ctx, "shr");
+    }
     break;
   // end of standard binary expression
 

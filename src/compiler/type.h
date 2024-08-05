@@ -11,10 +11,14 @@ enum TypeKind {
   kTypeVoid,
 };
 
+// 整数型（char, int）はデフォルトで unsigned とみなす
+#define TYPE_ATTR_SIGNED 0x0001u
+
 struct Type {
   enum TypeKind kind;
   struct Type *base;
   int len;
+  unsigned int attr;
 };
 
 struct Type *NewType(enum TypeKind kind);

@@ -22,7 +22,9 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token) {
 }
 
 struct Node *NewNodeInteger(struct Token *token) {
-  return NewNode(kNodeInteger, token);
+  struct Node *n = NewNode(kNodeInteger, token);
+  n->type = NewType(kTypeInt);
+  return n;
 }
 
 struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
@@ -472,10 +474,8 @@ struct Node *Primary() {
     Expect(')');
   } else if ((tk = Consume(kTokenInteger))) {
     node = NewNodeInteger(tk);
-    node->type = NewType(kTypeInt);
   } else if ((tk = Consume(kTokenCharacter))) {
     node = NewNodeInteger(tk);
-    node->type = NewType(kTypeInt);
   } else if ((tk = Consume(kTokenString))) {
     node = NewNode(kNodeString, tk);
     node->type = NewType(kTypePtr);
@@ -496,6 +496,14 @@ struct Node *TypeSpec() {
   struct Type *type = NULL;
   struct Token *token;
 
+  // (un)signed が明示的に指定されたら 1
+  int attr_signed = 0, attr_unsigned = 0;
+  if ((token = Consume(kTokenSigned))) {
+    attr_signed = 1;
+  } else if ((token = Consume(kTokenUnsigned))) {
+    attr_unsigned = 1;
+  }
+
   if ((token = Consume(kTokenInt))) {
     type = NewType(kTypeInt);
   } else if ((token = Consume(kTokenChar))) {
@@ -505,7 +513,19 @@ struct Node *TypeSpec() {
   }
 
   if (!type) {
-    return NULL;
+    if (attr_signed || attr_unsigned) {
+      type = NewType(kTypeInt); // デフォルトで int
+    } else {
+      return NULL;
+    }
+  }
+
+  if (attr_signed) {
+    type->attr |= TYPE_ATTR_SIGNED;
+  } else if (attr_unsigned) {
+    // pass
+  } else if (type->kind != kTypeChar) {
+    type->attr |= TYPE_ATTR_SIGNED;
   }
 
   if (Consume('*')) {

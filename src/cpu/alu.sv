@@ -11,6 +11,7 @@ ALU 機能
 03h   INC3  A + 3
 04h   NOT   ~A
 05h   SIGN  A ^ 0x8000
+06h   EXTS  A | ((A & 0x80) ? 0xff00 : 0)
 0fh   B     B
 10h   AND   B & A
 11h   OR    B | A
@@ -21,10 +22,12 @@ ALU 機能
 20h   ADD   B + A
 21h   SUB   B - A
 22h   MUL   B * A
-28h   LT    B < A
-29h   EQ    B == A
-2ah   NEQ   B != A
-2bh   LE    B <= A
+28h   EQ    B == A
+29h   NEQ   B != A
+2ah   LT    B < A (signed)
+2bh   LE    B <= A (signed)
+2ch   BT    B < A (unsigned)
+2dh   BE    B <= A (unsigned)
 30h   ADDZ  cond ? A : B+A
 31h   ADDNZ cond ? B+A : A
 */
@@ -62,8 +65,9 @@ begin
   sb = b;
   casex (sel)
     6'b0000xx: alu = a + sel[1:0];
-    6'b0001x0: alu = ~a;
+    6'b000100: alu = ~a;
     6'b0001x1: alu = a ^ 16'h8000;
+    6'b000110: alu = a | (a[7] ? 16'hff00 : 16'd0);
     6'b001xxx: alu = b;
     6'b010000: alu = b & a;
     6'b010001: alu = b | a;

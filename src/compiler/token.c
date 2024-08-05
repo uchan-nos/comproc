@@ -35,6 +35,8 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(void,          kTokenVoid),
   ITEM(asm,           kTokenAsm),
   ITEM(__attribute__, kTokenAttr),
+  ITEM(signed,        kTokenSigned),
+  ITEM(unsigned,      kTokenUnsigned),
   {NULL, 0, 0},
 };
 static struct ReservedMapItem operator_map[] = {

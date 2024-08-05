@@ -237,6 +237,7 @@ always @(posedge clk) begin
       16'b0111_0000_0000_0010: insn_name <= "inc2";
       16'b0111_0000_0000_0100: insn_name <= "not";
       16'b0111_0000_0000_0101: insn_name <= "sign";
+      16'b0111_0000_0000_0110: insn_name <= "exts";
       16'b0111_0000_0101_0000: insn_name <= "and";
       16'b0111_0000_0101_0001: insn_name <= "or";
       16'b0111_0000_0101_0010: insn_name <= "xor";

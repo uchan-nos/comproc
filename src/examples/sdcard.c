@@ -423,9 +423,9 @@ int main() {
   int block_len;
   int cap_mib;
   char buf[5];
-  int csd[9]; // 末尾は 16 ビットの CRC
-  int block_buf[256];
-  int lba_start_lo;
+  unsigned int csd[9]; // 末尾は 16 ビットの CRC
+  unsigned int block_buf[256];
+  unsigned int lba_start_lo;
 
   lcd_init();
 

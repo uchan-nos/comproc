@@ -7,6 +7,7 @@ struct Type *NewType(enum TypeKind kind) {
   type->kind = kind;
   type->base = NULL;
   type->len = 0;
+  type->attr = 0;
   return type;
 }
 

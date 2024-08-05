@@ -499,6 +499,8 @@ int main(int argc, char **argv) {
       *cur_insn = 0x7004;
     } else if (strcmp(mnemonic, "sign") == 0) {
       *cur_insn = 0x7005;
+    } else if (strcmp(mnemonic, "exts") == 0) {
+      *cur_insn = 0x7006;
     } else if (strcmp(mnemonic, "and") == 0) {
       *cur_insn = 0x7050;
     } else if (strcmp(mnemonic, "or") == 0) {

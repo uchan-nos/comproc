@@ -65,6 +65,7 @@ INC        |0111000000000001| stack[0]++
 INC2       |0111000000000010| stack[0] += 2
 NOT        |0111000000000100| stack[0] = ~stack[0]
 SIGN       |0111000000000101| stack[0] = stack[0] ^ 0x8000
+EXTS       |0111000000000110| stack[0] = stack[0] | (stack[0][7] ? 0xff00 : 0)
 
 AND        |0111000001010000| stack[0] = stack[1] & stack[0]
 OR         |0111000001010001| stack[0] = stack[1] | stack[0]

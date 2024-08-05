@@ -166,3 +166,8 @@ test_value 01 'int tim_cnt __attribute__((at(2))); int main(){ tim_cnt=3; while 
 test_value 01 'char large[300]; char c __attribute__((at(546))); int main(){ large[290] = 3; return c - 2; }'
 test_value 04 'int buf[4096]; int main(){int i; for(i=0; i<4096; i+=256){buf[i] = i;} return buf[1024]-1020; }'
 test_value 02 'int main() { int i = -1; if (i < 0) { return 2; } else { return 3; } }'
+test_value f8 'int main() { int i = 0x8000; i = i >> 12; return i; }'
+test_value 08 'int main() { unsigned int u = 0x8000; u = u >> 12; return u; }'
+test_value 01 'int main() { int i = 0xffff; return i < 0; }'
+test_value 00 'int main() { unsigned u = 0xffff; return u < 0; }'
+#test_value 00 'int main() { signed char sc = 0xff; return sc > -1; }'
