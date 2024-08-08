@@ -41,12 +41,6 @@ struct Scope *EnterScope(struct Scope *current) {
   return s;
 }
 
-struct Scope *LeaveScope(struct Scope *current) {
-  struct Scope *parent = current->parent;
-  free(current);
-  return parent;
-}
-
 struct Symbol *FindSymbol(struct Scope *scope, struct Token *name) {
   struct Symbol *sym = NULL;
   while (scope && !sym) {
@@ -60,5 +54,6 @@ struct Scope *NewGlobalScope(struct Symbol *global_syms) {
   struct Scope *s = malloc(sizeof(struct Scope));
   s->parent = NULL;
   s->syms = global_syms;
+  s->frame_size = 0;
   return s;
 }

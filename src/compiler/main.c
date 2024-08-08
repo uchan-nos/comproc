@@ -37,7 +37,6 @@ struct JumpLabels {
 
 struct GenContext {
   struct Scope *scope;
-  int lvar_offset;
   int line_add_fp; // add fp, N 命令が最後に配置された行番号
   int num_label;
   int num_strings;
@@ -309,7 +308,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         break;
       case kSymGVar:
         assert(sym->type);
-        node->type = sym->type;
         if (sym->type->kind == kTypeArray) {
           if (value_class == VC_LVAL) {
             fprintf(stderr, "array itself cannot be l-value: %.*s\n",
@@ -338,7 +336,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
           node->type = NewType(kTypeVoid);
           break;
         }
-        node->type = sym->type;
         if (sym->type->kind == kTypeArray) {
           if (value_class == VC_LVAL) {
             fprintf(stderr, "array itself cannot be l-value: %.*s\n",
@@ -396,7 +393,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       } else {
         InsnInt(ctx, "dup", 0);
         InsnInt(ctx, "push", 1);
-        node->type = node->lhs->type;
       }
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->lhs, VC_LVAL, 1);
@@ -412,8 +408,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       if (value_class == VC_NO_NEED) {
         Insn(ctx, "pop");
         node->type = NewType(kTypeVoid);
-      } else {
-        node->type = node->rhs->type;
       }
     }
     break;
@@ -422,8 +416,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     break;
   case kNodeDeref:
     Generate(ctx, node->rhs, VC_RVAL, 1);
-    assert(node->rhs->type->base);
-    node->type = node->rhs->type->base;
     if (value_class == VC_RVAL) {
       Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
     } else if (value_class == VC_NO_NEED) {
@@ -481,7 +473,6 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       node->type = NewType(kTypeVoid);
     } else {
       Generate(ctx, node->rhs, value_class, 1);
-      node->type = node->lhs->type;
     }
     break;
   case kNodeVoid:
@@ -547,17 +538,14 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     if (value_class == VC_NO_NEED) {
       node->type = NewType(kTypeVoid);
       Insn(ctx, "pop");
-    } else {
-      node->type = node->lhs->type;
     }
     break;
 
   // standard binary expression
   case kNodeAdd:
     PRINT_NODE_COMMENT(ctx, node, "Add");
-    if (node->lhs->type &&
-        (node->lhs->type->kind == kTypePtr ||
-        node->lhs->type->kind == kTypeArray)) {
+    if (node->lhs->type->kind == kTypePtr ||
+        node->lhs->type->kind == kTypeArray) {
       size_t element_size = SizeofType(node->lhs->type->base);
       if (element_size > 1) {
         InsnInt(ctx, "push", (int)element_size);
@@ -565,17 +553,14 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
     }
     Insn(ctx, "add");
-    node->type = node->lhs->type;
     break;
   case kNodeSub:
     PRINT_NODE_COMMENT(ctx, node, "Sub");
     Insn(ctx, "sub");
-    node->type = node->lhs->type;
     break;
   case kNodeMul:
     PRINT_NODE_COMMENT(ctx, node, "Mul");
     Insn(ctx, "mul");
-    node->type = node->lhs->type;
     break;
   case kNodeLT:
     PRINT_NODE_COMMENT(ctx, node, "LT");
@@ -620,7 +605,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
 
   case kNodeDefFunc:
     {
-      ctx->scope = EnterScope(ctx->scope);
+      ctx->scope = node->scope;
 
       struct Token *func_name = node->token;
       AddLabelToken(ctx, func_name);
@@ -631,15 +616,9 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
 
       InsnReg(ctx, "cpush", "fp");
-      ctx->lvar_offset = 0;
       for (struct Node *param = node->cond; param; param = param->next) {
-        struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
-        sym->offset = ctx->lvar_offset;
-        sym->type = param->type;
-        assert(sym->type);
-        AppendSymbol(ctx->scope->syms, sym);
+        struct Symbol *sym = FindSymbol(ctx->scope, param->lhs->token);
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
-        ctx->lvar_offset += 2;
       }
       ctx->line_add_fp = ctx->num_line;
       // add fp のオペランド値は、関数定義の処理後に上書きされる
@@ -651,18 +630,13 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         InsnReg(ctx, "cpop", "fp");
         Insn(ctx, ctx->is_isr ? "iret" : "ret");
       }
-
-      ctx->scope = LeaveScope(ctx->scope);
     }
     break;
   case kNodeBlock:
-    ctx->scope = EnterScope(ctx->scope);
-
+    ctx->scope = node->scope;
     for (struct Node *n = node->next; n; n = n->next) {
       Generate(ctx, n, VC_NO_NEED, 1);
     }
-
-    ctx->scope = LeaveScope(ctx->scope);
     break;
   case kNodeReturn:
     if (node->lhs) {
@@ -674,24 +648,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   case kNodeDefVar:
     {
       int is_global = ctx->scope->parent == NULL;
-      struct Symbol *sym;
-      if (is_global) {
-        sym = FindSymbol(ctx->scope, node->lhs->token);
-      } else {
-        sym = NewSymbol(kSymLVar, node->lhs->token);
-        assert(node->type);
-        sym->type = node->type;
-        AppendSymbol(ctx->scope->syms, sym);
-      }
+      struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
       assert(sym->type);
 
-      size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
       if (is_global) {
         assert(sym->offset != 0);
       } else {
-        sym->offset = ctx->lvar_offset;
-        ctx->lvar_offset += mem_size;
-
         if (node->rhs) {
           Generate(ctx, node->rhs, VC_RVAL, 1);
           if (SizeofType(sym->type) == 1) {
@@ -855,8 +817,10 @@ int main(int argc, char **argv) {
     fclose(input_file);
   }
 
+  struct Scope *global_scope = NewGlobalScope(NewSymbol(kSymHead, NULL));
+  global_scope->frame_size = 0x100;
   struct ParseContext parse_ctx = {
-    NewSymbol(kSymHead, NULL)
+    global_scope
   };
 
   Tokenize(src);
@@ -878,17 +842,16 @@ int main(int argc, char **argv) {
   }
 
   struct GenContext gen_ctx = {
-    NewGlobalScope(parse_ctx.global_syms),
-    2, 0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
+    parse_ctx.scope,
+    0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
-  int gvar_offset = 0x100;
 
   struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
-  for (struct Symbol *sym = gen_ctx.scope->syms->next; sym; sym = sym->next) {
+  for (struct Symbol *sym = global_scope->syms->next; sym; sym = sym->next) {
     if (sym->kind == kSymGVar && sym->offset == 0) {
-      size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
-      sym->offset = gvar_offset;
-      gvar_offset += mem_size;
+      //size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
+      //sym->offset = gvar_offset;
+      //gvar_offset += mem_size;
       if (sym->def->rhs) {
         Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
         InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
@@ -911,14 +874,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "line %d must be 'add fp, N'\n", gen_ctx.line_add_fp);
         exit(1);
       }
-      if (gen_ctx.lvar_offset == 0) {
+      if (n->scope->frame_size == 0) {
         line->kind = kAsmLineDeleted;
       } else {
-        line->insn.operands[1].val_int = gen_ctx.lvar_offset;
+        line->insn.operands[1].val_int = n->scope->frame_size;
       }
     }
   }
-  insn_add_fp->operands[1].val_int = gvar_offset;
+  insn_add_fp->operands[1].val_int = global_scope->frame_size;
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;

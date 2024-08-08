@@ -8,6 +8,8 @@
 #include "symbol.h"
 #include "token.h"
 
+struct Type *TYPE_INT;
+
 void Locate(char *p);
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token) {
@@ -18,12 +20,13 @@ struct Node *NewNode(enum NodeKind kind, struct Token *token) {
   n->token = token;
   n->next = n->lhs = n->rhs = n->cond = NULL;
   n->type = NULL;
+  n->scope = NULL;
   return n;
 }
 
 struct Node *NewNodeInteger(struct Token *token) {
   struct Node *n = NewNode(kNodeInteger, token);
-  n->type = NewType(kTypeInt);
+  n->type = TYPE_INT;
   return n;
 }
 
@@ -35,7 +38,30 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
   return n;
 }
 
+struct Type *DecideBinOpType(struct Type *lhs, struct Type *rhs) {
+  struct Type *t = NULL;
+  if (lhs->kind == kTypeChar && rhs->kind == kTypeChar) {
+    t = TYPE_INT;
+  } else if (lhs->kind == kTypeChar) { // rhs は int
+    t = rhs;
+  } else if (rhs->kind == kTypeChar) { // lhs は int
+    t = lhs;
+  } else { // 両辺が int
+    if (lhs->attr & TYPE_ATTR_SIGNED) {
+      // lhs が signed のとき、全体の型は rhs の signed/unsigned により決まる
+      t = rhs;
+    } else {
+      // lhs が unsigned のとき、全体の型は unsigned になる
+      t = lhs;
+    }
+  }
+  return t;
+}
+
 struct Node *Program(struct ParseContext *ctx) {
+  TYPE_INT = NewType(kTypeInt);
+  TYPE_INT->attr = TYPE_ATTR_SIGNED;
+
   struct Node *head = ExternalDeclaration(ctx);
   struct Node *n = head;
   while (n) {
@@ -62,19 +88,29 @@ struct Node *ExternalDeclaration(struct ParseContext *ctx) {
 
 struct Node *FunctionDefinition(struct ParseContext *ctx,
                                 struct Node *tspec, struct Token *id) {
+  struct Node *func_def = NewNode(kNodeDefFunc, id);
+  struct Symbol *func_sym = NewSymbol(kSymFunc, id);
+  func_sym->def = func_def;
+  AppendSymbol(ctx->scope->syms, func_sym);
+
+  ctx->scope = EnterScope(ctx->scope);
+
   struct Node *params = ParameterList();
   Expect(')');
-  struct Node *body = Block();
+  for (struct Node *param = params; param; param = param->next) {
+    struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
+    sym->type = param->type;
+    sym->offset = ctx->scope->frame_size;
+    ctx->scope->frame_size += 2;
+    AppendSymbol(ctx->scope->syms, sym);
+  }
 
-  struct Node *func_def = NewNode(kNodeDefFunc, id);
   func_def->lhs = tspec;
-  func_def->rhs = body;
+  func_def->rhs = Block(ctx); // func body
   func_def->cond = params;
+  func_def->scope = ctx->scope;
 
-  struct Symbol *sym = NewSymbol(kSymFunc, id);
-  sym->def = func_def;
-  AppendSymbol(ctx->global_syms, sym);
-
+  ctx->scope = ctx->scope->parent;
   return func_def;
 }
 
@@ -93,54 +129,62 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
     def->type = t;
   }
 
-  if (ctx->global_syms) {
-    struct Symbol *sym = NewSymbol(kSymGVar, id);
-    sym->def = def;
-    sym->type = def->type;
-    assert(sym->type);
-    AppendSymbol(ctx->global_syms, sym);
+  assert(ctx->scope->syms);
+  assert(def->type);
+  struct Symbol *sym = NewSymbol(ctx->scope->parent ? kSymLVar : kSymGVar, id);
+  sym->def = def;
+  sym->type = def->type;
+  sym->offset = ctx->scope->frame_size;
 
-    if (Consume(kTokenAttr)) {
-      struct Token *attr;
-      Expect('(');
-      Expect('(');
-      if ((attr = Consume(kTokenId))) {
-        if (strncmp(attr->raw, "at", attr->len) == 0) {
-          Expect('(');
-          struct Token *addr = Expect(kTokenInteger);
-          sym->offset = addr->value.as_int;
-          Expect(')');
-        } else {
-          fprintf(stderr, "unknown attribute\n");
-          Locate(attr->raw);
-          exit(1);
-        }
+  int attr_at = 0;
+  if (Consume(kTokenAttr)) {
+    struct Token *attr;
+    Expect('(');
+    Expect('(');
+    if ((attr = Consume(kTokenId))) {
+      if (strncmp(attr->raw, "at", attr->len) == 0) {
+        Expect('(');
+        struct Token *addr = Expect(kTokenInteger);
+        sym->offset = addr->value.as_int;
+        Expect(')');
+        attr_at = 1;
+      } else {
+        fprintf(stderr, "unknown attribute\n");
+        Locate(attr->raw);
+        exit(1);
       }
-      Expect(')');
-      Expect(')');
     }
+    Expect(')');
+    Expect(')');
   }
 
+  if (!attr_at) {
+    size_t mem_size = (SizeofType(def->type) + 1) & ~((size_t)1);
+    ctx->scope->frame_size += mem_size;
+  }
+  AppendSymbol(ctx->scope->syms, sym);
+
   if (Consume('=')) {
-    def->rhs = Expression();
+    def->rhs = Expression(ctx);
   }
   Expect(';');
 
   return def;
 }
 
-struct Node *Block() {
+struct Node *Block(struct ParseContext *ctx) {
   struct Token *brace = Consume('{');
   if (brace == NULL) {
     return NULL;
   }
 
   struct Node *block = NewNode(kNodeBlock, brace);
+  block->scope = ctx->scope;
 
   struct Node *node = block;
   while (Consume('}') == NULL) {
-    if ((node->next = InnerDeclaration())) {
-    } else if ((node->next = Statement())) {
+    if ((node->next = InnerDeclaration(ctx))) {
+    } else if ((node->next = Statement(ctx))) {
     } else {
       fprintf(stderr, "either declaration or statement is expected\n");
       Locate(cur_token->raw);
@@ -153,9 +197,8 @@ struct Node *Block() {
   return block;
 }
 
-struct Node *InnerDeclaration() {
-  struct ParseContext ctx = { NULL };
-  struct Node *ed = ExternalDeclaration(&ctx);
+struct Node *InnerDeclaration(struct ParseContext *ctx) {
+  struct Node *ed = ExternalDeclaration(ctx);
   if (ed == NULL) {
     return NULL;
   }
@@ -167,12 +210,12 @@ struct Node *InnerDeclaration() {
   return ed;
 }
 
-struct Node *Statement() {
+struct Node *Statement(struct ParseContext *ctx) {
   struct Token *token;
 
   if ((token = Consume(kTokenReturn))) {
     struct Node *ret = NewNode(kNodeReturn, token);
-    ret->lhs = Expression();
+    ret->lhs = Expression(ctx);
     Expect(';');
     return ret;
   }
@@ -180,12 +223,12 @@ struct Node *Statement() {
   if ((token = Consume(kTokenIf))) {
     struct Node *if_ = NewNode(kNodeIf, token);
     Expect('(');
-    if_->cond = Expression();
+    if_->cond = Expression(ctx);
     Expect(')');
-    if_->lhs = Statement();
+    if_->lhs = Statement(ctx);
 
     if ((token = Consume(kTokenElse))) {
-      if_->rhs = Statement();
+      if_->rhs = Statement(ctx);
     }
 
     return if_;
@@ -194,13 +237,13 @@ struct Node *Statement() {
   if ((token = Consume(kTokenFor))) {
     struct Node *for_ = NewNode(kNodeFor, token);
     Expect('(');
-    for_->lhs = Expression();
+    for_->lhs = Expression(ctx);
     Expect(';');
-    for_->cond = Expression();
+    for_->cond = Expression(ctx);
     Expect(';');
-    for_->lhs->next = Expression();
+    for_->lhs->next = Expression(ctx);
     Expect(')');
-    for_->rhs = Statement();
+    for_->rhs = Statement(ctx);
 
     return for_;
   }
@@ -208,9 +251,9 @@ struct Node *Statement() {
   if ((token = Consume(kTokenWhile))) {
     struct Node *while_ = NewNode(kNodeWhile, token);
     Expect('(');
-    while_->cond = Expression();
+    while_->cond = Expression(ctx);
     Expect(')');
-    while_->rhs = Statement();
+    while_->rhs = Statement(ctx);
 
     return while_;
   }
@@ -226,7 +269,10 @@ struct Node *Statement() {
   }
 
   if (cur_token->kind == '{') {
-    return Block();
+    ctx->scope = EnterScope(ctx->scope);
+    struct Node *block = Block(ctx);
+    ctx->scope = ctx->scope->parent;
+    return block;
   }
 
   if ((token = Consume(kTokenAsm))) {
@@ -239,140 +285,168 @@ struct Node *Statement() {
     return asm_;
   }
 
-  struct Node *e = Expression();
+  struct Node *e = Expression(ctx);
   Expect(';');
 
   return e;
 }
 
-struct Node *Expression() {
-  return Assignment();
+struct Node *Expression(struct ParseContext *ctx) {
+  return Assignment(ctx);
 }
 
-struct Node *Assignment() {
-  struct Node *node = LogicalOr();
+struct Node *Assignment(struct ParseContext *ctx) {
+  struct Node *node = LogicalOr(ctx);
 
   struct Token *op;
   if ((op = Consume('='))) {
-    node = NewNodeBinOp(kNodeAssign, op, node, Assignment());
+    node = NewNodeBinOp(kNodeAssign, op, node, Assignment(ctx));
+    node->type = node->lhs->type;
   } else if ((op = Consume(kTokenCompAssign + '+'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
-                        NewNodeBinOp(kNodeAdd, op, node, Assignment()));
+                        NewNodeBinOp(kNodeAdd, op, node, Assignment(ctx)));
+    node->type = node->lhs->type;
   } else if ((op = Consume(kTokenCompAssign + '-'))) {
     node = NewNodeBinOp(kNodeAssign, op, node,
-                        NewNodeBinOp(kNodeSub, op, node, Assignment()));
+                        NewNodeBinOp(kNodeSub, op, node, Assignment(ctx)));
+    node->type = node->lhs->type;
   }
 
   return node;
 }
 
-struct Node *LogicalOr() {
-  struct Node *node = LogicalAnd();
+struct Node *LogicalOr(struct ParseContext *ctx) {
+  struct Node *node = LogicalAnd(ctx);
 
   struct Token *op;
   if ((op = Consume(kTokenOr))) {
-    node = NewNodeBinOp(kNodeLOr, op, node, LogicalOr());
+    node = NewNodeBinOp(kNodeLOr, op, node, LogicalOr(ctx));
   }
 
   return node;
 }
 
-struct Node *LogicalAnd() {
-  struct Node *node = BitwiseOr();
+struct Node *LogicalAnd(struct ParseContext *ctx) {
+  struct Node *node = BitwiseOr(ctx);
 
   struct Token *op;
   if ((op = Consume(kTokenAnd))) {
-    node = NewNodeBinOp(kNodeLAnd, op, node, LogicalAnd());
+    node = NewNodeBinOp(kNodeLAnd, op, node, LogicalAnd(ctx));
   }
 
   return node;
 }
 
-struct Node *BitwiseOr() {
-  struct Node *node = BitwiseXor();
+struct Node *BitwiseOr(struct ParseContext *ctx) {
+  struct Node *node = BitwiseXor(ctx);
 
   struct Token *op;
   if ((op = Consume('|'))) {
-    node = NewNodeBinOp(kNodeOr, op, node, BitwiseOr());
+    node = NewNodeBinOp(kNodeOr, op, node, BitwiseOr(ctx));
+    node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
   }
 
   return node;
 }
 
-struct Node *BitwiseXor() {
-  struct Node *node = BitwiseAnd();
+struct Node *BitwiseXor(struct ParseContext *ctx) {
+  struct Node *node = BitwiseAnd(ctx);
 
   struct Token *op;
   if ((op = Consume('^'))) {
-    node = NewNodeBinOp(kNodeXor, op, node, BitwiseXor());
+    node = NewNodeBinOp(kNodeXor, op, node, BitwiseXor(ctx));
+    node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
   }
 
   return node;
 }
 
-struct Node *BitwiseAnd() {
-  struct Node *node = Equality();
+struct Node *BitwiseAnd(struct ParseContext *ctx) {
+  struct Node *node = Equality(ctx);
 
   struct Token *op;
   if ((op = Consume('&'))) {
-    node = NewNodeBinOp(kNodeAnd, op, node, BitwiseAnd());
+    node = NewNodeBinOp(kNodeAnd, op, node, BitwiseAnd(ctx));
+    node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
   }
 
   return node;
 }
 
-struct Node *Equality() {
-  struct Node *node = Relational();
+struct Node *Equality(struct ParseContext *ctx) {
+  struct Node *node = Relational(ctx);
 
   struct Token *op;
   if ((op = Consume(kTokenEq))) {
-    node = NewNodeBinOp(kNodeEq, op, node, Equality());
+    node = NewNodeBinOp(kNodeEq, op, node, Equality(ctx));
+    node->type = TYPE_INT;
   } else if ((op = Consume(kTokenNEq))) {
-    node = NewNodeBinOp(kNodeNEq, op, node, Equality());
+    node = NewNodeBinOp(kNodeNEq, op, node, Equality(ctx));
+    node->type = TYPE_INT;
   }
 
   return node;
 }
 
-struct Node *Relational() {
-  struct Node *node = BitwiseShift();
+struct Node *Relational(struct ParseContext *ctx) {
+  struct Node *node = BitwiseShift(ctx);
 
   struct Token *op;
   if ((op = Consume('<'))) {
-    node = NewNodeBinOp(kNodeLT, op, node, Relational());
+    node = NewNodeBinOp(kNodeLT, op, node, Relational(ctx));
+    node->type = TYPE_INT;
   } else if ((op = Consume('>'))) {
-    node = NewNodeBinOp(kNodeLT, op, Relational(), node);
+    node = NewNodeBinOp(kNodeLT, op, Relational(ctx), node);
+    node->type = TYPE_INT;
   } else if ((op = Consume(kTokenLE))) {
-    node = NewNodeBinOp(kNodeLE, op, node, Relational());
+    node = NewNodeBinOp(kNodeLE, op, node, Relational(ctx));
+    node->type = TYPE_INT;
   } else if ((op = Consume(kTokenGE))) {
-    node = NewNodeBinOp(kNodeLE, op, Relational(), node);
+    node = NewNodeBinOp(kNodeLE, op, Relational(ctx), node);
+    node->type = TYPE_INT;
   }
 
   return node;
 }
 
-struct Node *BitwiseShift() {
-  struct Node *node = Additive();
+struct Node *BitwiseShift(struct ParseContext *ctx) {
+  struct Node *node = Additive(ctx);
 
   struct Token *op;
   if ((op = Consume(kTokenRShift))) {
-    node = NewNodeBinOp(kNodeRShift, op, node, BitwiseShift());
+    node = NewNodeBinOp(kNodeRShift, op, node, BitwiseShift(ctx));
+    node->type = node->lhs->type;
   } else if ((op = Consume(kTokenLShift))) {
-    node = NewNodeBinOp(kNodeLShift, op, node, BitwiseShift());
+    node = NewNodeBinOp(kNodeLShift, op, node, BitwiseShift(ctx));
+    node->type = node->lhs->type;
   }
 
   return node;
 }
 
-struct Node *Additive() {
-  struct Node *node = Multiplicative();
+struct Node *Additive(struct ParseContext *ctx) {
+  struct Node *node = Multiplicative(ctx);
 
   struct Token *op;
   while (1) {
     if ((op = Consume('+'))) {
-      node = NewNodeBinOp(kNodeAdd, op, node, Multiplicative());
+      node = NewNodeBinOp(kNodeAdd, op, node, Multiplicative(ctx));
+      if (node->lhs->type->kind == kTypePtr) {
+        node->type = node->lhs->type;
+      } else {
+        node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
+      }
     } else if ((op = Consume('-'))) {
-      node = NewNodeBinOp(kNodeSub, op, node, Multiplicative());
+      node = NewNodeBinOp(kNodeSub, op, node, Multiplicative(ctx));
+      if (node->lhs->type->kind == kTypePtr) {
+        if (node->rhs->type->kind == kTypePtr) {
+          node->type = TYPE_INT;
+        } else {
+          node->type = node->lhs->type;
+        }
+      } else {
+        node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
+      }
     } else {
       break;
     }
@@ -381,82 +455,104 @@ struct Node *Additive() {
   return node;
 }
 
-struct Node *Multiplicative() {
-  struct Node *node = Cast();
+struct Node *Multiplicative(struct ParseContext *ctx) {
+  struct Node *node = Cast(ctx);
 
   struct Token *op;
   if ((op = Consume('*'))) {
-    node = NewNodeBinOp(kNodeMul, op, node, Multiplicative());
+    node = NewNodeBinOp(kNodeMul, op, node, Multiplicative(ctx));
+    node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
   }
 
   return node;
 }
 
-struct Node *Cast() {
+struct Node *Cast(struct ParseContext *ctx) {
   struct Token *origin = cur_token;
 
   struct Token *op = Consume('(');
   if (!op) {
-    return Unary();
+    return Unary(ctx);
   }
 
   struct Node *tspec = TypeSpec();
   if (!tspec) {
     cur_token = origin;
-    return Unary();
+    return Unary(ctx);
   }
 
   Expect(')');
-  struct Node *node = NewNodeBinOp(kNodeCast, op, tspec, Cast());
+  struct Node *node = NewNodeBinOp(kNodeCast, op, tspec, Cast(ctx));
+  node->type = tspec->type;
 
   return node;
 }
 
-struct Node *Unary() {
+struct Node *Unary(struct ParseContext *ctx) {
   struct Node *node;
 
   struct Token *op;
   if ((op = Consume(kTokenInc))) {
-    node = NewNodeBinOp(kNodeInc, op, NULL, Unary());
+    node = NewNodeBinOp(kNodeInc, op, NULL, Unary(ctx));
+    node->type = node->rhs->type;
   } else if ((op = Consume(kTokenDec))) {
-    node = NewNodeBinOp(kNodeDec, op, NULL, Unary());
+    node = NewNodeBinOp(kNodeDec, op, NULL, Unary(ctx));
+    node->type = node->rhs->type;
   } else if ((op = Consume('&'))) {
-    node = NewNodeBinOp(kNodeRef, op, NULL, Cast());
+    node = NewNodeBinOp(kNodeRef, op, NULL, Cast(ctx));
+    node->type = NewType(kTypePtr);
+    node->type->base = node->rhs->type;
   } else if ((op = Consume('*'))) {
-    node = NewNodeBinOp(kNodeDeref, op, NULL, Cast());
+    node = NewNodeBinOp(kNodeDeref, op, NULL, Cast(ctx));
+    node->type = node->rhs->type->base;
   } else if ((op = Consume('-'))) {
     struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
     zero_tk->value.as_int = 0;
     struct Node *zero = NewNodeInteger(zero_tk);
-    node = NewNodeBinOp(kNodeSub, op, zero, Unary());
+    node = NewNodeBinOp(kNodeSub, op, zero, Unary(ctx));
+    node->type = node->rhs->type;
   } else if ((op = Consume('~'))) {
-    node = NewNodeBinOp(kNodeNot, op, NULL, Cast());
+    node = NewNodeBinOp(kNodeNot, op, NULL, Cast(ctx));
+    node->type = node->rhs->type;
   } else {
-    node = Postfix();
+    node = Postfix(ctx);
   }
 
   return node;
 }
 
-struct Node *Postfix() {
-  struct Node *node = Primary();
+struct Node *Postfix(struct ParseContext *ctx) {
+  struct Node *node = Primary(ctx);
 
   struct Token *op;
   if ((op = Consume(kTokenInc))) {
     node = NewNodeBinOp(kNodeInc, op, node, NULL);
+    node->type = node->lhs->type;
   } else if ((op = Consume(kTokenDec))) {
     node = NewNodeBinOp(kNodeDec, op, node, NULL);
+    node->type = node->lhs->type;
   } else if ((op = Consume('['))) {
-    struct Node *ind = NewNodeBinOp(kNodeAdd, op, node, Expression());
-    node = NewNodeBinOp(kNodeDeref, op, NULL, ind);
+    struct Type *array_type = node->type;
+    struct Node *ind = NewNodeBinOp(kNodeAdd, op, node, Expression(ctx));
+    ind->type = array_type;
     Expect(']');
+
+    node = NewNodeBinOp(kNodeDeref, op, NULL, ind);
+    node->type = array_type->base;
   } else if ((op = Consume('('))) {
+    struct Symbol *func = FindSymbol(ctx->scope, node->token);
+    if (!func) {
+      fprintf(stderr, "symbol not found\n");
+      Locate(node->token->raw);
+      exit(1);
+    }
     node = NewNodeBinOp(kNodeCall, op, node, NULL);
+    node->type = func->def->lhs->type; // 関数の戻り値型を取得
     if (!Consume(')')) {
-      node->rhs = Expression();
+      node->rhs = Expression(ctx);
       struct Node *arg = node->rhs;
       while (Consume(',')) {
-        arg->next = Expression();
+        arg->next = Expression(ctx);
         arg = arg->next;
       }
       Expect(')');
@@ -466,11 +562,11 @@ struct Node *Postfix() {
   return node;
 }
 
-struct Node *Primary() {
+struct Node *Primary(struct ParseContext *ctx) {
   struct Node *node = NULL;
   struct Token *tk;
   if ((tk = Consume('('))) {
-    node = Expression();
+    node = Expression(ctx);
     Expect(')');
   } else if ((tk = Consume(kTokenInteger))) {
     node = NewNodeInteger(tk);
@@ -484,7 +580,14 @@ struct Node *Primary() {
     // 文字列リテラルが連続する区間は 1 つの kNodeString ノードが担当する
     while (Consume(kTokenString));
   } else if ((tk = Consume(kTokenId))) {
+    struct Symbol *sym = FindSymbol(ctx->scope, tk);
+    if (!sym) {
+      fprintf(stderr, "symbol not found\n");
+      Locate(tk->raw);
+      exit(1);
+    }
     node = NewNode(kNodeId, tk);
+    node->type = sym->type;
   } else {
     node = NewNode(kNodeVoid, cur_token);
   }
@@ -514,7 +617,7 @@ struct Node *TypeSpec() {
 
   if (!type) {
     if (attr_signed || attr_unsigned) {
-      type = NewType(kTypeInt); // デフォルトで int
+      type = TYPE_INT; // デフォルトで int
     } else {
       return NULL;
     }

@@ -55,6 +55,7 @@ struct Node {
   struct Token *token; // ノードを代表するトークン
   struct Node *next;   // 線形リスト
   struct Type *type;   // ノードの型
+  struct Scope *scope; // シンボルテーブル (kNodeDefFunc, kNodeBlock で有効)
 
   // 用途         lhs       rhs       cond      備考
   // ------------------------------------------------------
@@ -72,10 +73,10 @@ struct Node {
   struct Node *lhs, *rhs, *cond;
 };
 
-struct Symbol;
+struct Scope;
 
 struct ParseContext {
-  struct Symbol *global_syms;
+  struct Scope *scope;
 };
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token);

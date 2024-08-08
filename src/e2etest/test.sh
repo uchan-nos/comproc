@@ -31,7 +31,22 @@ function test_prog() {
     uart_out_opt_uart=""
   fi
 
-  bin="$(echo "$src" | ../compiler/ucc -o - - | ../assembler/uasm) 7f ff"
+  asm="$(echo "$src" | ../compiler/ucc -o - -)"
+  asmcode=$?
+  if [ $asmcode -ge 128 ]
+  then
+    signum=$(($asmcode - 128))
+    echo "failed to compile due to SIG$(kill -l $signum)" >&2
+    echo DEAD
+    exit
+  elif [ $asmcode -ne 0 ]
+  then
+    echo "failed to compile" >&2
+    echo DEAD
+    exit
+  fi
+
+  bin="$(echo "$asm" | ../assembler/uasm) 7f ff"
 
   case $target in
     sim)
