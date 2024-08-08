@@ -6,16 +6,12 @@ fin:
 	jmp fin
 main:
 	cpush fp
-	st cstack+0
 	add fp,2
+	push 24237
+	sign
+	st cstack+0
 	ld cstack+0
-	push 3
-	lt
-	jz L_1
-	push 42
-	cpop fp
-	ret
-L_1:
-	push 0
+	push 15
+	sar
 	cpop fp
 	ret

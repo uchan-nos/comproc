@@ -1,5 +1,6 @@
 	add fp,256
-	call main
+	push main
+	call
 	st 6
 fin:
 	jmp fin
