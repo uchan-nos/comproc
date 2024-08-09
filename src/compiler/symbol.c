@@ -54,6 +54,6 @@ struct Scope *NewGlobalScope(struct Symbol *global_syms) {
   struct Scope *s = malloc(sizeof(struct Scope));
   s->parent = NULL;
   s->syms = global_syms;
-  s->frame_size = 0;
+  s->var_offset = 0;
   return s;
 }

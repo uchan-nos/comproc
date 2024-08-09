@@ -89,26 +89,43 @@ struct Node *ExternalDeclaration(struct ParseContext *ctx) {
 struct Node *FunctionDefinition(struct ParseContext *ctx,
                                 struct Node *tspec, struct Token *id) {
   struct Node *func_def = NewNode(kNodeDefFunc, id);
+  func_def->lhs = tspec;
+
   struct Symbol *func_sym = NewSymbol(kSymFunc, id);
   func_sym->def = func_def;
   AppendSymbol(ctx->scope->syms, func_sym);
 
   ctx->scope = EnterScope(ctx->scope);
+  func_def->scope = ctx->scope;
 
   struct Node *params = ParameterList();
   Expect(')');
   for (struct Node *param = params; param; param = param->next) {
     struct Symbol *sym = NewSymbol(kSymLVar, param->lhs->token);
     sym->type = param->type;
-    sym->offset = ctx->scope->frame_size;
-    ctx->scope->frame_size += 2;
+    sym->offset = ctx->scope->var_offset;
+    ctx->scope->var_offset += 2;
     AppendSymbol(ctx->scope->syms, sym);
   }
-
-  func_def->lhs = tspec;
-  func_def->rhs = Block(ctx); // func body
   func_def->cond = params;
-  func_def->scope = ctx->scope;
+
+  struct Node *func_body = Block(ctx);
+  func_def->rhs = func_body;
+
+  // void 関数で、最後が return で終わっていなければ追加
+  if (tspec->type->kind == kTypeVoid) {
+    struct Node *last_node = func_body->rhs;
+    if (last_node) {
+      while (last_node->next) {
+        last_node = last_node->next;
+      }
+      if (last_node->kind != kNodeReturn) {
+        last_node->next = NewNode(kNodeReturn, NULL);
+      }
+    } else {
+      func_body->rhs = NewNode(kNodeReturn, NULL);
+    }
+  }
 
   ctx->scope = ctx->scope->parent;
   return func_def;
@@ -134,7 +151,7 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
   struct Symbol *sym = NewSymbol(ctx->scope->parent ? kSymLVar : kSymGVar, id);
   sym->def = def;
   sym->type = def->type;
-  sym->offset = ctx->scope->frame_size;
+  sym->offset = ctx->scope->var_offset;
 
   int attr_at = 0;
   if (Consume(kTokenAttr)) {
@@ -160,7 +177,7 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
 
   if (!attr_at) {
     size_t mem_size = (SizeofType(def->type) + 1) & ~((size_t)1);
-    ctx->scope->frame_size += mem_size;
+    ctx->scope->var_offset += mem_size;
   }
   AppendSymbol(ctx->scope->syms, sym);
 
@@ -193,6 +210,8 @@ struct Node *Block(struct ParseContext *ctx) {
 
     node = node->next;
   }
+  block->rhs = block->next;
+  block->next = NULL;
 
   return block;
 }
@@ -270,6 +289,7 @@ struct Node *Statement(struct ParseContext *ctx) {
 
   if (cur_token->kind == '{') {
     ctx->scope = EnterScope(ctx->scope);
+    ctx->scope->var_offset = ctx->scope->parent->var_offset;
     struct Node *block = Block(ctx);
     ctx->scope = ctx->scope->parent;
     return block;
@@ -617,7 +637,7 @@ struct Node *TypeSpec() {
 
   if (!type) {
     if (attr_signed || attr_unsigned) {
-      type = TYPE_INT; // デフォルトで int
+      type = NewType(kTypeInt); // デフォルトで int
     } else {
       return NULL;
     }

@@ -31,7 +31,7 @@ struct Symbol *FindSymbolLocal(struct Symbol *head, struct Token *name);
 struct Scope {
   struct Scope *parent;
   struct Symbol *syms;
-  int frame_size; // このスコープのローカル変数領域のサイズ
+  int var_offset; // 変数のオフセットアドレス
 };
 
 // 新しくスコープを生成し、生成したスコープを返す

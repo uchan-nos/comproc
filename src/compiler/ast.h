@@ -66,6 +66,7 @@ struct Node {
   // kNodeFor     初期化式  ブロック  条件式    lhs->next は更新式
   // kNodeWhile   NULL      ブロック  条件式
   // kNodeDefFunc 戻り値型  ブロック  仮引数
+  // kNodeBlock   NULL      ブロック  NULL
   // kNodeCall    関数名    引数      NULL
   // kNodePList   変数名    NULL      NULL
   // kNodeAsm     文字列    NULL      NULL

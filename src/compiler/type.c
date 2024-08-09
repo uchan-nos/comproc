@@ -27,10 +27,10 @@ size_t SizeofType(struct Type *type) {
 void PrintType(FILE *out, struct Type *type) {
   switch (type->kind) {
   case kTypeChar:
-    fprintf(out, "char");
+    fprintf(out, (type->attr & TYPE_ATTR_SIGNED) ? "signed char" : "char");
     break;
   case kTypeInt:
-    fprintf(out, "int");
+    fprintf(out, (type->attr & TYPE_ATTR_SIGNED) ? "int" : "unsigned int");
     break;
   case kTypePtr:
     fprintf(out, "*");

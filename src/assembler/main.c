@@ -365,18 +365,24 @@ int main(int argc, char **argv) {
       } else if (strcmp(mnemonic + 1, "mul") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) * rhs);
-      } else if (strcmp(mnemonic + 1, "lt") == 0) {
-        int16_t rhs = Pop(&interp);
-        Push(&interp, Pop(&interp) < rhs);
-      } else if (strcmp(mnemonic + 1, "le") == 0) {
-        int16_t rhs = Pop(&interp);
-        Push(&interp, Pop(&interp) <= rhs);
       } else if (strcmp(mnemonic + 1, "eq") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) == rhs);
       } else if (strcmp(mnemonic + 1, "neq") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) != rhs);
+      } else if (strcmp(mnemonic + 1, "lt") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) < rhs);
+      } else if (strcmp(mnemonic + 1, "le") == 0) {
+        int16_t rhs = Pop(&interp);
+        Push(&interp, Pop(&interp) <= rhs);
+      } else if (strcmp(mnemonic + 1, "bt") == 0) {
+        uint16_t rhs = Pop(&interp);
+        Push(&interp, (uint16_t)Pop(&interp) < rhs);
+      } else if (strcmp(mnemonic + 1, "be") == 0) {
+        uint16_t rhs = Pop(&interp);
+        Push(&interp, (uint16_t)Pop(&interp) <= rhs);
       } else if (strcmp(mnemonic + 1, "not") == 0) {
         Push(&interp, ~(uint16_t)Pop(&interp));
       } else if (strcmp(mnemonic + 1, "and") == 0) {
@@ -517,14 +523,18 @@ int main(int argc, char **argv) {
       *cur_insn = 0x7061;
     } else if (strcmp(mnemonic, "mul") == 0) {
       *cur_insn = 0x7062;
-    } else if (strcmp(mnemonic, "lt") == 0) {
-      *cur_insn = 0x7068;
     } else if (strcmp(mnemonic, "eq") == 0) {
-      *cur_insn = 0x7069;
+      *cur_insn = 0x7068;
     } else if (strcmp(mnemonic, "neq") == 0) {
+      *cur_insn = 0x7069;
+    } else if (strcmp(mnemonic, "lt") == 0) {
       *cur_insn = 0x706a;
     } else if (strcmp(mnemonic, "le") == 0) {
       *cur_insn = 0x706b;
+    } else if (strcmp(mnemonic, "bt") == 0) {
+      *cur_insn = 0x706c;
+    } else if (strcmp(mnemonic, "be") == 0) {
+      *cur_insn = 0x706d;
     } else if (strcmp(mnemonic, "dup") == 0) {
       if (num_opr == 0) {
         *cur_insn = 0x7080;

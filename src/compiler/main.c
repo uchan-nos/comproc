@@ -37,7 +37,7 @@ struct JumpLabels {
 
 struct GenContext {
   struct Scope *scope;
-  int line_add_fp; // add fp, N 命令が最後に配置された行番号
+  int frame_size;
   int num_label;
   int num_strings;
   struct Token *strings[MAX_STRING];
@@ -60,13 +60,6 @@ struct AsmLine *GenAsmLine(struct GenContext *ctx, enum AsmLineKind kind) {
   struct AsmLine *l = &ctx->asm_lines[ctx->num_line++];
   l->kind = kind;
   return l;
-}
-
-// node->next を辿り、末尾の要素（node->next == NULL となる node）を返す
-struct Node *GetLastNode(struct Node *node) {
-  for (; node->next; node = node->next) {
-  }
-  return node;
 }
 
 struct Instruction *Insn(struct GenContext *ctx, const char *opcode) {
@@ -219,12 +212,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
 
   unsigned gen_result = 0;
   unsigned lhs_res, rhs_res;
-  /*
-      if (node->lhs->has_const_value && !node->rhs->has_const_value) {
-        insn = &ctx->asm_lines[ctx->num_line - 1].insn;
-        insn->kind = kInsnInterpResult;
-      }
-      */
+  int lhs_is_uint = node->lhs && node->lhs->type && IS_UNSIGNED_INT(node->lhs->type);
+  int rhs_is_uint = node->rhs && node->rhs->type && IS_UNSIGNED_INT(node->rhs->type);
 
   if (100 <= node->kind && node->kind < 200) { // standard binary expression
     struct Instruction *lhs_insn, *rhs_insn;
@@ -564,11 +553,19 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     break;
   case kNodeLT:
     PRINT_NODE_COMMENT(ctx, node, "LT");
-    Insn(ctx, "lt");
+    if (lhs_is_uint || rhs_is_uint) {
+      Insn(ctx, "bt");
+    } else {
+      Insn(ctx, "lt");
+    }
     break;
   case kNodeLE:
     PRINT_NODE_COMMENT(ctx, node, "LE");
-    Insn(ctx, "le");
+    if (lhs_is_uint || rhs_is_uint) {
+      Insn(ctx, "be");
+    } else {
+      Insn(ctx, "le");
+    }
     break;
   case kNodeEq:
     PRINT_NODE_COMMENT(ctx, node, "Eq");
@@ -606,6 +603,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   case kNodeDefFunc:
     {
       ctx->scope = node->scope;
+      ctx->frame_size = node->scope->var_offset;
 
       struct Token *func_name = node->token;
       AddLabelToken(ctx, func_name);
@@ -620,23 +618,28 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         struct Symbol *sym = FindSymbol(ctx->scope, param->lhs->token);
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
       }
-      ctx->line_add_fp = ctx->num_line;
+      int line_add_fp = ctx->num_line;
       // add fp のオペランド値は、関数定義の処理後に上書きされる
       InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
       Generate(ctx, node->rhs, VC_RVAL, 1);
 
-      struct Node *block_last = GetLastNode(node->rhs);
-      if (block_last && block_last->kind != kNodeReturn) {
-        InsnReg(ctx, "cpop", "fp");
-        Insn(ctx, ctx->is_isr ? "iret" : "ret");
+      struct AsmLine *line = &ctx->asm_lines[line_add_fp];
+      if (ctx->frame_size == 0) {
+        line->kind = kAsmLineDeleted;
+      } else {
+        line->insn.operands[1].val_int = ctx->frame_size;
       }
     }
     break;
   case kNodeBlock:
     ctx->scope = node->scope;
-    for (struct Node *n = node->next; n; n = n->next) {
+    if (ctx->frame_size > node->scope->var_offset) {
+      ctx->frame_size = node->scope->var_offset;
+    }
+    for (struct Node *n = node->rhs; n; n = n->next) {
       Generate(ctx, n, VC_NO_NEED, 1);
     }
+    ctx->scope = node->scope->parent;
     break;
   case kNodeReturn:
     if (node->lhs) {
@@ -818,7 +821,7 @@ int main(int argc, char **argv) {
   }
 
   struct Scope *global_scope = NewGlobalScope(NewSymbol(kSymHead, NULL));
-  global_scope->frame_size = 0x100;
+  global_scope->var_offset = 0x100;
   struct ParseContext parse_ctx = {
     global_scope
   };
@@ -866,22 +869,9 @@ int main(int argc, char **argv) {
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
       Generate(&gen_ctx, n, VC_NO_NEED, 0);
-      struct AsmLine *line = &gen_ctx.asm_lines[gen_ctx.line_add_fp];
-      if (line->kind != kAsmLineInsn ||
-          strcmp(line->insn.opcode, "add") != 0 ||
-          line->insn.operands[0].kind != kOprReg ||
-          line->insn.operands[1].kind != kOprInt) {
-        fprintf(stderr, "line %d must be 'add fp, N'\n", gen_ctx.line_add_fp);
-        exit(1);
-      }
-      if (n->scope->frame_size == 0) {
-        line->kind = kAsmLineDeleted;
-      } else {
-        line->insn.operands[1].val_int = n->scope->frame_size;
-      }
     }
   }
-  insn_add_fp->operands[1].val_int = global_scope->frame_size;
+  insn_add_fp->operands[1].val_int = global_scope->var_offset;
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;

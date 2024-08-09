@@ -77,10 +77,12 @@ SHL        |0111000001010110| stack[0] = stack[1] << stack[0]
 ADD        |0111000001100000| stack[0] = stack[1] + stack[0]
 SUB        |0111000001100001| stack[0] = stack[1] - stack[0]
 MUL        |0111000001100010| stack[0] = stack[1] * stack[0]
-LT         |0111000001101000| stack[0] = stack[1] < stack[0]
-EQ         |0111000001101001| stack[0] = stack[1] == stack[0]
-NEQ        |0111000001101010| stack[0] = stack[1] != stack[0]
-LE         |0111000001101011| stack[0] = stack[1] <= stack[0]
+EQ         |0111000001101000| stack[0] = stack[1] == stack[0]
+NEQ        |0111000001101001| stack[0] = stack[1] != stack[0]
+LT         |0111000001101010| stack[0] = stack[1] < stack[0] （符号付き比較）
+LE         |0111000001101011| stack[0] = stack[1] <= stack[0]（符号付き比較）
+BT         |0111000001101100| stack[0] = stack[1] < stack[0] （符号なし比較）
+BE         |0111000001101101| stack[0] = stack[1] <= stack[0]（符号なし比較）
 
 DUP        |0111000010000000| stack[0] を stack にプッシュ
 DUP1       |0111000010001111| stack[1] を stack にプッシュ

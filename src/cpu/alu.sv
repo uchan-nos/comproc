@@ -50,11 +50,13 @@ function [WIDTH-1:0] alu(
   input cond,
   input [5:0] sel);
 begin
-  logic [WIDTH-1:0] add, sub;
+  logic [WIDTH-1:0] add;
+  logic [WIDTH:0] sub;
   logic of;
   logic zf;
   logic sf; // sign flag
   logic lt; // less than
+  logic cf; // carry flag
   logic signed [WIDTH-1:0] sb;
   add = b + a;
   sub = b - a;
@@ -62,6 +64,7 @@ begin
   zf = sub == {WIDTH{1'b0}};
   sf = sub[15];
   lt = sf ^ of;
+  cf = sub[16];
   sb = b;
   casex (sel)
     6'b0000xx: alu = a + sel[1:0];
@@ -78,10 +81,12 @@ begin
     6'b100000: alu = add;
     6'b100001: alu = sub;
     6'b100010: alu = b * a;
-    6'b101000: alu = lt;
-    6'b101001: alu = {{WIDTH-1{1'b0}}, zf};
-    6'b101010: alu = {{WIDTH-1{1'b0}}, ~zf};
+    6'b101000: alu = {{WIDTH-1{1'b0}}, zf};
+    6'b101001: alu = {{WIDTH-1{1'b0}}, ~zf};
+    6'b101010: alu = lt;
     6'b101011: alu = lt | zf;
+    6'b101100: alu = cf;
+    6'b101101: alu = cf | zf;
     6'b11xxx0: alu = cond ? a : add;
     6'b11xxx1: alu = cond ? add : a;
     default:   alu = {WIDTH{1'b0}};
