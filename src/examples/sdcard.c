@@ -283,16 +283,16 @@ int sd_get_read_bl_len(int *csd) {
   return csd[2] & 0x000f; // [83:80]
 }
 
-int sd_get_capacity_mib_csdv1(int *csd) {
+int sd_get_capacity_mib_csdv1(unsigned int *csd) {
   int c_size;
   int c_size_mult;
   int read_bl_len;
   int shift;
 
   c_size = (csd[3] & 0x03ff) << 2;        // [73:64]
-  c_size = c_size | ((csd[4] >> 14) & 3); // [63:62]
+  c_size = c_size | (csd[4] >> 14); // [63:62]
   c_size_mult = (csd[4] & 3) << 1;                  // [49:48]
-  c_size_mult = c_size_mult | ((csd[5] >> 15) & 1); // [47]
+  c_size_mult = c_size_mult | (csd[5] >> 15); // [47]
   read_bl_len = sd_get_read_bl_len(csd);
 
   // memory capacity = (C_SIZE + 1) * 2^(C_SIZE_MULT + 2 + READ_BL_LEN)
@@ -317,9 +317,9 @@ int sd_get_capacity_mib_csdv1(int *csd) {
   }
 }
 
-int sd_get_capacity_mib_csdv2(int *csd) {
-  int c_size_h;
-  int c_size_l;
+int sd_get_capacity_mib_csdv2(unsigned int *csd) {
+  unsigned int c_size_h;
+  unsigned int c_size_l;
   int cap_mib;
 
   // C_SIZE: [69:48]
@@ -329,13 +329,13 @@ int sd_get_capacity_mib_csdv2(int *csd) {
   c_size_h = (csd[3] & 0x003f); // [69:64]
   c_size_l = csd[4];            // [63:48]
 
-  cap_mib = (c_size_l >> 1) & 0x7fff;
+  cap_mib = c_size_l >> 1;
   cap_mib = cap_mib | (c_size_h << 15);
   return cap_mib;
 }
 
 // CSD レジスタを取得する
-int sd_read_csd(int *csd) {
+int sd_read_csd(unsigned int *csd) {
   int i;
   int r1;
 
@@ -357,10 +357,10 @@ int sd_read_csd(int *csd) {
 }
 
 // MiB 単位の容量
-int sd_get_capacity_mib(int *csd) {
+int sd_get_capacity_mib(unsigned int *csd) {
   int csdv;
 
-  csdv = (csd[0] >> 14) & 3;
+  csdv = csd[0] >> 14;
   if (csdv == 0) { // Ver.1
     return sd_get_capacity_mib_csdv1(csd);
   } else if (csdv >= 1) { // Ver.2 or Ver.3
@@ -384,7 +384,7 @@ int sd_set_block_len_512() {
 }
 
 // 1 ブロック読み込み
-int sd_read_block(int *buf, int block_addr, int ccs) {
+int sd_read_block(unsigned int *buf, int block_addr, int ccs) {
   int i;
   int r1;
 
@@ -490,7 +490,7 @@ int main() {
 
     lba_start_lo = block_buf[223 + 4];
     // LBA Start はリトルエンディアンなので、エンディアンを変換する
-    lba_start_lo = ((lba_start_lo >> 8) & 0xff) | (lba_start_lo << 8);
+    lba_start_lo = (lba_start_lo >> 8) | (lba_start_lo << 8);
 
     int2hex(lba_start_lo, buf, 4);
     buf[4] = 0;
@@ -498,4 +498,6 @@ int main() {
   } else {
     lcd_puts("Unknown BS");
   }
+
+  return 0;
 }
