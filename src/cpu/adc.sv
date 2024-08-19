@@ -8,7 +8,7 @@ module adc#(
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
   output adc_dac_pwm, // ADC の DAC PWM 信号
-  output [7:0] adc_result // ADC の変換結果
+  output logic [7:0] adc_result // ADC の変換結果
 );
 
 localparam PWM_PERIOD = 255;
@@ -26,7 +26,6 @@ typedef enum logic {
 } adc_phase_t;
 adc_phase_t adc_phase;
 logic [2:0] bit_index;  // 変換中のビット位置
-logic [7:0] adc_result; // 変換済み結果のバッファ
 
 assign pwm_period_next = pwm_period >= PWM_PERIOD - 1 ? 0 : pwm_period + 1;
 assign tick_next =

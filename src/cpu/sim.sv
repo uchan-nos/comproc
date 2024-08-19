@@ -100,7 +100,7 @@ initial begin
            //" cstk{%02x %02x} irq=%d cdt=%04x",
            //mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
            " mcu_uart_rx=%d cur_uart_in=%02x rx_data=%x rx_full=%d",
-           mcu_uart_rx, cur_uart_in, mcu.uart.rx_data, mcu.uart.rx_full
+           mcu_uart_rx, cur_uart_in, mcu.uart_mux.rx_data, mcu.uart_mux.rx_full
          );
   $dumpvars(1, mcu.cpu, mcu.cpu.signals.decoder);
 

@@ -22,7 +22,8 @@ module mcu#(
   output logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr,
   output logic [31:0] uf_din,
   input  [31:0] uf_dout,
-  output spi_cs, spi_sclk, spi_mosi,
+  output logic spi_cs,
+  output spi_sclk, spi_mosi,
   input  spi_miso
 );
 
@@ -184,7 +185,7 @@ always @(posedge clk, posedge cpu_rst) begin
 end
 
 // MCU 内蔵周辺機能：SPI
-logic spi_cs, spi_tx_start, spi_tx_ready;
+logic spi_tx_start, spi_tx_ready;
 logic [7:0] spi_rx_data;
 
 assign spi_tx_start = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h020;
