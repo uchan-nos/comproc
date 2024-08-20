@@ -43,4 +43,4 @@ struct Scope *LeaveScope(struct Scope *current);
 // 現在のスコープにおいてシンボルを検索する
 struct Symbol *FindSymbol(struct Scope *scope, struct Token *name);
 
-struct Scope *NewGlobalScope();
+struct Scope *NewGlobalScope(struct Symbol *global_syms);
