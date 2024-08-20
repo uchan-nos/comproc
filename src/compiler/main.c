@@ -217,6 +217,13 @@ int IsLdCstack0(struct AsmLine *al) {
   return 0;
 }
 
+// ISR の内側でのみ pop を行う
+void PopInsideIsr(struct GenContext *ctx) {
+  if (ctx->is_isr) {
+    Insn(ctx, "pop");
+  }
+}
+
 // 生成された値が boolean value なら true、それ以外は false を返す。
 // req_onstack: 演算スタック上に値が必要（インタプリタ上ではダメ）であれば 1
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack) {
@@ -370,7 +377,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
       if (value_class == VC_NO_NEED) {
         node->type = NewType(kTypeVoid);
-        Insn(ctx, "pop");
+        PopInsideIsr(ctx);
       }
     }
     break;
@@ -401,7 +408,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->lhs, VC_LVAL, 1);
       Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta1" : "sta");
-      Insn(ctx, "pop");
+      if (value_class == VC_NO_NEED) {
+        PopInsideIsr(ctx);
+      } else {
+        Insn(ctx, "pop");
+      }
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
       Generate(ctx, node->rhs, VC_RVAL, 1);
@@ -410,8 +421,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Generate(ctx, node->rhs, VC_LVAL, 1);
       Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std1" : "std");
       if (value_class == VC_NO_NEED) {
-        Insn(ctx, "pop");
         node->type = NewType(kTypeVoid);
+        PopInsideIsr(ctx);
       }
     }
     break;
@@ -424,8 +435,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
     } else if (value_class == VC_NO_NEED) {
       Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
-      Insn(ctx, "pop");
       node->type = NewType(kTypeVoid);
+      PopInsideIsr(ctx);
     }
     break;
   case kNodeNot:
@@ -467,7 +478,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
       }
       if (value_class == VC_NO_NEED) {
-        Insn(ctx, "pop");
+        PopInsideIsr(ctx);
       }
     }
     break;
@@ -541,7 +552,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     }
     if (value_class == VC_NO_NEED) {
       node->type = NewType(kTypeVoid);
-      Insn(ctx, "pop");
+      PopInsideIsr(ctx);
     }
     break;
 
