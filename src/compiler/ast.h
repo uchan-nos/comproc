@@ -92,6 +92,7 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
 struct Node *Block();
 struct Node *InnerDeclaration();
 struct Node *Statement();
+struct Node *InitStatement();
 struct Node *Expression();
 struct Node *Assignment();
 struct Node *LogicalOr();

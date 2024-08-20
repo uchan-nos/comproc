@@ -256,8 +256,7 @@ struct Node *Statement(struct ParseContext *ctx) {
   if ((token = Consume(kTokenFor))) {
     struct Node *for_ = NewNode(kNodeFor, token);
     Expect('(');
-    for_->lhs = Expression(ctx);
-    Expect(';');
+    for_->lhs = InitStatement(ctx);
     for_->cond = Expression(ctx);
     Expect(';');
     for_->lhs->next = Expression(ctx);
@@ -309,6 +308,15 @@ struct Node *Statement(struct ParseContext *ctx) {
   Expect(';');
 
   return e;
+}
+
+struct Node *InitStatement(struct ParseContext *ctx) {
+  struct Node *n = InnerDeclaration(ctx);
+  if (n == NULL) {
+    n = Expression(ctx);
+    Expect(';');
+  }
+  return n;
 }
 
 struct Node *Expression(struct ParseContext *ctx) {
