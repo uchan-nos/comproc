@@ -75,6 +75,15 @@ void InitBackpatch(struct Backpatch *bp,
   bp->type = type;
 }
 
+void NewBackpatch(struct Backpatch *backpatches, int *num_backpatches,
+                  int ip, const char *label, enum BPType bp_type) {
+  if (*num_backpatches == MAX_BP) {
+    fprintf(stderr, "too many backpatches\n");
+    exit(1);
+  }
+  InitBackpatch(backpatches + (*num_backpatches)++, ip, strdup(label), bp_type);
+}
+
 enum AddrBase {
   AB_ZERO,
   AB_FP,
@@ -433,40 +442,20 @@ int main(int argc, char **argv) {
         *cur_insn = 0x5000 | (ab << 10) | (0x3ff & off);
       }
     } else if (strcmp(mnemonic, "jmp") == 0) {
-      if (num_backpatches == MAX_BP) {
-        fprintf(stderr, "too many backpatches\n");
-        exit(1);
-      }
-      InitBackpatch(backpatches + num_backpatches++,
-                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
       *cur_insn = 0x0000;
     } else if (strcmp(mnemonic, "call") == 0) {
       if (num_opr == 0) {
         *cur_insn = 0x7801;
       } else {
-        if (num_backpatches == MAX_BP) {
-          fprintf(stderr, "too many backpatches\n");
-          exit(1);
-        }
-        InitBackpatch(backpatches + num_backpatches++,
-                      ip, strdup(GET_STR(0)), BP_IP_REL12);
+        NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
         *cur_insn = 0x0001;
       }
     } else if (strcmp(mnemonic, "jz") == 0) {
-      if (num_backpatches == MAX_BP) {
-        fprintf(stderr, "too many backpatches\n");
-        exit(1);
-      }
-      InitBackpatch(backpatches + num_backpatches++,
-                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
       *cur_insn = 0x1000;
     } else if (strcmp(mnemonic, "jnz") == 0) {
-      if (num_backpatches == MAX_BP) {
-        fprintf(stderr, "too many backpatches\n");
-        exit(1);
-      }
-      InitBackpatch(backpatches + num_backpatches++,
-                    ip, strdup(GET_STR(0)), BP_IP_REL12);
+      NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
       *cur_insn = 0x1001;
     } else if (strcmp(mnemonic, "ld1") == 0) {
       *cur_insn = GenLoadStoreImm(0x2000, GET_STR(0), 0x3ff);
