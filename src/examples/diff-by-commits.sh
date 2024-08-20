@@ -1,0 +1,83 @@
+#!/bin/sh -u
+
+if [ $# -ne 1 ]
+then
+  echo "Usage: $0 <src file>"
+  exit 1
+fi
+
+num_diff=$(git diff | wc -l)
+
+src="$1"
+
+if [ ! -f "$src" ]
+then
+  echo "No such file: $src"
+  exit 1
+fi
+
+commits="3b1c73d bc264c3"
+
+for commit in $commits
+do
+  git log --oneline $commit -1
+done
+
+current_branch=$(git branch --show-current)
+current_commit=$(git rev-parse HEAD)
+
+# まずワークツリーをビルドする
+
+make -C ../compiler >/dev/null
+make -C ../assembler >/dev/null
+./build.sh $src >/dev/null
+
+# git checkout に備えて diff を無くす
+if [ $num_diff -ne 0 ]
+then
+  git stash save
+fi
+
+for commit in $commits
+do
+  new_src=$(basename $src .c).$commit.c
+  cp $src $new_src
+
+  git checkout -q $commit
+  make -C ../compiler >/dev/null
+  make -C ../assembler >/dev/null
+  ./build.sh $new_src >/dev/null
+done
+
+# ワークツリーを復元する
+
+if [ "$current_branch" != "" ]
+then
+  git checkout -q $current_branch
+else
+  git checkout -q $current_commit
+fi
+
+if [ $num_diff -ne 0 ]
+then
+  git stash pop
+fi
+
+mode="num_insn"
+echo "Mode: $mode"
+
+case $mode in
+  num_insn)
+    wc -l $(basename $src .c).hex
+    for commit in $commits
+    do
+      wc -l $(basename $src .c).$commit.hex
+    done
+    ;;
+  diff_asm)
+    for commit in $commits
+    do
+      diff -u $(basename $src .c).$commit.s $(basename $src .c).s
+    done
+    ;;
+esac
