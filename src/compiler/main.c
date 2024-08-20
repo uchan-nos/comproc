@@ -613,21 +613,24 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         ctx->is_isr = 1;
       }
 
+      int line_cpush_fp = ctx->num_line;
       InsnReg(ctx, "cpush", "fp");
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = FindSymbol(ctx->scope, param->lhs->token);
         InsnBaseOff(ctx, "st", "cstack", sym->offset);
       }
+
       int line_add_fp = ctx->num_line;
       // add fp のオペランド値は、関数定義の処理後に上書きされる
       InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
       Generate(ctx, node->rhs, VC_RVAL, 1);
 
-      struct AsmLine *line = &ctx->asm_lines[line_add_fp];
+      struct AsmLine *add_fp = &ctx->asm_lines[line_add_fp];
       if (ctx->frame_size == 0) {
-        line->kind = kAsmLineDeleted;
+        add_fp->kind = kAsmLineDeleted;
+        ctx->asm_lines[line_cpush_fp].kind = kAsmLineDeleted;
       } else {
-        line->insn.operands[1].val_int = ctx->frame_size;
+        add_fp->insn.operands[1].val_int = ctx->frame_size;
       }
     }
     break;
@@ -645,7 +648,9 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     if (node->lhs) {
       Generate(ctx, node->lhs, VC_RVAL, 1);
     }
-    InsnReg(ctx, "cpop", "fp");
+    if (ctx->frame_size > 0) {
+      InsnReg(ctx, "cpop", "fp");
+    }
     Insn(ctx, ctx->is_isr ? "iret" : "ret");
     break;
   case kNodeDefVar:
