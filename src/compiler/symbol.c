@@ -14,6 +14,7 @@ struct Symbol *NewSymbol(enum SymbolKind kind, struct Token *name) {
 
   s->offset = 0;
   s->type = NULL;
+  s->attr = 0;
 
   return s;
 }

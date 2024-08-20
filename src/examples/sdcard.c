@@ -20,6 +20,14 @@ void lcd_out8(int rs, int val) {
   lcd_out4(rs, val & 0x0f);
 }
 
+void lcd_cmd(int cmd) {
+  lcd_out8(0, cmd);
+}
+
+void lcd_putc(int ch) {
+  lcd_out8(4, ch);
+}
+
 void lcd_init() {
   lcd_out4(0, 3);
   lcd_out4(0, 3);
@@ -27,24 +35,24 @@ void lcd_init() {
   lcd_out4(0, 2);
 
   // ここから 4 ビットモード
-  lcd_out8(0, 0x28);
-  lcd_out8(0, 0x0f);
-  lcd_out8(0, 0x06);
-  lcd_out8(0, 0x01);
+  lcd_cmd(0x28);
+  lcd_cmd(0x0f);
+  lcd_cmd(0x06);
+  lcd_cmd(0x01);
 }
 
 void lcd_puts(char *s) {
   while (*s) {
-    lcd_out8(4, *s++);
+    lcd_putc(*s++);
   }
 }
 
 void lcd_clear() {
-  lcd_out8(0, 0x01);
+  lcd_cmd(0x01);
 }
 
 void lcd_puts_addr(int addr, char *s) {
-  lcd_out8(0, 0x80 + addr);
+  lcd_cmd(0x80 + addr);
   lcd_puts(s);
 }
 
@@ -159,9 +167,9 @@ void show_sd_cmd_error(char cmd, int r1, char *msg) {
 
   lcd_puts_addr(0x00, "CMD");
   if (digit10 > 0) {
-    lcd_out8(4, '0' + digit10);
+    lcd_putc('0' + digit10);
   }
-  lcd_out8(4, '0' + cmd);
+  lcd_putc('0' + cmd);
   lcd_puts(" -> ");
 
   if (r1 < 0) {
@@ -471,7 +479,7 @@ int main() {
   if (sd_read_block(block_buf, 0, (sdinfo & 2) != 0) < 0) {
     return 1;
   }
-  lcd_out8(0, 0xc0);
+  lcd_cmd(0xc0);
 
   // MBR か PBR の判定
   if (block_buf[255] != 0x55AA) { // 最終 2 バイトが 55 AA ではない

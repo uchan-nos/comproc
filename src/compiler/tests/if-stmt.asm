@@ -6,9 +6,6 @@ fin:
 	jmp fin
 main:
 	cpush fp
-	st cstack+0
-	add fp,2
-	ld cstack+0
 	push 3
 	lt
 	jz L_1

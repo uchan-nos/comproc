@@ -14,6 +14,8 @@ enum SymbolKind {
 struct Type;
 struct Node;
 
+#define SYM_ATTR_ONLY_ON_STACK 0x0001u
+
 struct Symbol {
   enum SymbolKind kind;
   struct Token *name;
@@ -22,6 +24,7 @@ struct Symbol {
 
   uint16_t offset;
   struct Type *type;
+  unsigned int attr;
 };
 
 struct Symbol *NewSymbol(enum SymbolKind kind, struct Token *name);
