@@ -1,6 +1,6 @@
 `include "common.sv"
 
-module mem(
+module data_mem(
   input rst,
   input clk,
   input [`ADDR_WIDTH-1:0] addr,
@@ -25,29 +25,17 @@ assign wr_data_lo = wr_data[7:0];
 assign wr_data_hi = wr_data[15:8];
 assign rd_data = {rd_data_hi, rd_data_lo};
 
-// mem_lo/mem_hi はメモリの前半 32KiB
-// memex_lo/memex_hi はメモリの後半 16KiB
-logic [7:0] mem_lo[0:`ADDR_WIDTH'h3fff];
-logic [7:0] mem_hi[0:`ADDR_WIDTH'h3fff];
-logic [7:0] memex_lo[0:`ADDR_WIDTH'h1fff];
-logic [7:0] memex_hi[0:`ADDR_WIDTH'h1fff];
-//logic [7:0] mem_lo[0:(`ADDR_WIDTH'hBFFF >> 1)];
-//logic [7:0] mem_hi[0:(`ADDR_WIDTH'hBFFF >> 1)];
+logic [7:0] mem_lo[0:13'h1fff];
+logic [7:0] mem_hi[0:13'h1fff];
 
 always @(posedge rst, posedge clk) begin
   if (rst) begin
   end
-  else if (addr < `ADDR_WIDTH'h8000) begin
+  else begin
     if (wr_lo)
       mem_lo[addr_lo] <= wr_data_lo;
     if (wr_hi)
       mem_hi[addr_hi] <= wr_data_hi;
-  end
-  else begin
-    if (wr_lo)
-      memex_lo[addr_lo - `ADDR_WIDTH'h8000] <= wr_data_lo;
-    if (wr_hi)
-      memex_hi[addr_hi - `ADDR_WIDTH'h8000] <= wr_data_hi;
   end
 end
 
@@ -56,19 +44,43 @@ always @(posedge rst, posedge clk) begin
     rd_data_lo <= 0;
     rd_data_hi <= 0;
   end
-  else if (addr < `ADDR_WIDTH'h8000) begin
+  else begin
     rd_data_lo <= mem_lo[addr_lo];
     rd_data_hi <= mem_hi[addr_hi];
   end
-  else begin
-    rd_data_lo <= memex_lo[addr_lo - `ADDR_WIDTH'h8000];
-    rd_data_hi <= memex_hi[addr_hi - `ADDR_WIDTH'h8000];
+end
+
+endmodule
+
+
+module text_mem(
+  input rst,
+  input clk,
+  input [`ADDR_WIDTH-1:0] addr,
+  input wr,
+  input [17:0] wr_data,
+  output logic [17:0] rd_data
+);
+
+logic [17:0] mem[0:`ADDR_WIDTH'h1fff];
+
+always @(posedge rst, posedge clk) begin
+  if (rst) begin
   end
+  else if (wr)
+    mem[addr] <= wr_data;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst) begin
+    rd_data <= 18'd0;
+  end
+  else
+    rd_data <= mem[addr];
 end
 
 initial begin
-  $readmemh("./ipl_lo.hex", mem_lo, `ADDR_WIDTH'h4000>>1);
-  $readmemh("./ipl_hi.hex", mem_hi, `ADDR_WIDTH'h4000>>1);
+  $readmemh("./ipl.hex", mem, 0);
 end
 
 endmodule

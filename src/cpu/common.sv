@@ -1,7 +1,7 @@
 `ifndef COMMON_SV
 `define COMMON_SV
 
-`define ADDR_WIDTH 16
+`define ADDR_WIDTH 14
 
 `define ALU_A     6'h00
 `define ALU_INC   6'h01
