@@ -448,8 +448,30 @@ int main(int argc, char **argv) {
       if (num_opr == 0) {
         *cur_insn = 0x7801;
       } else {
-        NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
-        *cur_insn = 0x0001;
+        // ジャンプ先ラベルを探す
+        struct LabelAddr *call_to = NULL;
+        char *call_label = GET_STR(0);
+        for (int i = 0; i < num_labels; ++i) {
+          if (strcmp(labels[i].label, call_label) == 0) {
+            call_to = labels + i;
+            break;
+          }
+        }
+
+        // 即値付き CALL か PUSH + CALL を出し分ける
+        int push_call = 1; // PUSH + CALL なら真
+        int diff_pc = 0; // CALL の即値
+        if (call_to) { // 後方（既知のラベル）への call
+          diff_pc = call_to->ip - ip - 2;
+          push_call = diff_pc < -0x0800 || 0x0800 <= diff_pc;
+        }
+        if (push_call) { // push + call に置換するパターン
+          cur_insn[0] = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
+          cur_insn[1] = 0x7801;
+          ip += 2;
+        } else { // 後方 call かつアドレスが即値に収まる
+          *cur_insn = 0x0001 | (diff_pc & 0xffeu);
+        }
       }
     } else if (strcmp(mnemonic, "jz") == 0) {
       NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);

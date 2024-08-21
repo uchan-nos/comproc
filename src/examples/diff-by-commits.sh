@@ -16,7 +16,7 @@ then
   exit 1
 fi
 
-commits="3b1c73d bc264c3"
+commits="7b4f003 bc264c3"
 
 for commit in $commits
 do
@@ -40,10 +40,10 @@ fi
 
 for commit in $commits
 do
+  git checkout -q $commit
   new_src=$(basename $src .c).$commit.c
   cp $src $new_src
 
-  git checkout -q $commit
   make -C ../compiler >/dev/null
   make -C ../assembler >/dev/null
   ./build.sh $new_src >/dev/null
