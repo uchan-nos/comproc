@@ -46,7 +46,6 @@ struct GenContext {
   struct AsmLine asm_lines[MAX_LINE];
   int print_ast;
   int is_isr; // 現在コンパイルしている関数は ISR である
-  int line_cpop_fp;
 };
 
 int GenLabel(struct GenContext *ctx) {
@@ -203,14 +202,14 @@ struct Instruction *GetLastInsn(struct GenContext *ctx) {
   return &last_line->insn;
 }
 
-// 命令が 'ld cstack+0' であれば真を返す
-int IsLdCstack0(struct AsmLine *al) {
+// 命令が 'ld fp+0' であれば真を返す
+int IsLdFp0(struct AsmLine *al) {
   if (al->kind != kAsmLineInsn || strcmp("ld", al->insn.opcode) != 0) {
     return 0;
   }
   struct Operand *operands = al->insn.operands;
   if (operands[0].kind == kOprBaseOff && operands[1].kind == kOprNone &&
-      strcmp("cstack", operands[0].val_base_off.base) == 0 &&
+      strcmp("fp", operands[0].val_base_off.base) == 0 &&
       operands[0].val_base_off.offset == 0) {
     return 1;
   }
@@ -353,16 +352,16 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
                     sym->name->len, sym->name->raw);
             exit(1);
           } else {
-            InsnBaseOff(ctx, "push", "cstack", sym->offset);
+            InsnBaseOff(ctx, "push", "fp", sym->offset);
           }
         } else {
           if (value_class == VC_LVAL) {
-            InsnBaseOff(ctx, "push", "cstack", sym->offset);
+            InsnBaseOff(ctx, "push", "fp", sym->offset);
           } else {
             if (SizeofType(sym->type) == 1) {
-              InsnBaseOff(ctx, "ld1", "cstack", sym->offset);
+              InsnBaseOff(ctx, "ld1", "fp", sym->offset);
             } else {
-              InsnBaseOff(ctx, "ld", "cstack", sym->offset);
+              InsnBaseOff(ctx, "ld", "fp", sym->offset);
             }
           }
         }
@@ -523,10 +522,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       int label_end = GenLabel(ctx);
       PRINT_NODE_COMMENT(ctx, node, "LOr (eval lhs)");
       Generate(ctx, node->lhs, VC_RVAL, 1);
-      InsnLabelAutoL(ctx, "jnz", label_true);
+      Insn(ctx, "not");
+      InsnLabelAutoL(ctx, "jz", label_true);
       PRINT_NODE_COMMENT(ctx, node, "LOr (eval rhs)");
       Generate(ctx, node->rhs, VC_RVAL, 1);
-      InsnLabelAutoL(ctx, "jnz", label_true);
+      Insn(ctx, "not");
+      InsnLabelAutoL(ctx, "jz", label_true);
       PRINT_NODE_COMMENT(ctx, node, "LOr (false)");
       if (value_class != VC_NO_NEED) {
         InsnInt(ctx, "push", 0);
@@ -638,50 +639,42 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         ctx->is_isr = 1;
       }
 
-      int line_cpush_fp = ctx->num_line;
-      InsnReg(ctx, "cpush", "fp");
+      int line_add_fp = ctx->num_line;
+      // add fp のオペランド値は、関数定義の処理後に上書きされる
+      InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
+
       int num_param = 0;
       for (struct Node *param = node->cond; param; param = param->next) {
         struct Symbol *sym = FindSymbol(ctx->scope, param->lhs->token);
-        InsnBaseOff(ctx, "st", "cstack", sym->offset);
+        InsnBaseOff(ctx, "st", "fp", sym->offset);
         ++num_param;
       }
 
-      int line_add_fp = ctx->num_line;
-      ctx->line_cpop_fp = 0;
-      // add fp のオペランド値は、関数定義の処理後に上書きされる
-      InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
       Generate(ctx, node->rhs, VC_RVAL, 1);
       int line_body_last = ctx->num_line;
 
       // 引数が 1 つしかなく、その引数が 1 回しか評価されない場合の最適化
-      if (num_param == 1 && IsLdCstack0(ctx->asm_lines + line_add_fp + 1)) {
-        // st cstack+0; add fp,2; ld cstack+0 という流れである
-        int num_ld = 0; // 2 行目以降で ld cstack+0 が登場する回数
-        for (int line = line_add_fp + 2; line < line_body_last; ++line) {
-          if (IsLdCstack0(ctx->asm_lines + line)) {
+      if (num_param == 1 && IsLdFp0(ctx->asm_lines + line_add_fp + 2)) {
+        // add fp,-2; st fp+0; ld fp+0 という流れである
+        int num_ld = 0; // 2 行目以降で ld fp+0 が登場する回数
+        for (int line = line_add_fp + 3; line < line_body_last; ++line) {
+          if (IsLdFp0(ctx->asm_lines + line)) {
             ++num_ld;
           }
         }
         if (num_ld == 0) {
-          // st cstack+0, ld cstack+0 の対を削除
-          ctx->asm_lines[line_cpush_fp + 1].kind = kAsmLineDeleted;
+          // st fp+0, ld fp+0 の対を削除
           ctx->asm_lines[line_add_fp + 1].kind = kAsmLineDeleted;
+          ctx->asm_lines[line_add_fp + 2].kind = kAsmLineDeleted;
           ctx->frame_size -= 2;
         }
       }
 
       struct AsmLine *add_fp = &ctx->asm_lines[line_add_fp];
       if (ctx->frame_size > 0) {
-        add_fp->insn.operands[1].val_int = ctx->frame_size;
+        add_fp->insn.operands[1].val_int = -ctx->frame_size;
       } else {
         add_fp->kind = kAsmLineDeleted;
-        if (ctx->line_cpop_fp >= 0) {
-          ctx->asm_lines[line_cpush_fp].kind = kAsmLineDeleted;
-          if (ctx->line_cpop_fp > 0) {
-            ctx->asm_lines[ctx->line_cpop_fp].kind = kAsmLineDeleted;
-          }
-        }
       }
     }
     break;
@@ -700,12 +693,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Generate(ctx, node->lhs, VC_RVAL, 1);
     }
     if (ctx->frame_size > 0) {
-      if (ctx->line_cpop_fp == 0) {
-        ctx->line_cpop_fp = ctx->num_line;
-      } else {
-        ctx->line_cpop_fp = -1;
-      }
-      InsnReg(ctx, "cpop", "fp");
+      InsnRegInt(ctx, "add", "fp", ctx->frame_size);
     }
     Insn(ctx, ctx->is_isr ? "iret" : "ret");
     break;
@@ -721,9 +709,9 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         if (node->rhs) {
           Generate(ctx, node->rhs, VC_RVAL, 1);
           if (SizeofType(sym->type) == 1) {
-            InsnBaseOff(ctx, "st1", "cstack", sym->offset);
+            InsnBaseOff(ctx, "st1", "fp", sym->offset);
           } else {
-            InsnBaseOff(ctx, "st", "cstack", sym->offset);
+            InsnBaseOff(ctx, "st", "fp", sym->offset);
           }
         }
       }
@@ -907,10 +895,10 @@ int main(int argc, char **argv) {
 
   struct GenContext gen_ctx = {
     parse_ctx.scope,
-    0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0, 0
+    0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
 
-  struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
+  //struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
   for (struct Symbol *sym = global_scope->syms->next; sym; sym = sym->next) {
     if (sym->kind == kSymGVar && sym->offset == 0) {
       //size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
@@ -932,7 +920,7 @@ int main(int argc, char **argv) {
       Generate(&gen_ctx, n, VC_NO_NEED, 0);
     }
   }
-  insn_add_fp->operands[1].val_int = global_scope->var_offset;
+  //insn_add_fp->operands[1].val_int = global_scope->var_offset;
 
   fprintf(output_file, "section .data\n");
   for (int i = 0; i < gen_ctx.num_strings; i++) {
