@@ -440,7 +440,7 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
       }
     } else if (strcmp(al->mnemonic, "jz") == 0) {
       NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
-      pmem[ip] = 0x05000;
+      pmem[ip] = 0x06000;
     } else if (strcmp(al->mnemonic, "ld1") == 0) {
       pmem[ip] = GenLoadStoreImm(0x08000, GET_STR(0), 0xfff);
     } else if (strcmp(al->mnemonic, "st1") == 0) {
@@ -450,7 +450,17 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
     } else if (strcmp(al->mnemonic, "st") == 0) {
       pmem[ip] = GenLoadStoreImm(0x10001, GET_STR(0), 0xffe);
     } else if (strcmp(al->mnemonic, "add") == 0) {
-      pmem[ip] = 0x1c060;
+      if (al->num_opr == 0) {
+        pmem[ip] = 0x1c060;
+      } else {
+        char *base = GET_STR(0);
+        if (ExpectFP(base)) {
+          fprintf(stderr, "base of ADD must be FP: '%s'\n", base);
+          exit(1);
+        }
+        uint16_t addend = GET_LONG_NO_BP(1);
+        pmem[ip] = 0x05000 | (0xfff & addend);
+      }
     } else if (strcmp(al->mnemonic, "nop") == 0) {
       pmem[ip] = 0x1c000;
     } else if (strcmp(al->mnemonic, "pop") == 0) {
@@ -483,17 +493,6 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
     } else if (strcmp(al->mnemonic, "shl") == 0) {
       pmem[ip] = 0x1c056;
     } else if (strcmp(al->mnemonic, "sub") == 0) {
-      if (al->num_opr == 0) {
-        pmem[ip] = 0x1c060;
-      } else {
-        char *base = GET_STR(0);
-        if (ExpectFP(base)) {
-          fprintf(stderr, "base of SUB must be FP: '%s'\n", base);
-          exit(1);
-        }
-        uint16_t addend = GET_LONG_NO_BP(1);
-        pmem[ip] = 0x06000 | (0xfff & addend);
-      }
       pmem[ip] = 0x1c061;
     } else if (strcmp(al->mnemonic, "mul") == 0) {
       pmem[ip] = 0x1c062;
