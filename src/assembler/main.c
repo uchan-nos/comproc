@@ -8,6 +8,7 @@
 #define MAX_BP 256
 #define MAX_LABEL 256
 #define MAX_LINE 256
+#define DMEM_ORIGIN 0x100
 
 // 文字列をすべて小文字にする
 void ToLower(char *s) {
@@ -285,11 +286,12 @@ int SetLabel(struct LabelAddr *la, const char *label, int addr, FILE *map_file) 
 int ProcessDataSection(FILE *input_file, FILE *map_file,
                        uint8_t *dmem, char *line, struct AsmLine *al,
                        struct LabelAddr *labels, int *num_labels) {
-  int addr = 0;
+  int size = 0;
 
   while (fgets(line, MAX_LINE, input_file) != NULL) {
     SplitOpcode(line, al);
-    *num_labels += SetLabel(labels + *num_labels, al->label, addr, map_file);
+    *num_labels += SetLabel(labels + *num_labels, al->label,
+                            DMEM_ORIGIN + size, map_file);
     if (al->mnemonic == NULL) {
       continue;
     }
@@ -300,9 +302,9 @@ int ProcessDataSection(FILE *input_file, FILE *map_file,
         break;
       }
     } else if (strcmp(al->mnemonic, "db") == 0) {
-      addr += DataByte(dmem + addr, al->operands, al->num_opr);
-      if (addr & 1) {
-        addr++; // 偶数アドレスにそろえる
+      size += DataByte(dmem + size, al->operands, al->num_opr);
+      if (size & 1) {
+        size++; // 偶数アドレスにそろえる
       }
     } else {
       fprintf(stderr, "'%s' is not supported in .data\n", al->mnemonic);
@@ -310,7 +312,7 @@ int ProcessDataSection(FILE *input_file, FILE *map_file,
     }
   }
 
-  return addr;
+  return size;
 }
 
 // .text セクションを処理し、命令数を返す
@@ -659,7 +661,7 @@ int main(int argc, char **argv) {
   uint32_t pmem[16 * 1024]; // 16KWords
   struct LabelAddr labels[MAX_LABEL];
   int num_labels = 0;
-  int num_data = 0, num_insn = 0;
+  int dmem_size = 0, num_insn = 0;
 
   if (fgets(line, MAX_LINE, input_file) != NULL) {
     SplitOpcode(line, &al);
@@ -668,19 +670,21 @@ int main(int argc, char **argv) {
       fprintf(stderr, "first line must be 'section .data'\n");
       exit(1);
     }
-    num_data = ProcessDataSection(input_file, map_file, dmem, line, &al, labels, &num_labels);
+    dmem_size = ProcessDataSection(input_file, map_file, dmem, line, &al,
+                                   labels, &num_labels);
 
     if (strcmp(al.mnemonic, "section") != 0 ||
         strcmp(al.operands[0], ".text") != 0) {
       fprintf(stderr, ".text section must come just after .data\n");
       exit(1);
     }
-    num_insn = ProcessTextSection(input_file, map_file, pmem, line, &al, labels, &num_labels);
+    num_insn = ProcessTextSection(input_file, map_file, pmem, line, &al,
+                                  labels, &num_labels);
   }
 
   if (dmem_file) {
-    for (int i = 0; i < num_data; i++) {
-      fprintf(dmem_file, "%02X\n", dmem[i]);
+    for (int i = 0; i < dmem_size; i += 2) {
+      fprintf(dmem_file, "%02X %02X\n", dmem[i], dmem[i + 1]);
     }
   }
   for (int i = 0; i < num_insn; i++) {
