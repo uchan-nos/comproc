@@ -922,6 +922,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+
   InsnLabelStr(&gen_ctx, "call", "main");
   InsnBaseOff(&gen_ctx, "st", NULL, 0x06);
   AddLabelStr(&gen_ctx, "fin");
@@ -932,6 +933,24 @@ int main(int argc, char **argv) {
     }
   }
   insn_add_fp->operands[1].val_int = global_scope->var_offset;
+
+  fprintf(output_file, "section .data\n");
+  for (int i = 0; i < gen_ctx.num_strings; i++) {
+    struct Token *tk_str = gen_ctx.strings[i];
+    char buf[256];
+    fprintf(output_file, "STR_%d: \n" INDENT "db ", i);
+
+    while (tk_str->kind == kTokenString) {
+      int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
+      for (int i = 0; i < len; i++) {
+        fprintf(output_file, "0x%02x,", buf[i]);
+      }
+      tk_str = tk_str->next;
+    }
+    fprintf(output_file, "0\n");
+  }
+
+  fprintf(output_file, "\nsection .text\n");
 
   for (int i = 0; i < gen_ctx.num_line; i++) {
     struct AsmLine *line = gen_ctx.asm_lines + i;
@@ -991,21 +1010,6 @@ int main(int argc, char **argv) {
       fprintf(output_file, "%s\n", line->raw);
       break;
     }
-  }
-
-  for (int i = 0; i < gen_ctx.num_strings; i++) {
-    struct Token *tk_str = gen_ctx.strings[i];
-    char buf[256];
-    fprintf(output_file, "STR_%d: \n" INDENT "db ", i);
-
-    while (tk_str->kind == kTokenString) {
-      int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
-      for (int i = 0; i < len; i++) {
-        fprintf(output_file, "0x%02x,", buf[i]);
-      }
-      tk_str = tk_str->next;
-    }
-    fprintf(output_file, "0\n");
   }
 
   if (output_file != stdout) {
