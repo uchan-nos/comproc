@@ -5,42 +5,9 @@
 #include <string.h>
 
 #define MAX_OPERAND 128
-#define ORIGIN 0x4000
 #define MAX_BP 256
 #define MAX_LABEL 256
-
-// line をニーモニックとオペランドに分割する
-// 戻り値: オペランドの数
-int SplitOpcode(char *line, char **label, char **mnemonic, char **operands, int n) {
-  if (strtok(line, ";#") == NULL) {
-    return -1;
-  }
-
-  char *colon = strchr(line, ':');
-  if (colon) {
-    *label = line;
-    *colon = '\0';
-    line = colon + 1;
-  } else {
-    *label = NULL;
-  }
-
-  if ((*mnemonic = strtok(line, " \t\n")) == NULL) {
-    return -1;
-  }
-  for (int i = 0; i < n; ++i) {
-    if ((operands[i] = strtok(NULL, ",\n")) == NULL) {
-      return i;
-    }
-    operands[i] += strspn(operands[i], " \t");
-    for (char *last = operands[i] + strlen(operands[i]) - 1;
-         last > operands[i] && strchr(" \t", *last) != NULL;
-         last--) {
-      *last = '\0';
-    }
-  }
-  return n;
-}
+#define MAX_LINE 256
 
 // 文字列をすべて小文字にする
 void ToLower(char *s) {
@@ -50,16 +17,57 @@ void ToLower(char *s) {
   }
 }
 
+struct AsmLine {
+  char *label;
+  char *mnemonic;
+  char *operands[MAX_OPERAND];
+  int num_opr;
+};
+
+// line をニーモニックとオペランドに分割する
+void SplitOpcode(char *line, struct AsmLine *al) {
+  al->label = al->mnemonic = NULL;
+  al->num_opr = 0;
+
+  if (strtok(line, ";#") == NULL) {
+    return;
+  }
+
+  char *colon = strchr(line, ':');
+  if (colon) {
+    al->label = line;
+    *colon = '\0';
+    line = colon + 1;
+  }
+
+  if ((al->mnemonic = strtok(line, " \t\n")) == NULL) {
+    return;
+  }
+  ToLower(al->mnemonic);
+  int i;
+  for (i = 0; i < MAX_OPERAND; ++i) {
+    if ((al->operands[i] = strtok(NULL, ",\n")) == NULL) {
+      break;
+    }
+    al->operands[i] += strspn(al->operands[i], " \t");
+    for (char *last = al->operands[i] + strlen(al->operands[i]) - 1;
+         last > al->operands[i] && strchr(" \t", *last) != NULL;
+         last--) {
+      *last = '\0';
+    }
+  }
+  al->num_opr = i;
+}
+
 struct LabelAddr {
   const char *label;
-  int ip;
+  int addr;
 };
 
 enum BPType {
   BP_IP_REL12,
-  BP_IP_REL10,
-  BP_ABS10,
-  BP_ABS15,
+  BP_IP_ABS14,
+  BP_ABS16,
 };
 
 struct Backpatch {
@@ -174,31 +182,18 @@ long GetOperandLongNoBP(char *operand) {
   return value;
 }
 
-#define GET_STR(i) GetOperand((mnemonic), (operands), (num_opr), (i))
+#define GET_STR(i) GetOperand((al->mnemonic), (al->operands), (al->num_opr), (i))
 #define GET_LONG(i, bp_type) GetOperandLong(\
-    GetOperand((mnemonic), (operands), (num_opr), (i)), \
+    GetOperand((al->mnemonic), (al->operands), (al->num_opr), (i)), \
     (backpatches), &(num_backpatches), (ip), (bp_type))
 #define GET_LONG_NO_BP(i) GetOperandLongNoBP(\
-    GetOperand((mnemonic), (operands), (num_opr), (i)))
+    GetOperand((al->mnemonic), (al->operands), (al->num_opr), (i)))
 
 // db 命令のオペランドを解釈し、メモリに書き、バイト数を返す
-int DataByte(uint16_t *insn, char **operands, int num_opr) {
+int DataByte(uint8_t *dmem, char **operands, int num_opr) {
   char *endptr;
-  for (int i = 0; i < num_opr / 2; i++) {
-    uint16_t v = strtol(operands[2 * i], &endptr, 0);
-    if (*endptr) {
-      fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
-      exit(1);
-    }
-    v |= strtol(operands[2 * i + 1], &endptr, 0) << 8;
-    if (*endptr) {
-      fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
-      exit(1);
-    }
-    insn[i] = v;
-  }
-  if (num_opr % 2) {
-    insn[num_opr / 2] = strtol(operands[num_opr - 1], &endptr, 0);
+  for (int i = 0; i < num_opr; i++) {
+    dmem[i] = strtol(operands[i], &endptr, 0);
     if (*endptr) {
       fprintf(stderr, "failed conversion to long: '%s'\n", endptr);
       exit(1);
@@ -211,10 +206,10 @@ int DataByte(uint16_t *insn, char **operands, int num_opr) {
 // insn: 機械語テンプレート
 // opr: "X+off" 形式の文字列
 // mask: 即値のビットマスク
-uint16_t GenLoadStoreImm(uint16_t insn, char *operand, uint16_t mask) {
+uint32_t GenLoadStoreImm(uint32_t insn, char *operand, uint16_t mask) {
   uint16_t off;
   enum AddrBase ab = ParseAddrOffset(operand, &off);
-  return insn | (ab << 10) | (mask & off);
+  return insn | (ab << 12) | (mask & off);
 }
 
 enum PopReg {
@@ -263,398 +258,434 @@ int16_t Top(struct Interp *interp) {
   return interp->stack[0];
 }
 
-int main(int argc, char **argv) {
-  int separate_output = 0;
-  const char *input_filename = NULL;
-  const char *output_filename = NULL;
-  const char *map_filename = NULL;
+// ラベルとアドレスの組を設定し、マップファイルに書く。
+// ラベルが設定されれば 1 を、ラベルが NULL なら 0 を返す。
+int SetLabel(struct LabelAddr *la, const char *label, int addr, FILE *map_file) {
+  if (label) {
+    la->label = strdup(label);
+    la->addr = addr;
 
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--separate-output") == 0) {
-      separate_output = 1;
-    } else if (strcmp(argv[i], "-o") == 0) {
-      i++;
-      if (i >= argc) {
-        fprintf(stderr, "output file name is not specified\n");
-        exit(1);
+    if (map_file) {
+      fprintf(map_file, "0x%04x %s\n", addr, label);
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// .data セクションを処理し、バイト数を返す
+//
+// input_file: ソースコード
+// map_file: マップファイル
+// dmem: データメモリへのポインタ
+// line: 行バッファ
+// al: "section .data" 行
+//   関数の終了時には al に次のセクション定義行が格納された状態になっている
+// labels: 発見したラベルとそのときのデータメモリアドレスの組を記録
+int ProcessDataSection(FILE *input_file, FILE *map_file,
+                       uint8_t *dmem, char *line, struct AsmLine *al,
+                       struct LabelAddr *labels, int *num_labels) {
+  int addr = 0;
+
+  while (fgets(line, MAX_LINE, input_file) != NULL) {
+    SplitOpcode(line, al);
+    *num_labels += SetLabel(labels + *num_labels, al->label, addr, map_file);
+    if (al->mnemonic == NULL) {
+      continue;
+    }
+
+    if (strcmp(al->mnemonic, "section") == 0) {
+      if (strcmp(al->operands[0], ".data") != 0) {
+        // .data セクションの終了
+        break;
       }
-      output_filename = argv[i];
-    } else if (input_filename) {
-      fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
+    } else if (strcmp(al->mnemonic, "db") == 0) {
+      addr += DataByte(dmem + addr, al->operands, al->num_opr);
+      if (addr & 1) {
+        addr++; // 偶数アドレスにそろえる
+      }
+    } else {
+      fprintf(stderr, "'%s' is not supported in .data\n", al->mnemonic);
       exit(1);
-    } else if (strcmp(argv[i], "--map") == 0) {
-      i++;
-      if (i >= argc) {
-        fprintf(stderr, "map file name is not specified\n");
-        exit(1);
-      }
-      map_filename = argv[i];
-    } else {
-      input_filename = argv[i];
     }
   }
 
-  FILE *input_file = stdin;
-  FILE *output_file = stdout, *output_file_hi = NULL;
-  if (input_filename && strcmp(input_filename, "-") != 0) {
-    input_file = fopen(input_filename, "r");
-  }
-  if (output_filename && strcmp(output_filename, "-") != 0) {
-    if (separate_output) {
-      char s[128] = {};
-      strncpy(s, output_filename, 120);
-      size_t l = strlen(s);
-      strcpy(s + l, "_lo.hex");
-      output_file = fopen(s, "w");
-      strcpy(s + l, "_hi.hex");
-      output_file_hi = fopen(s, "w");
-    } else {
-      output_file = fopen(output_filename, "w");
-    }
-  }
+  return addr;
+}
 
-  FILE *map_file = NULL;
-  if (map_filename) {
-    map_file = fopen(map_filename, "w");
-  }
-
-  if (separate_output && output_file_hi == NULL) {
-    fprintf(stderr, "--separate-output needs '-o <basename>'\n");
-    exit(1);
-  }
-
-  char line[256];
-  char *label;
-  char *mnemonic;
-  char *operands[MAX_OPERAND];
-
-  uint16_t insn[1024 * 2];
-  int ip = ORIGIN;
+// .text セクションを処理し、命令数を返す
+//
+// input_file: ソースコード
+// map_file: マップファイル
+// pmem: プログラムメモリへのポインタ
+// line: 行バッファ
+// al: "section .text" 行
+// labels: 発見したラベルとそのときの IP の組を記録
+int ProcessTextSection(FILE *input_file, FILE *map_file,
+                       uint32_t *pmem, char *line, struct AsmLine *al,
+                       struct LabelAddr *labels, int *num_labels) {
+  int ip = 0;
 
   struct Backpatch backpatches[MAX_BP];
   int num_backpatches = 0;
 
-  struct LabelAddr labels[MAX_LABEL];
-  int num_labels = 0;
-
   struct Interp interp;
 
-  while (fgets(line, sizeof(line), input_file) != NULL) {
-    int num_opr = SplitOpcode(line, &label, &mnemonic, operands, MAX_OPERAND);
-
-    if (label) {
-      labels[num_labels].label = strdup(label);
-      labels[num_labels].ip = ip;
-      num_labels++;
-
-      if (map_file) {
-        fprintf(map_file, "0x%04x %s\n", ip, label);
-      }
-    }
-
-    if (num_opr < 0) {
+  while (fgets(line, MAX_LINE, input_file) != NULL) {
+    SplitOpcode(line, al);
+    *num_labels += SetLabel(labels + *num_labels, al->label, ip, map_file);
+    if (al->mnemonic == NULL) {
       continue;
     }
-    ToLower(mnemonic);
 
-    uint16_t *cur_insn = &insn[(ip - ORIGIN) >> 1];
-
-    if (mnemonic[0] == '.') {
+    if (al->mnemonic[0] == '.') {
       // 内蔵インタプリタ用命令
-      if (strcmp(mnemonic + 1, "push") == 0) {
+      if (strcmp(al->mnemonic + 1, "push") == 0) {
         Push(&interp, GET_LONG_NO_BP(0));
-      } else if (strcmp(mnemonic + 1, "sign") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "sign") == 0) {
         Push(&interp, (uint16_t)Pop(&interp) ^ 0x8000);
-      } else if (strcmp(mnemonic + 1, "add") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "add") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) + rhs);
-      } else if (strcmp(mnemonic + 1, "sub") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "sub") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) - rhs);
-      } else if (strcmp(mnemonic + 1, "mul") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "mul") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) * rhs);
-      } else if (strcmp(mnemonic + 1, "eq") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "eq") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) == rhs);
-      } else if (strcmp(mnemonic + 1, "neq") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "neq") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) != rhs);
-      } else if (strcmp(mnemonic + 1, "lt") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "lt") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) < rhs);
-      } else if (strcmp(mnemonic + 1, "le") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "le") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) <= rhs);
-      } else if (strcmp(mnemonic + 1, "bt") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "bt") == 0) {
         uint16_t rhs = Pop(&interp);
         Push(&interp, (uint16_t)Pop(&interp) < rhs);
-      } else if (strcmp(mnemonic + 1, "be") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "be") == 0) {
         uint16_t rhs = Pop(&interp);
         Push(&interp, (uint16_t)Pop(&interp) <= rhs);
-      } else if (strcmp(mnemonic + 1, "not") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "not") == 0) {
         Push(&interp, ~(uint16_t)Pop(&interp));
-      } else if (strcmp(mnemonic + 1, "and") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "and") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) & rhs);
-      } else if (strcmp(mnemonic + 1, "or") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "or") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) | rhs);
-      } else if (strcmp(mnemonic + 1, "xor") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "xor") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, Pop(&interp) ^ rhs);
-      } else if (strcmp(mnemonic + 1, "shr") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "shr") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, (uint16_t)Pop(&interp) >> rhs);
-      } else if (strcmp(mnemonic + 1, "sar") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "sar") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, (int16_t)Pop(&interp) >> rhs);
-      } else if (strcmp(mnemonic + 1, "shl") == 0) {
+      } else if (strcmp(al->mnemonic + 1, "shl") == 0) {
         int16_t rhs = Pop(&interp);
         Push(&interp, (int16_t)Pop(&interp) << rhs);
       }
       continue;
     }
 
-    if (strcmp(mnemonic, "push") == 0) {
+    if (strcmp(al->mnemonic, "push") == 0) {
       char *opr = GET_STR(0);
       if (strchr(opr, '+') == NULL) {
         if (opr[0] == '$') {
           if (strcmp(opr + 1, "top") == 0) {
             uint16_t stack_top = Top(&interp);
-            if ((stack_top & 0x8000) == 0) {
-              *cur_insn = 0x8000 | stack_top;
-            } else {
-              insn[(ip - ORIGIN) >> 1] = 0x8000 | (stack_top & 0x7fffu);
-              ip += 2;
-              insn[(ip - ORIGIN) >> 1] = 0x7005; // SIGN
-            }
+            pmem[ip] = 0x30000 | stack_top;
           } else {
             fprintf(stderr, "unknown variable: '%s'\n", opr);
             exit(1);
           }
         } else {
-          *cur_insn = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
+          pmem[ip] = 0x30000 | GET_LONG(0, BP_ABS16);
         }
       } else {
         uint16_t off;
         enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
-        *cur_insn = 0x5000 | (ab << 10) | (0x3ff & off);
+        pmem[ip] = 0x14000 | (ab << 12) | (0xfff & off);
       }
-    } else if (strcmp(mnemonic, "jmp") == 0) {
+    } else if (strcmp(al->mnemonic, "jmp") == 0) {
       NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
-      *cur_insn = 0x0000;
-    } else if (strcmp(mnemonic, "call") == 0) {
-      if (num_opr == 0) {
-        *cur_insn = 0x7801;
+      pmem[ip] = 0x04000;
+    } else if (strcmp(al->mnemonic, "call") == 0) {
+      if (al->num_opr == 0) {
+        pmem[ip] = 0x1c801;
       } else {
         // ジャンプ先ラベルを探す
         struct LabelAddr *call_to = NULL;
         char *call_label = GET_STR(0);
-        for (int i = 0; i < num_labels; ++i) {
+        for (int i = 0; i < *num_labels; ++i) {
           if (strcmp(labels[i].label, call_label) == 0) {
             call_to = labels + i;
             break;
           }
         }
 
-        // 即値付き CALL か PUSH + CALL を出し分ける
-        int push_call = 1; // PUSH + CALL なら真
-        int diff_pc = 0; // CALL の即値
+        pmem[ip] = 0x00000;
         if (call_to) { // 後方（既知のラベル）への call
-          diff_pc = call_to->ip - ip - 2;
-          push_call = diff_pc < -0x0800 || 0x0800 <= diff_pc;
-        }
-        if (push_call) { // push + call に置換するパターン
-          cur_insn[0] = 0x8000 | (GET_LONG(0, BP_ABS15) & 0x7fffu);
-          cur_insn[1] = 0x7801;
-          ip += 2;
-        } else { // 後方 call かつアドレスが即値に収まる
-          *cur_insn = 0x0001 | (diff_pc & 0xffeu);
+          pmem[ip] |= call_to->addr;
+        } else {
+          NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_ABS14);
         }
       }
-    } else if (strcmp(mnemonic, "jz") == 0) {
+    } else if (strcmp(al->mnemonic, "jz") == 0) {
       NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
-      *cur_insn = 0x1000;
-    } else if (strcmp(mnemonic, "jnz") == 0) {
-      NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
-      *cur_insn = 0x1001;
-    } else if (strcmp(mnemonic, "ld1") == 0) {
-      *cur_insn = GenLoadStoreImm(0x2000, GET_STR(0), 0x3ff);
-    } else if (strcmp(mnemonic, "st1") == 0) {
-      *cur_insn = GenLoadStoreImm(0x3000, GET_STR(0), 0x3ff);
-    } else if (strcmp(mnemonic, "ld") == 0) {
-      *cur_insn = GenLoadStoreImm(0x4000, GET_STR(0), 0x3fe);
-    } else if (strcmp(mnemonic, "st") == 0) {
-      *cur_insn = GenLoadStoreImm(0x4001, GET_STR(0), 0x3fe);
-    } else if (strcmp(mnemonic, "add") == 0) {
-      if (num_opr == 0) {
-        *cur_insn = 0x7060;
+      pmem[ip] = 0x05000;
+    } else if (strcmp(al->mnemonic, "ld1") == 0) {
+      pmem[ip] = GenLoadStoreImm(0x08000, GET_STR(0), 0xfff);
+    } else if (strcmp(al->mnemonic, "st1") == 0) {
+      pmem[ip] = GenLoadStoreImm(0x0c000, GET_STR(0), 0xfff);
+    } else if (strcmp(al->mnemonic, "ld") == 0) {
+      pmem[ip] = GenLoadStoreImm(0x10000, GET_STR(0), 0xffe);
+    } else if (strcmp(al->mnemonic, "st") == 0) {
+      pmem[ip] = GenLoadStoreImm(0x10001, GET_STR(0), 0xffe);
+    } else if (strcmp(al->mnemonic, "add") == 0) {
+      pmem[ip] = 0x1c060;
+    } else if (strcmp(al->mnemonic, "nop") == 0) {
+      pmem[ip] = 0x1c000;
+    } else if (strcmp(al->mnemonic, "pop") == 0) {
+      if (al->num_opr == 0) {
+        pmem[ip] = 0x1c04f;
+      } else {
+        enum PopReg pr = ParsePopReg(GET_STR(0));
+        pmem[ip] = 0x1c820 | pr;
+      }
+    } else if (strcmp(al->mnemonic, "inc") == 0) {
+      pmem[ip] = 0x1c001;
+    } else if (strcmp(al->mnemonic, "inc2") == 0) {
+      pmem[ip] = 0x1c002;
+    } else if (strcmp(al->mnemonic, "not") == 0) {
+      pmem[ip] = 0x1c004;
+    } else if (strcmp(al->mnemonic, "sign") == 0) {
+      pmem[ip] = 0x1c005;
+    } else if (strcmp(al->mnemonic, "exts") == 0) {
+      pmem[ip] = 0x1c006;
+    } else if (strcmp(al->mnemonic, "and") == 0) {
+      pmem[ip] = 0x1c050;
+    } else if (strcmp(al->mnemonic, "or") == 0) {
+      pmem[ip] = 0x1c051;
+    } else if (strcmp(al->mnemonic, "xor") == 0) {
+      pmem[ip] = 0x1c052;
+    } else if (strcmp(al->mnemonic, "shr") == 0) {
+      pmem[ip] = 0x1c054;
+    } else if (strcmp(al->mnemonic, "sar") == 0) {
+      pmem[ip] = 0x1c055;
+    } else if (strcmp(al->mnemonic, "shl") == 0) {
+      pmem[ip] = 0x1c056;
+    } else if (strcmp(al->mnemonic, "sub") == 0) {
+      if (al->num_opr == 0) {
+        pmem[ip] = 0x1c060;
       } else {
         char *base = GET_STR(0);
         if (ExpectFP(base)) {
-          fprintf(stderr, "base of ADD must be FP: '%s'\n", base);
+          fprintf(stderr, "base of SUB must be FP: '%s'\n", base);
           exit(1);
         }
         uint16_t addend = GET_LONG_NO_BP(1);
-        *cur_insn = 0x6400 | (0x3ff & addend);
+        pmem[ip] = 0x06000 | (0xfff & addend);
       }
-    } else if (strcmp(mnemonic, "nop") == 0) {
-      *cur_insn = 0x7000;
-    } else if (strcmp(mnemonic, "pop") == 0) {
-      if (num_opr == 0) {
-        *cur_insn = 0x704f;
-      } else {
-        enum PopReg pr = ParsePopReg(GET_STR(0));
-        *cur_insn = 0x7820 | pr;
-      }
-    } else if (strcmp(mnemonic, "inc") == 0) {
-      *cur_insn = 0x7001;
-    } else if (strcmp(mnemonic, "inc2") == 0) {
-      *cur_insn = 0x7002;
-    } else if (strcmp(mnemonic, "not") == 0) {
-      *cur_insn = 0x7004;
-    } else if (strcmp(mnemonic, "sign") == 0) {
-      *cur_insn = 0x7005;
-    } else if (strcmp(mnemonic, "exts") == 0) {
-      *cur_insn = 0x7006;
-    } else if (strcmp(mnemonic, "and") == 0) {
-      *cur_insn = 0x7050;
-    } else if (strcmp(mnemonic, "or") == 0) {
-      *cur_insn = 0x7051;
-    } else if (strcmp(mnemonic, "xor") == 0) {
-      *cur_insn = 0x7052;
-    } else if (strcmp(mnemonic, "shr") == 0) {
-      *cur_insn = 0x7054;
-    } else if (strcmp(mnemonic, "sar") == 0) {
-      *cur_insn = 0x7055;
-    } else if (strcmp(mnemonic, "shl") == 0) {
-      *cur_insn = 0x7056;
-    } else if (strcmp(mnemonic, "sub") == 0) {
-      *cur_insn = 0x7061;
-    } else if (strcmp(mnemonic, "mul") == 0) {
-      *cur_insn = 0x7062;
-    } else if (strcmp(mnemonic, "eq") == 0) {
-      *cur_insn = 0x7068;
-    } else if (strcmp(mnemonic, "neq") == 0) {
-      *cur_insn = 0x7069;
-    } else if (strcmp(mnemonic, "lt") == 0) {
-      *cur_insn = 0x706a;
-    } else if (strcmp(mnemonic, "le") == 0) {
-      *cur_insn = 0x706b;
-    } else if (strcmp(mnemonic, "bt") == 0) {
-      *cur_insn = 0x706c;
-    } else if (strcmp(mnemonic, "be") == 0) {
-      *cur_insn = 0x706d;
-    } else if (strcmp(mnemonic, "dup") == 0) {
-      if (num_opr == 0) {
-        *cur_insn = 0x7080;
+      pmem[ip] = 0x1c061;
+    } else if (strcmp(al->mnemonic, "mul") == 0) {
+      pmem[ip] = 0x1c062;
+    } else if (strcmp(al->mnemonic, "eq") == 0) {
+      pmem[ip] = 0x1c068;
+    } else if (strcmp(al->mnemonic, "neq") == 0) {
+      pmem[ip] = 0x1c069;
+    } else if (strcmp(al->mnemonic, "lt") == 0) {
+      pmem[ip] = 0x1c06a;
+    } else if (strcmp(al->mnemonic, "le") == 0) {
+      pmem[ip] = 0x1c06b;
+    } else if (strcmp(al->mnemonic, "bt") == 0) {
+      pmem[ip] = 0x1c06c;
+    } else if (strcmp(al->mnemonic, "be") == 0) {
+      pmem[ip] = 0x1c06d;
+    } else if (strcmp(al->mnemonic, "dup") == 0) {
+      if (al->num_opr == 0) {
+        pmem[ip] = 0x1c080;
       } else {
         long n = GET_LONG_NO_BP(0);
         if (n == 0) {
-          *cur_insn = 0x7080;
+          pmem[ip] = 0x1c080;
         } else if (n == 1) {
-          *cur_insn = 0x708f;
+          pmem[ip] = 0x1c08f;
         } else {
           fprintf(stderr, "DUP takes 0 or 1: %ld\n", n);
           exit(1);
         }
       }
-    } else if (strcmp(mnemonic, "ret") == 0) {
-      *cur_insn = 0x7800;
-    } else if (strcmp(mnemonic, "cpop") == 0) {
+    } else if (strcmp(al->mnemonic, "ret") == 0) {
+      pmem[ip] = 0x1c800;
+    } else if (strcmp(al->mnemonic, "cpop") == 0) {
       char *target = GET_STR(0);
       if (ExpectFP(target)) {
         fprintf(stderr, "CPOP takes FP: '%s'\n", target);
         exit(1);
       }
-      *cur_insn = 0x7802;
-    } else if (strcmp(mnemonic, "cpush") == 0) {
+      pmem[ip] = 0x1c802;
+    } else if (strcmp(al->mnemonic, "cpush") == 0) {
       char *target = GET_STR(0);
       if (ExpectFP(target)) {
         fprintf(stderr, "CPUSH takes FP: '%s'\n", target);
         exit(1);
       }
-      *cur_insn = 0x7803;
-    } else if (strcmp(mnemonic, "ldd") == 0) {
-      *cur_insn = 0x7808;
-    } else if (strcmp(mnemonic, "ldd1") == 0) {
-      *cur_insn = 0x7809;
-    } else if (strcmp(mnemonic, "sta") == 0) { // store, remaining address
-      *cur_insn = 0x780c;
-    } else if (strcmp(mnemonic, "sta1") == 0) { // store, remaining address
-      *cur_insn = 0x780d;
-    } else if (strcmp(mnemonic, "std") == 0) { // store, remaining data
-      *cur_insn = 0x780e;
-    } else if (strcmp(mnemonic, "std1") == 0) { // store, remaining data
-      *cur_insn = 0x780f;
-    } else if (strcmp(mnemonic, "db") == 0) {
-      ip += DataByte(&*cur_insn, operands, num_opr);
-      if (ip & 1) {
-        ip++;
-      }
-      continue;
-    } else if (strcmp(mnemonic, "int") == 0) {
-      *cur_insn = 0x7810;
-    } else if (strcmp(mnemonic, "iret") == 0) {
-      *cur_insn = 0x7812;
+      pmem[ip] = 0x1c803;
+    } else if (strcmp(al->mnemonic, "ldd") == 0) {
+      pmem[ip] = 0x1c808;
+    } else if (strcmp(al->mnemonic, "ldd1") == 0) {
+      pmem[ip] = 0x1c809;
+    } else if (strcmp(al->mnemonic, "sta") == 0) { // store, remaining address
+      pmem[ip] = 0x1c80c;
+    } else if (strcmp(al->mnemonic, "sta1") == 0) { // store, remaining address
+      pmem[ip] = 0x1c80d;
+    } else if (strcmp(al->mnemonic, "std") == 0) { // store, remaining data
+      pmem[ip] = 0x1c80e;
+    } else if (strcmp(al->mnemonic, "std1") == 0) { // store, remaining data
+      pmem[ip] = 0x1c80f;
+    } else if (strcmp(al->mnemonic, "db") == 0) {
+      fprintf(stderr, "db is not supported in .text section\n");
+      exit(1);
+    } else if (strcmp(al->mnemonic, "int") == 0) {
+      pmem[ip] = 0x1c810;
+    } else if (strcmp(al->mnemonic, "iret") == 0) {
+      pmem[ip] = 0x1c812;
     } else {
-      fprintf(stderr, "unknown mnemonic: %s\n", mnemonic);
+      fprintf(stderr, "unknown mnemonic: %s\n", al->mnemonic);
       exit(1);
     }
 
-    ip += 2;
+    ip++;
   }
 
   for (int i = 0; i < num_backpatches; i++) {
     int l = 0;
-    for (; l < num_labels; l++) {
+    for (; l < *num_labels; l++) {
       if (strcmp(backpatches[i].label, labels[l].label)) {
         continue;
       }
 
       int ins_pc = backpatches[i].ip;
-      uint16_t ins = insn[(ins_pc - ORIGIN) >> 1];
-      int diff_pc = labels[l].ip - ins_pc - 2;
+      uint32_t ins = pmem[ins_pc];
+      int diff_pc = labels[l].addr - ins_pc - 1;
       switch (backpatches[i].type) {
       case BP_IP_REL12:
         if (diff_pc < -0x0800 || 0x0800 <= diff_pc) {
           fprintf(stderr, "jump target is too far (BP_IP_REL12): diff=%d\n", diff_pc);
           exit(1);
         }
-        ins = (ins & 0xf001u) | (diff_pc & 0xffeu);
+        ins = (ins & 0x3f000u) | (diff_pc & 0xfffu);
         break;
-      case BP_IP_REL10:
-        if (diff_pc < -0x0200 || 0x200 <= diff_pc) {
-          fprintf(stderr, "jump target is too far (BP_IP_REL10): diff=%d\n", diff_pc);
-          exit(1);
-        }
-        ins = (ins & 0xfc01u) | (diff_pc & 0x3feu);
+      case BP_IP_ABS14:
+        ins = (ins & 0x3c000u) | (labels[l].addr & 0x3fffu);
         break;
-      case BP_ABS10:
-        ins = (ins & 0xfc00u) | (labels[l].ip & 0x3ffu);
-        break;
-      case BP_ABS15:
-        ins = (ins & 0x8000u) | (labels[l].ip & 0x7fffu);
+      case BP_ABS16:
+        ins = (ins & 0x30000u) | (labels[l].addr & 0xffffu);
         break;
       }
-      insn[(ins_pc - ORIGIN) >> 1] = ins;
+      pmem[ins_pc] = ins;
       break;
     }
-    if (l == num_labels) {
+    if (l == *num_labels) {
       fprintf(stderr, "unknown label: %s\n", backpatches[i].label);
       exit(1);
     }
   }
 
-  for (int i = 0; i < ip - ORIGIN; i += 2) {
-    uint16_t ins = insn[i >> 1];
-    if (separate_output) {
-      fprintf(output_file, "%02X\n", ins & 0xffu);
-      fprintf(output_file_hi, "%02X\n", ins >> 8);
+  return ip;
+}
+
+#define ARG_FILE(name) \
+  do { \
+    i++; \
+    if (i >= argc) { \
+      fprintf(stderr, "<" #name "> is not specified\n"); \
+      exit(1); \
+    } \
+    name ## _filename = argv[i]; \
+  } while (0)
+
+
+int main(int argc, char **argv) {
+  const char *input_filename = NULL;
+  const char *dmem_filename = NULL;
+  const char *pmem_filename = NULL;
+  const char *map_filename = NULL;
+
+  for (int i = 1; i < argc; i++) {
+    if (input_filename) {
+      fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
+      exit(1);
+    } else if (strcmp(argv[i], "--dmem") == 0) {
+      ARG_FILE(dmem);
+    } else if (strcmp(argv[i], "--pmem") == 0) {
+      ARG_FILE(pmem);
+    } else if (strcmp(argv[i], "--map") == 0) {
+      ARG_FILE(map);
+    } else if (strcmp(argv[i], "-o") == 0) {
+      fprintf(stderr, "-o is deprecated\n");
+      exit(1);
     } else {
-      fprintf(output_file, "%02X %02X\n", ins >> 8, ins & 0xffu);
+      input_filename = argv[i];
     }
+  }
+
+  FILE *input_file = stdin;
+  FILE *pmem_file = stdout, *dmem_file = NULL, *map_file = NULL;
+  if (input_filename && strcmp(input_filename, "-") != 0) {
+    input_file = fopen(input_filename, "r");
+  }
+  if (pmem_filename && strcmp(pmem_filename, "-") != 0) {
+    pmem_file = fopen(pmem_filename, "w");
+  }
+  if (dmem_filename) {
+    dmem_file = fopen(dmem_filename, "w");
+  }
+  if (map_filename) {
+    map_file = fopen(map_filename, "w");
+  }
+
+  char line[MAX_LINE];
+  struct AsmLine al;
+
+  uint8_t dmem[16 * 1024]; // 16KBytes
+  uint32_t pmem[16 * 1024]; // 16KWords
+  struct LabelAddr labels[MAX_LABEL];
+  int num_labels = 0;
+  int num_data = 0, num_insn = 0;
+
+  if (fgets(line, MAX_LINE, input_file) != NULL) {
+    SplitOpcode(line, &al);
+    if (strcmp(al.mnemonic, "section") != 0 ||
+        strcmp(al.operands[0], ".data") != 0) {
+      fprintf(stderr, "first line must be 'section .data'\n");
+      exit(1);
+    }
+    num_data = ProcessDataSection(input_file, map_file, dmem, line, &al, labels, &num_labels);
+
+    if (strcmp(al.mnemonic, "section") != 0 ||
+        strcmp(al.operands[0], ".text") != 0) {
+      fprintf(stderr, ".text section must come just after .data\n");
+      exit(1);
+    }
+    num_insn = ProcessTextSection(input_file, map_file, pmem, line, &al, labels, &num_labels);
+  }
+
+  if (dmem_file) {
+    for (int i = 0; i < num_data; i++) {
+      fprintf(dmem_file, "%02X\n", dmem[i]);
+    }
+  }
+  for (int i = 0; i < num_insn; i++) {
+    fprintf(pmem_file, "%05X\n", pmem[i]);
   }
   return 0;
 }
