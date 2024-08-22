@@ -10,7 +10,8 @@ module mcu#(
   output wr_mem, byt,
   input  [15:0] rd_data, // メモリ読み込みデータバス
   output [15:0] wr_data, // メモリ書き込みデータバス
-  output [15:0] stack0, stack1, insn,
+  output [15:0] stack0, stack1,
+  output [17:0] insn,
   output [5:0] alu_sel, // デバッグ出力
   output load_insn,
   input  clk125,
@@ -30,6 +31,7 @@ module mcu#(
 // CPU コア
 logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
+logic [17:0] cpu_rd_pmem, wr_pmem;
 logic cpu_rd_mem, cpu_wr_mem, cpu_byt, cpu_irq;
 logic cpu_rst;
 
@@ -84,17 +86,29 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .rst(cpu_rst),
   .clk(cpu_clk),
   .mem_addr(cpu_mem_addr),
+  //.pmem_addr(cpu_pmem_addr),
   .rd_mem(cpu_rd_mem),
   .wr_mem(cpu_wr_mem),
   .byt(cpu_byt),
   .rd_data(cpu_rd_data),
   .wr_data(cpu_wr_data),
+  .rd_pmem(cpu_rd_pmem),
   .stack0(stack0),
   .stack1(stack1),
   .insn(insn),
   .load_insn(load_insn),
   .alu_sel(alu_sel),
   .irq(cpu_irq)
+);
+
+// プログラムメモリ
+pmem pmem(
+  .rst(rst),
+  .clk(clk),
+  .addr(cpu_mem_addr),
+  .wr(pmem_wr),
+  .wr_data(wr_pmem),
+  .rd_data(cpu_rd_pmem)
 );
 
 // MCU 内蔵周辺機能：カウントダウンタイマ
@@ -210,7 +224,7 @@ always @(posedge rst, posedge clk) begin
 end
 
 // MCU 内蔵周辺機能のメモリマップ
-function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr);
+function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr, input [15:0] rd_data);
   casex (mem_addr)
     `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
     `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
@@ -235,7 +249,7 @@ assign wr_mem   = ~recv_compl | cpu_wr_mem;
 assign byt      = recv_compl ? cpu_byt : 1'b0;
 assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
-assign cpu_rd_data = read_memreg(mem_addr_d);
+assign cpu_rd_data = read_memreg(mem_addr_d, rd_data);
 assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
 
 /*
@@ -276,7 +290,7 @@ end
 // recv_addr は命令の受信が完了するたびにインクリメントされる
 always @(posedge rst, posedge clk) begin
   if (rst | recv_compl)
-    recv_addr <= `ADDR_WIDTH'h4000;
+    recv_addr <= `ADDR_WIDTH'd0;
   else if (recv_data_v)
     recv_addr <= recv_addr + `ADDR_WIDTH'd2;
 end

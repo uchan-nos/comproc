@@ -1,6 +1,7 @@
 `include "common.sv"
 
-module data_mem(
+// data memory
+module dmem(
   input rst,
   input clk,
   input [`ADDR_WIDTH-1:0] addr,
@@ -53,7 +54,8 @@ end
 endmodule
 
 
-module text_mem(
+// program memory
+module pmem(
   input rst,
   input clk,
   input [`ADDR_WIDTH-1:0] addr,

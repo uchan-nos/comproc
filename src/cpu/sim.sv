@@ -18,14 +18,17 @@ logic [15:0] wr_data_mon;
 assign wr_data_mon = wr_mem ? mcu.wr_data : 16'hzzzz;
 
 integer num_insn = 0;
-integer ip_init = `ADDR_WIDTH'h4000 >> 1;
+integer ip_init = 0;
 
 string uart_in_file;
 integer uart_in_fd;
 string uart_out_file = "";
 integer uart_out = 0;
+string pmem_file, dmem_file;
+integer dmem_file_fd;
 logic [7:0] uart_in[0:255];
 logic [7:0] uart_buf;
+logic [17:0] insn_buf;
 logic [5:0][7:0] insn_name;
 integer uart_index, uart_in_len;
 integer uart_in_tx_phase;
@@ -61,15 +64,22 @@ integer trace_fd;
 
 initial begin
   // stdin からテストデータを読む
-  while ($fscanf(STDIN, "%x", uart_buf) == 1) begin
-    mem.mem_hi[ip_init] <= uart_buf;
-    if ($fscanf(STDIN, "%x", uart_buf) == 0) begin
-      $fdisplay(STDERR, "invalid_instruction");
-      $finish(1);
+  //while ($fscanf(STDIN, "%x", insn_buf) == 1) begin
+  //  mcu.pmem.mem[ip_init] <= insn_buf;
+  //  num_insn++;
+  //  ip_init++;
+  //end
+  if ($value$plusargs("pmem=%s", pmem_file))
+    $readmemh(pmem_file, mcu.pmem.mem);
+  if ($value$plusargs("dmem=%s", dmem_file)) begin
+    dmem_file_fd = $fopen(dmem_file, "r");
+    uart_index = 16'h100 >> 1;
+    while ($fscanf(dmem_file_fd, "%h", uart_buf) == 1) begin
+      dmem.mem_lo[uart_index] = uart_buf;
+      if ($fscanf(dmem_file_fd, "%h", uart_buf) == 1)
+        dmem.mem_hi[uart_index] = uart_buf;
+      uart_index += 1;
     end
-    mem.mem_lo[ip_init] <= uart_buf;
-    num_insn++;
-    ip_init++;
   end
 
   uart_in_tx_phase = 0;
@@ -95,8 +105,8 @@ initial begin
            $time, rst, mcu.cpu.ip, phase_num, mcu.cpu.insn, insn_name,
            " addr=%03x r=%04x w=%04x byt=%d",
            mem_addr, rd_data, wr_data_mon, byt,
-           " alu_out=%04x stack{%02x %02x} fp=%04x",
-           mcu.cpu.alu_out, stack0, stack1, mcu.cpu.fp,
+           " alu_out=%04x stack{%02x %02x} in=%04x fp=%04x",
+           mcu.cpu.alu_out, stack0, stack1, mcu.cpu.stack_in, mcu.cpu.fp,
            //" cstk{%02x %02x} irq=%d cdt=%04x",
            //mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
            " mcu_uart_rx=%d cur_uart_in=%02x rx_data=%x rx_full=%d",
@@ -164,7 +174,7 @@ always @(posedge clk) begin
 end
 
 logic [15:0] bram_rd_data;
-mem mem(
+dmem dmem(
   .rst(rst),
   .clk(clk),
   .addr(mem_addr),
@@ -219,52 +229,51 @@ uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD)) uart(
 always @(posedge clk) begin
   if (phase_num == 0) begin
     casex (mcu.cpu.insn)
-      16'b1xxx_xxxx_xxxx_xxxx: insn_name <= "push";
-      16'b0000_xxxx_xxxx_xxx0: insn_name <= "jmp";
-      16'b0000_xxxx_xxxx_xxx1: insn_name <= "call";
-      16'b0001_xxxx_xxxx_xxx0: insn_name <= "jz";
-      16'b0001_xxxx_xxxx_xxx1: insn_name <= "jnz";
-      16'b0010_xxxx_xxxx_xxxx: insn_name <= "ld1";
-      16'b0011_xxxx_xxxx_xxxx: insn_name <= "st1";
-      16'b0100_xxxx_xxxx_xxx0: insn_name <= "ld";
-      16'b0100_xxxx_xxxx_xxx1: insn_name <= "st";
-      16'b0101_xxxx_xxxx_xxxx: insn_name <= "push";
-      16'b0110_01xx_xxxx_xxxx: insn_name <= "addfp";
-      16'b0111_0000_0000_0000: insn_name <= "nop";
-      16'b0111_0000_0100_1111: insn_name <= "pop";
-      16'b0111_0000_0100_0000: insn_name <= "pop1";
-      16'b0111_0000_0000_0001: insn_name <= "inc";
-      16'b0111_0000_0000_0010: insn_name <= "inc2";
-      16'b0111_0000_0000_0100: insn_name <= "not";
-      16'b0111_0000_0000_0101: insn_name <= "sign";
-      16'b0111_0000_0000_0110: insn_name <= "exts";
-      16'b0111_0000_0101_0000: insn_name <= "and";
-      16'b0111_0000_0101_0001: insn_name <= "or";
-      16'b0111_0000_0101_0010: insn_name <= "xor";
-      16'b0111_0000_0101_0100: insn_name <= "shr";
-      16'b0111_0000_0101_0101: insn_name <= "sar";
-      16'b0111_0000_0101_0110: insn_name <= "shl";
-      16'b0111_0000_0110_0000: insn_name <= "add";
-      16'b0111_0000_0110_0001: insn_name <= "sub";
-      16'b0111_0000_0110_0010: insn_name <= "mul";
-      16'b0111_0000_0110_1000: insn_name <= "lt";
-      16'b0111_0000_0110_1001: insn_name <= "eq";
-      16'b0111_0000_0110_1010: insn_name <= "neq";
-      16'b0111_0000_1000_0000: insn_name <= "dup";
-      16'b0111_0000_1000_1111: insn_name <= "dup1";
-      16'b0111_1000_0000_0000: insn_name <= "ret";
-      16'b0111_1000_0000_0001: insn_name <= "call";
-      16'b0111_1000_0000_0010: insn_name <= "cpop";
-      16'b0111_1000_0000_0011: insn_name <= "cpush";
-      16'b0111_1000_0000_1000: insn_name <= "ldd";
-      16'b0111_1000_0000_1100: insn_name <= "sta";
-      16'b0111_1000_0000_1110: insn_name <= "std";
-      16'b0111_1000_0000_1001: insn_name <= "ldd1";
-      16'b0111_1000_0000_1101: insn_name <= "sta1";
-      16'b0111_1000_0000_1111: insn_name <= "std1";
-      16'b0111_1000_0001_0000: insn_name <= "int";
-      16'b0111_1000_0001_0001: insn_name <= "isr";
-      default:                 insn_name <= "UNDEF";
+      18'b11_xxxx_xxxx_xxxx_xxxx: insn_name <= "push";
+      18'b00_00xx_xxxx_xxxx_xxxx: insn_name <= "call";
+      18'b00_0100_xxxx_xxxx_xxxx: insn_name <= "jmp";
+      18'b00_0101_xxxx_xxxx_xxxx: insn_name <= "addfp";
+      18'b00_0110_xxxx_xxxx_xxx0: insn_name <= "jz";
+      18'b00_10xx_xxxx_xxxx_xxxx: insn_name <= "ld1";
+      18'b00_11xx_xxxx_xxxx_xxxx: insn_name <= "st1";
+      18'b01_00xx_xxxx_xxxx_xxx0: insn_name <= "ld";
+      18'b01_00xx_xxxx_xxxx_xxx1: insn_name <= "st";
+      18'b01_01xx_xxxx_xxxx_xxxx: insn_name <= "push";
+      18'b01_11xx_0000_0000_0000: insn_name <= "nop";
+      18'b01_11xx_0000_0100_1111: insn_name <= "pop";
+      18'b01_11xx_0000_0100_0000: insn_name <= "pop1";
+      18'b01_11xx_0000_0000_0001: insn_name <= "inc";
+      18'b01_11xx_0000_0000_0010: insn_name <= "inc2";
+      18'b01_11xx_0000_0000_0100: insn_name <= "not";
+      18'b01_11xx_0000_0000_0101: insn_name <= "sign";
+      18'b01_11xx_0000_0000_0110: insn_name <= "exts";
+      18'b01_11xx_0000_0101_0000: insn_name <= "and";
+      18'b01_11xx_0000_0101_0001: insn_name <= "or";
+      18'b01_11xx_0000_0101_0010: insn_name <= "xor";
+      18'b01_11xx_0000_0101_0100: insn_name <= "shr";
+      18'b01_11xx_0000_0101_0101: insn_name <= "sar";
+      18'b01_11xx_0000_0101_0110: insn_name <= "shl";
+      18'b01_11xx_0000_0110_0000: insn_name <= "add";
+      18'b01_11xx_0000_0110_0001: insn_name <= "sub";
+      18'b01_11xx_0000_0110_0010: insn_name <= "mul";
+      18'b01_11xx_0000_0110_1000: insn_name <= "lt";
+      18'b01_11xx_0000_0110_1001: insn_name <= "eq";
+      18'b01_11xx_0000_0110_1010: insn_name <= "neq";
+      18'b01_11xx_0000_1000_0000: insn_name <= "dup";
+      18'b01_11xx_0000_1000_1111: insn_name <= "dup1";
+      18'b01_11xx_1000_0000_0000: insn_name <= "ret";
+      18'b01_11xx_1000_0000_0001: insn_name <= "call";
+      18'b01_11xx_1000_0000_0010: insn_name <= "cpop";
+      18'b01_11xx_1000_0000_0011: insn_name <= "cpush";
+      18'b01_11xx_1000_0000_1000: insn_name <= "ldd";
+      18'b01_11xx_1000_0000_1100: insn_name <= "sta";
+      18'b01_11xx_1000_0000_1110: insn_name <= "std";
+      18'b01_11xx_1000_0000_1001: insn_name <= "ldd1";
+      18'b01_11xx_1000_0000_1101: insn_name <= "sta1";
+      18'b01_11xx_1000_0000_1111: insn_name <= "std1";
+      18'b01_11xx_1000_0001_0000: insn_name <= "int";
+      18'b01_11xx_1000_0001_0001: insn_name <= "isr";
+      default:                    insn_name <= "UNDEF";
     endcase
   end
 end

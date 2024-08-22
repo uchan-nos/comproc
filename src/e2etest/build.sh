@@ -1,3 +1,1 @@
-#!/bin/sh
-
-cat - | ./compile.sh | ../assembler/uasm
+../examples/build.sh

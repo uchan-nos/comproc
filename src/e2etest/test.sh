@@ -31,7 +31,9 @@ function test_prog() {
     uart_out_opt_uart=""
   fi
 
-  asm="$(echo "$src" | ../compiler/ucc -o - -)"
+  echo "$src" > testcase.c
+  #asm="$(echo "$src" | ../compiler/ucc -o - -)"
+  ../compiler/ucc -o testcase.s testcase.c
   asmcode=$?
   if [ $asmcode -ge 128 ]
   then
@@ -46,13 +48,15 @@ function test_prog() {
     exit
   fi
 
-  bin="$(echo "$asm" | ../assembler/uasm) 7f ff"
+  #bin="$(echo "$asm" | ../assembler/uasm) 7f ff"
+  ../assembler/uasm --pmem testcase.pmem.hex --dmem testcase.dmem.hex testcase.s
 
   case $target in
     sim)
-      got=$(echo $bin | ../cpu/sim.exe +uart_in=$uart_in $uart_out_opt_sim 2>&1 1>/dev/null)
+      got=$(../cpu/sim.exe +pmem=testcase.pmem.hex +dmem=testcase.dmem.hex +uart_in=$uart_in $uart_out_opt_sim 2>&1 1>/dev/null)
       ;;
     uart)
+      bin="$(cat testcase.pmem.hex) 7f ff"
       got=$(echo $(../../tool/uart.py --dev "$uart_dev" --delim $bin $(cat $uart_in) --timeout 3 $uart_out_opt_uart))
       ;;
     *)
