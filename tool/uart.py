@@ -8,8 +8,22 @@ import sys
 import time
 
 
-def hex_to_bytes(hex_list):
-    return b''.join(int(c, 16).to_bytes(1, 'big') for c in hex_list)
+def hex_to_bytes_packed(hex_list):
+    '''
+    4 命令を 9 バイトで送る方式。
+    18bits x 4 = 72bits = 9bytes
+    '''
+    return b''
+
+
+def hex_to_bytes(hex_list, mode=None):
+    if mode == 'program_packed':
+        return hex_to_bytes_packed(hex_list)
+
+    conv = lambda i: i.to_bytes(1, 'big')
+    if mode == 'program_simple':
+        conv = lambda i: i.to_bytes(3, 'big')
+    return b''.join(conv(i) for i in hex_list)
 
 
 def receive_stdout(filename, ser):
@@ -21,6 +35,28 @@ def receive_stdout(filename, ser):
             f.write(b)
             b = ser.read(1)
     return (num, b)
+
+
+def send_program_and_data(ser, pmem_list, dmem_list, mode):
+    ser.write(b'\x55')
+    ser.flush()
+    time.sleep(0.005)
+    ser.write(b'\xAA')
+    ser.flush()
+
+    pmem_size = len(pmem_list)
+    dmem_size = len(dmem_list)
+    if dmem_size % 2 != 0:
+        dmem_list.append(0)
+        emem_size += 1
+
+    mode_flag = 0x4000 if mode == 'program_packed' else 0x0000
+    ser.write((pmem_size | mode_flag).to_bytes(length=2, byteorder='big'))
+    ser.write(dmem_size.to_bytes(length=2, byteorder='big'))
+
+    ser.write(hex_to_bytes(pmem_list, mode))
+    ser.write(hex_to_bytes(dmem_list, mode))
+    ser.flush()
 
 
 def main():
@@ -39,44 +75,42 @@ def main():
                    help='do not wait for result/stdout')
     p.add_argument('--stdout',
                    help='path to a file to hold bytes received')
-    p.add_argument('--file',
-                   help='read values from file instead of command arguments')
-    p.add_argument('--delim', action='store_true',
-                   help='send delimiter "55 AA" before sending data')
+    p.add_argument('--pmem',
+                   help='program transfer mode with given program memory hex file')
+    p.add_argument('--dmem',
+                   help='data memory hex file (used with --pmem)')
     p.add_argument('hex', nargs='*',
                    help='list of hex values to send')
 
     args = p.parse_args()
-
-    if args.file is not None:
-        with open(args.file) as f:
-            file_data = f.read()
-        hex_list = file_data.split()
-    else:
-        hex_list = args.hex
-    if not hex_list:
-        print('no data to send', file=sys.stderr)
-        sys.exit(1)
 
     if args.dev[0] == '/' and not os.path.exists(args.dev):
         print('No such device: ' + args.dev, file=sys.stderr)
         print("You may need 'sudo modprobe ftdi_sio'")
         sys.exit(1)
 
-    bytes_to_send = hex_to_bytes(hex_list)
     ser = serial.Serial(args.dev, 115200, timeout=args.timeout,
                         bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
                         stopbits=serial.STOPBITS_ONE)
 
-    if args.delim:
-        ser.write(b'\x55')
-        ser.flush()
-        time.sleep(0.005)
-        ser.write(b'\xAA')
+    if args.pmem:
+        with open(args.pmem) as f:
+            file_data = f.read()
+        pmem_list = [int(c, 16) for c in file_data.split()]
+
+        dmem_list = []
+        if args.dmem:
+            with open(args.dmem) as f:
+                file_data = f.read()
+            dmem_list = [int(c, 16) for c in file_data.split()]
+
+        send_program_and_data(ser, pmem_list, dmem_list, 'program_simple')
+
+    if args.hex:
+        hex_list = [int(c, 16) for c in args.hex]
+        ser.write(hex_to_bytes(hex_list))
         ser.flush()
 
-    ser.write(bytes_to_send)
-    ser.flush()
     if not args.nowait:
         if args.stdout:
             recv_len, last_byte = receive_stdout(args.stdout, ser)

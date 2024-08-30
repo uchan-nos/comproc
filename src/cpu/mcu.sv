@@ -33,11 +33,24 @@ logic [`ADDR_WIDTH-1:0] cpu_mem_addr, mem_addr_d;
 logic [15:0] cpu_rd_data, cpu_wr_data;
 logic [17:0] cpu_rd_pmem, wr_pmem;
 logic cpu_rd_mem, cpu_wr_mem, cpu_byt, cpu_irq;
-logic cpu_rst;
+logic cpu_rst, we_pmem;
 
-logic [15:0] recv_data;
-logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, recv_data_v, recv_compl, uart_rx_ready;
+logic [17:0] recv_data;
+logic [`ADDR_WIDTH-1:0] img_recv_addr, pmem_size, dmem_size;
+
+typedef enum logic [1:0] {
+  IMG_RECV_WAIT, // メモリイメージ受信開始（55 AA）を待っている
+  IMG_RECV_META, // メタデータ（データサイズなど）受信中
+  IMG_RECV_PMEM, // pmem 受信中
+  IMG_RECV_DMEM  // dmem 受信中
+} img_recv_state_t;
+img_recv_state_t img_recv_state;
+
+// 0: 最上位バイトを待っている
+// 2: 最下位バイトを待っている
+logic [1:0] recv_byte_phase;
+
+logic recv_data_v, recv_compl, uart_rx_ready;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;
@@ -105,8 +118,8 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
 pmem pmem(
   .rst(rst),
   .clk(clk),
-  .addr(cpu_mem_addr),
-  .wr(pmem_wr),
+  .addr(mem_addr),
+  .wr(we_pmem),
   .wr_data(wr_pmem),
   .rd_data(cpu_rd_pmem)
 );
@@ -136,7 +149,7 @@ end
 // MCU 内蔵周辺機能：UART
 logic [7:0] uart_rx_byte, uart_tx_byte;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
-logic prog_recv, end_prog_recv;
+logic img_recv, end_img_recv, prog_recv;
 
 uart_mux#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart_mux(
   .rst(rst),
@@ -149,14 +162,14 @@ uart_mux#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart_mux(
   .rx_full(uart_rx_full),
   .wr(uart_wr),
   .tx_ready(uart_tx_ready),
-  .prog_recv(prog_recv),
-  .end_prog_recv(end_prog_recv)
+  .img_recv(img_recv),
+  .end_img_recv(end_img_recv)
 );
 
 assign uart_rd = uart_rx_full;
 assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
 assign uart_tx_byte = cpu_wr_data[7:0];
-assign end_prog_recv = recv_data_v & recv_data === 16'h7fff;
+assign end_img_recv = recv_data_v & recv_data === 18'h1ffff;
 
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -245,10 +258,13 @@ function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] mem_addr, input [15:0] rd_da
 endfunction
 
 // 信号結線
-assign wr_mem   = ~recv_compl | cpu_wr_mem;
-assign byt      = recv_compl ? cpu_byt : 1'b0;
-assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
-assign wr_data  = recv_compl ? cpu_wr_data : recv_data;
+assign wr_mem   = (img_recv_state == IMG_RECV_WAIT & cpu_wr_mem)
+                | (img_recv_state == IMG_RECV_DMEM & img_recv_addr < dmem_size);
+assign byt      = cpu_byt;
+assign mem_addr = recv_compl ? cpu_mem_addr : img_recv_addr;
+assign wr_data  = (~recv_compl & ~prog_recv) ? recv_data[15:0] : cpu_wr_data;
+assign we_pmem  = img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size;
+assign wr_pmem  = recv_data;
 assign cpu_rd_data = read_memreg(mem_addr_d, rd_data);
 assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
 
@@ -263,45 +279,86 @@ always @(posedge rst, posedge clk) begin
 end
 */
 
-// recv_phase は上位バイトを待っているとき 0、下位バイトを待っているとき 1
 always @(posedge rst, posedge clk) begin
   if (rst | recv_compl)
-    recv_phase <= 1'b0;
-  else if (uart_rx_full)
-    recv_phase <= ~recv_phase;
+    img_recv_state <= IMG_RECV_WAIT;
+  else if (img_recv_state == IMG_RECV_WAIT & ~recv_compl)
+    img_recv_state <= IMG_RECV_META;
+  else if (img_recv_state == IMG_RECV_META & img_recv_addr == `ADDR_WIDTH'd2)
+    img_recv_state <= IMG_RECV_PMEM;
+  else if (img_recv_state == IMG_RECV_PMEM & img_recv_addr == pmem_size)
+    img_recv_state <= IMG_RECV_DMEM;
+  else if (img_recv_state == IMG_RECV_DMEM & img_recv_addr == dmem_size)
+    img_recv_state <= IMG_RECV_WAIT;
 end
 
-// recv_data は UART から受信した直近 2 バイトを記憶する
+always @(posedge rst, posedge clk) begin
+  if (rst | recv_compl) begin
+    pmem_size <= `ADDR_WIDTH'd0;
+    dmem_size <= `ADDR_WIDTH'd0;
+  end
+  else if (recv_data_v && img_recv_state == IMG_RECV_META)
+    if (img_recv_addr == `ADDR_WIDTH'd0)
+      pmem_size <= recv_data[`ADDR_WIDTH-1:0];
+    else if (img_recv_addr == `ADDR_WIDTH'd1)
+      dmem_size <= recv_data[`ADDR_WIDTH-1:0];
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst | recv_compl)
+    recv_byte_phase <= 2'd0;
+  else if (recv_data_v)
+    recv_byte_phase <= 2'd0;
+  else
+    recv_byte_phase <= recv_byte_phase + 2'd1;
+end
+
+// recv_data は UART から受信した直近 18 ビットを記憶する
 always @(posedge rst, posedge clk) begin
   if (rst)
-    recv_data <= 10'd0;
+    recv_data <= 18'd0;
   else if (uart_rx_full)
-    recv_data <= {recv_data[7:0], uart_rx_byte};
+    recv_data <= {recv_data[9:0], uart_rx_byte};
 end
 
 // recv_data_v は命令の受信が完了したら 1 になる
 always @(posedge rst, posedge clk) begin
-  if (rst)
+  if (rst | img_recv_state == IMG_RECV_WAIT)
     recv_data_v <= 1'b0;
-  else
-    recv_data_v <= uart_rx_full & recv_phase;
+  else if (img_recv_state == IMG_RECV_META)
+    recv_data_v <= uart_rx_full & recv_byte_phase == 2'd1;
+  else if (img_recv_state == IMG_RECV_PMEM)
+    recv_data_v <= uart_rx_full & recv_byte_phase == 2'd2;
+  else if (img_recv_state == IMG_RECV_DMEM)
+    recv_data_v <= uart_rx_full & recv_byte_phase == 2'd1;
 end
 
-// recv_addr は命令の受信が完了するたびにインクリメントされる
+// img_recv_addr は命令の受信が完了するたびにインクリメントされる
+always @(posedge rst, posedge clk) begin
+  if (rst | img_recv_state == IMG_RECV_WAIT)
+    img_recv_addr <= `ADDR_WIDTH'd0;
+  else if ((img_recv_state == IMG_RECV_META && img_recv_addr == `ADDR_WIDTH'd2) ||
+           (img_recv_state == IMG_RECV_PMEM && img_recv_addr == pmem_size) ||
+           (img_recv_state == IMG_RECV_DMEM && img_recv_addr == dmem_size))
+    img_recv_addr <= `ADDR_WIDTH'd0;
+  else if (recv_data_v)
+    img_recv_addr <= img_recv_addr + `ADDR_WIDTH'd1;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    recv_compl <= 1'b1;
+  else if (end_img_recv)
+    recv_compl <= 1'b1;
+  else if (img_recv)
+    recv_compl <= 1'b0;
+end
+
 always @(posedge rst, posedge clk) begin
   if (rst | recv_compl)
-    recv_addr <= `ADDR_WIDTH'd0;
-  else if (recv_data_v)
-    recv_addr <= recv_addr + `ADDR_WIDTH'd2;
-end
-
-always @(posedge rst, posedge clk) begin
-  if (rst)
-    recv_compl <= 1'b1;
-  else if (end_prog_recv)
-    recv_compl <= 1'b1;
-  else if (prog_recv)
-    recv_compl <= 1'b0;
+    prog_recv <= 1'b1;
+  else if (recv_data_v & recv_data == 18'h1fffe)
+    prog_recv <= 1'b0;
 end
 
 always @(posedge cpu_rst, posedge clk) begin

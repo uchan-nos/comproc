@@ -56,8 +56,8 @@ function test_prog() {
       got=$(../cpu/sim.exe +pmem=testcase.pmem.hex +dmem=testcase.dmem.hex +uart_in=$uart_in $uart_out_opt_sim 2>&1 1>/dev/null)
       ;;
     uart)
-      bin="$(cat testcase.pmem.hex) 7f ff"
-      got=$(echo $(../../tool/uart.py --dev "$uart_dev" --delim $bin $(cat $uart_in) --timeout 3 $uart_out_opt_uart))
+      uart_opt="--timeout 3 --pmem testcase.pmem.hex --dmem testcase.dmem.hex"
+      got=$(echo $(../../tool/uart.py --dev "$uart_dev" $uart_opt $(cat $uart_in) $uart_out_opt_uart))
       ;;
     *)
       echo "unknown target: $target" >&2

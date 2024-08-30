@@ -28,9 +28,6 @@ logic rst_n;
 logic [15:0] counter;
 logic [3:0] row_index;
 
-logic [`ADDR_WIDTH-1:0] recv_addr;
-logic recv_phase, recv_compl;
-
 logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
 logic [15:0] rd_data, wr_data;
@@ -54,9 +51,6 @@ assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
 
-//assign mem_wr = ~recv_compl | cpu_mem_wr;
-//assign mem_byt = recv_compl ? cpu_mem_byt : 1'b0;
-//assign mem_addr = recv_compl ? cpu_mem_addr : recv_addr;
 assign rd_data = read_mem_or_io(
   mem_addr_d, bram_rd_data, io_led, io_lcd, io_gpio);
 
@@ -199,7 +193,7 @@ mcu mcu(
 );
 
 // メモリ
-mem mem(
+dmem dmem(
   .rst(~rst_n),
   .clk(sys_clk),
   .addr(mem_addr),
