@@ -2,62 +2,30 @@
 <GAO_CONFIG>
     <Version>3.0</Version>
     <Mode>Standard</Mode>
-    <AoCore index="0" sample_clock="sys_clk" trig_type="0" storage_depth="32" window_num="1" capture_amount="32" implementation="0" trigger_pos="10" module_name="main" force_trigger_by_falling_edge="false" capture_init_data_enabled="false">
+    <AoCore index="0" sample_clock="sys_clk" trig_type="0" storage_depth="64" window_num="1" capture_amount="64" implementation="0" trigger_pos="10" module_name="main" force_trigger_by_falling_edge="false" capture_init_data_enabled="false">
         <SignalList>
-            <Signal capture_enable="true">mcu/uart_rx_full</Signal>
-            <Bus capture_enable="true" name="mcu/recv_data[17:0]">
-                <Signal>mcu/recv_data[17]</Signal>
-                <Signal>mcu/recv_data[16]</Signal>
-                <Signal>mcu/recv_data[15]</Signal>
-                <Signal>mcu/recv_data[14]</Signal>
-                <Signal>mcu/recv_data[13]</Signal>
-                <Signal>mcu/recv_data[12]</Signal>
-                <Signal>mcu/recv_data[11]</Signal>
-                <Signal>mcu/recv_data[10]</Signal>
-                <Signal>mcu/recv_data[9]</Signal>
-                <Signal>mcu/recv_data[8]</Signal>
-                <Signal>mcu/recv_data[7]</Signal>
-                <Signal>mcu/recv_data[6]</Signal>
-                <Signal>mcu/recv_data[5]</Signal>
-                <Signal>mcu/recv_data[4]</Signal>
-                <Signal>mcu/recv_data[3]</Signal>
-                <Signal>mcu/recv_data[2]</Signal>
-                <Signal>mcu/recv_data[1]</Signal>
-                <Signal>mcu/recv_data[0]</Signal>
+            <Bus capture_enable="true" name="mcu/mem_addr[13:0]">
+                <Signal>mcu/mem_addr[13]</Signal>
+                <Signal>mcu/mem_addr[12]</Signal>
+                <Signal>mcu/mem_addr[11]</Signal>
+                <Signal>mcu/mem_addr[10]</Signal>
+                <Signal>mcu/mem_addr[9]</Signal>
+                <Signal>mcu/mem_addr[8]</Signal>
+                <Signal>mcu/mem_addr[7]</Signal>
+                <Signal>mcu/mem_addr[6]</Signal>
+                <Signal>mcu/mem_addr[5]</Signal>
+                <Signal>mcu/mem_addr[4]</Signal>
+                <Signal>mcu/mem_addr[3]</Signal>
+                <Signal>mcu/mem_addr[2]</Signal>
+                <Signal>mcu/mem_addr[1]</Signal>
+                <Signal>mcu/mem_addr[0]</Signal>
             </Bus>
-            <Signal capture_enable="true">mcu/recv_data_v</Signal>
-            <Bus capture_enable="true" name="mcu/pmem_size[13:0]">
-                <Signal>mcu/pmem_size[13]</Signal>
-                <Signal>mcu/pmem_size[12]</Signal>
-                <Signal>mcu/pmem_size[11]</Signal>
-                <Signal>mcu/pmem_size[10]</Signal>
-                <Signal>mcu/pmem_size[9]</Signal>
-                <Signal>mcu/pmem_size[8]</Signal>
-                <Signal>mcu/pmem_size[7]</Signal>
-                <Signal>mcu/pmem_size[6]</Signal>
-                <Signal>mcu/pmem_size[5]</Signal>
-                <Signal>mcu/pmem_size[4]</Signal>
-                <Signal>mcu/pmem_size[3]</Signal>
-                <Signal>mcu/pmem_size[2]</Signal>
-                <Signal>mcu/pmem_size[1]</Signal>
-                <Signal>mcu/pmem_size[0]</Signal>
+            <Signal capture_enable="true">mcu/we_pmem</Signal>
+            <Bus capture_enable="true" name="mcu/img_recv_state[1:0]">
+                <Signal>mcu/img_recv_state[1]</Signal>
+                <Signal>mcu/img_recv_state[0]</Signal>
             </Bus>
-            <Bus capture_enable="true" name="mcu/dmem_size[13:0]">
-                <Signal>mcu/dmem_size[13]</Signal>
-                <Signal>mcu/dmem_size[12]</Signal>
-                <Signal>mcu/dmem_size[11]</Signal>
-                <Signal>mcu/dmem_size[10]</Signal>
-                <Signal>mcu/dmem_size[9]</Signal>
-                <Signal>mcu/dmem_size[8]</Signal>
-                <Signal>mcu/dmem_size[7]</Signal>
-                <Signal>mcu/dmem_size[6]</Signal>
-                <Signal>mcu/dmem_size[5]</Signal>
-                <Signal>mcu/dmem_size[4]</Signal>
-                <Signal>mcu/dmem_size[3]</Signal>
-                <Signal>mcu/dmem_size[2]</Signal>
-                <Signal>mcu/dmem_size[1]</Signal>
-                <Signal>mcu/dmem_size[0]</Signal>
-            </Bus>
+            <Signal capture_enable="true">mcu/recv_compl</Signal>
         </SignalList>
         <Triggers>
             <Trigger index="0">
@@ -100,10 +68,31 @@
             </Trigger>
             <Trigger index="4">
                 <SignalList>
-                    <Signal>mcu/uart_mux/img_recv</Signal>
+                    <Bus restorename="mcu/cpu/ip[15:0]">
+                        <Signal>mcu/cpu/ip[15]</Signal>
+                        <Signal>mcu/cpu/ip[14]</Signal>
+                        <Signal>mcu/cpu/ip[13]</Signal>
+                        <Signal>mcu/cpu/ip[12]</Signal>
+                        <Signal>mcu/cpu/ip[11]</Signal>
+                        <Signal>mcu/cpu/ip[10]</Signal>
+                        <Signal>mcu/cpu/ip[9]</Signal>
+                        <Signal>mcu/cpu/ip[8]</Signal>
+                        <Signal>mcu/cpu/ip[7]</Signal>
+                        <Signal>mcu/cpu/ip[6]</Signal>
+                        <Signal>mcu/cpu/ip[5]</Signal>
+                        <Signal>mcu/cpu/ip[4]</Signal>
+                        <Signal>mcu/cpu/ip[3]</Signal>
+                        <Signal>mcu/cpu/ip[2]</Signal>
+                        <Signal>mcu/cpu/ip[1]</Signal>
+                        <Signal>mcu/cpu/ip[0]</Signal>
+                    </Bus>
                 </SignalList>
             </Trigger>
-            <Trigger index="5"/>
+            <Trigger index="5">
+                <SignalList>
+                    <Signal>mcu/we_pmem</Signal>
+                </SignalList>
+            </Trigger>
             <Trigger index="6"/>
             <Trigger index="7"/>
             <Trigger index="8"/>
@@ -118,10 +107,10 @@
         <MatchUnits>
             <MatchUnit index="0" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="0"/>
             <MatchUnit index="1" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="R" value1="0" trigger="1"/>
-            <MatchUnit index="2" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="01" value1="00" trigger="2"/>
+            <MatchUnit index="2" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="10" value1="00" trigger="2"/>
             <MatchUnit index="3" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="00000000000010" value1="00000000000000" trigger="3"/>
-            <MatchUnit index="4" enabled="1" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="R" value1="0" trigger="4"/>
-            <MatchUnit index="5" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
+            <MatchUnit index="4" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="0000000000000000" value1="0000000000000000" trigger="4"/>
+            <MatchUnit index="5" enabled="1" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="5"/>
             <MatchUnit index="6" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="7" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="8" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
@@ -134,8 +123,8 @@
             <MatchUnit index="15" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
         </MatchUnits>
         <Expressions type="Static">
-            <Expression>M4</Expression>
+            <Expression>M5</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>1010101101100011</GAO_ID>
+    <GAO_ID>0000000100001101</GAO_ID>
 </GAO_CONFIG>

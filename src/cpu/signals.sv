@@ -26,7 +26,8 @@ module signals(
   output byt,
   output rd_mem,
   output wr_mem,
-  output set_ien, clear_ien
+  output set_ien, clear_ien,
+  output [1:0] phase
 );
 
 logic src_a_fp, src_a_ip, src_a_cstk;
@@ -54,6 +55,9 @@ assign rd_mem = phase_rdmem & insn_rd;
 assign wr_mem = (insn_wr & ~irq_pend) & phase_exec;
 assign set_ien = (insn_set_ien & ~irq_pend) & phase_exec;
 assign clear_ien = (insn_clear_ien | irq_pend) & phase_exec;
+assign phase = phase_decode ? 2'd0
+             : phase_exec ? 2'd1
+             : phase_rdmem ? 2'd2 : 2'd3;
 
 logic phase_decode, phase_exec, phase_rdmem, phase_fetch, irq_pend;
 signalizer signalizer(.*);

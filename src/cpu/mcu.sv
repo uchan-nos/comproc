@@ -14,6 +14,9 @@ module mcu#(
   output [17:0] insn,
   output [5:0] alu_sel, // デバッグ出力
   output load_insn,
+  output [15:0] ip,
+  output [1:0] phase,
+  output load_ip,
   output [17:0] uart_recv_data,
   output [`ADDR_WIDTH-1:0] img_pmem_size,
   input  clk125,
@@ -43,11 +46,12 @@ logic [`ADDR_WIDTH-1:0] img_recv_addr, pmem_size, dmem_size;
 assign uart_recv_data = recv_data;
 assign img_pmem_size = pmem_size;
 
-typedef enum logic [1:0] {
+typedef enum logic [2:0] {
   IMG_RECV_WAIT, // メモリイメージ受信開始（55 AA）を待っている
   IMG_RECV_META, // メタデータ（データサイズなど）受信中
   IMG_RECV_PMEM, // pmem 受信中
-  IMG_RECV_DMEM  // dmem 受信中
+  IMG_RECV_DMEM, // dmem 受信中
+  IMG_RECV_FIN   // 終了処理
 } img_recv_state_t;
 img_recv_state_t img_recv_state;
 
@@ -59,6 +63,7 @@ logic recv_data_v, recv_compl, uart_rx_ready;
 
 //localparam CLK_DIV = 27_000_000 << 1;
 //localparam CLK_DIV = 27_000_000 >> 1;
+//localparam CLK_DIV = 27_000_000;
 localparam CLK_DIV = 1;
 logic [25:0] clk_div_cnt;
 logic clk_div, cpu_clk;
@@ -116,6 +121,9 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .insn(insn),
   .load_insn(load_insn),
   .alu_sel(alu_sel),
+  .ip(ip),
+  .phase(phase),
+  .load_ip(load_ip),
   .irq(cpu_irq)
 );
 
@@ -154,7 +162,7 @@ end
 // MCU 内蔵周辺機能：UART
 logic [7:0] uart_rx_byte, uart_tx_byte;
 logic uart_rd, uart_rx_full, uart_wr, uart_tx_ready, uart_ie;
-logic img_recv, end_img_recv, prog_recv;
+logic img_recv, prog_recv;
 
 uart_mux#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart_mux(
   .rst(rst),
@@ -168,13 +176,12 @@ uart_mux#(.CLOCK_HZ(CLOCK_HZ), .BAUD(UART_BAUD), .TIM_WIDTH(8)) uart_mux(
   .wr(uart_wr),
   .tx_ready(uart_tx_ready),
   .img_recv(img_recv),
-  .end_img_recv(end_img_recv)
+  .end_img_recv(img_recv_state == IMG_RECV_FIN)
 );
 
 assign uart_rd = uart_rx_full;
 assign uart_wr = cpu_wr_mem & mem_addr === `ADDR_WIDTH'h006;
 assign uart_tx_byte = cpu_wr_data[7:0];
-assign end_img_recv = recv_data_v & recv_data === 18'h1ffff;
 
 always @(posedge clk, posedge rst) begin
   if (rst)
@@ -285,15 +292,17 @@ end
 */
 
 always @(posedge rst, posedge clk) begin
-  if (rst | recv_compl)
+  if (rst)
     img_recv_state <= IMG_RECV_WAIT;
-  else if (img_recv_state == IMG_RECV_WAIT & ~recv_compl)
+  else if (img_recv_state == IMG_RECV_WAIT & img_recv)
     img_recv_state <= IMG_RECV_META;
   else if (img_recv_state == IMG_RECV_META & img_recv_addr == `ADDR_WIDTH'd2)
     img_recv_state <= IMG_RECV_PMEM;
   else if (img_recv_state == IMG_RECV_PMEM & img_recv_addr == pmem_size)
     img_recv_state <= IMG_RECV_DMEM;
   else if (img_recv_state == IMG_RECV_DMEM & img_recv_addr == dmem_size)
+    img_recv_state <= IMG_RECV_FIN;
+  else if (img_recv_state == IMG_RECV_FIN)
     img_recv_state <= IMG_RECV_WAIT;
 end
 
@@ -353,7 +362,7 @@ end
 always @(posedge rst, posedge clk) begin
   if (rst)
     recv_compl <= 1'b1;
-  else if (end_img_recv)
+  else if (img_recv_state == IMG_RECV_FIN)
     recv_compl <= 1'b1;
   else if (img_recv)
     recv_compl <= 1'b0;

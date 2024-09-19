@@ -41,6 +41,9 @@ logic [5:0] cpu_alu_sel;
 logic cpu_load_insn;
 logic [17:0] cpu_uart_recv_data;
 logic [`ADDR_WIDTH-1:0] img_pmem_size;
+logic [15:0] cpu_ip;
+logic [1:0] cpu_phase;
+logic cpu_load_ip;
 
 logic [7:0] io_led, io_lcd, io_gpio;
 logic clk125;
@@ -68,10 +71,10 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    3'd0:    led_pattern = {6'd0, cpu_uart_recv_data[17:16]};
-    3'd1:    led_pattern = cpu_uart_recv_data[15:8];
-    3'd2:    led_pattern = cpu_uart_recv_data[7:0];
-    3'd3:    led_pattern = img_pmem_size[7:0];
+    3'd0:    led_pattern = cpu_stack0[15:8];
+    3'd1:    led_pattern = cpu_stack0[7:0];
+    3'd2:    led_pattern = {cpu_phase, cpu_alu_sel};
+    3'd3:    led_pattern = {cpu_load_ip, cpu_ip[6:0]};
     3'd4:    led_pattern = io_led;
     default: led_pattern = 8'b00000000;
   endcase
@@ -170,6 +173,9 @@ mcu mcu(
   .load_insn(cpu_load_insn),
   .uart_recv_data(cpu_uart_recv_data),
   .img_pmem_size(img_pmem_size),
+  .ip(cpu_ip),
+  .phase(cpu_phase),
+  .load_ip(cpu_load_ip),
   .clk125(clk125),
   .alu_sel(cpu_alu_sel),
   .adc_cmp(adc_cmp),

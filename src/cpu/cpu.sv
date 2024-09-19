@@ -16,6 +16,9 @@ module cpu#(
   output logic [17:0] insn,
   output load_insn,
   output [5:0] alu_sel,
+  output [15:0] ip,
+  output [1:0] phase,
+  output load_ip,
   input irq
 );
 
@@ -298,7 +301,8 @@ signals signals(
   .rd_mem(rd_mem),
   .wr_mem(wr_mem),
   .set_ien(set_ien),
-  .clear_ien(clear_ien)
+  .clear_ien(clear_ien),
+  .phase(phase)
 );
 
 // CPU コアのレジスタ群
@@ -324,10 +328,10 @@ always @(posedge clk, posedge rst) begin
 end
 
 always @(posedge clk, posedge rst) begin
-  if (rst)
-    insn <= 18'd0;
-  else if (load_insn)
+  if (rst | load_insn)
     insn <= rd_pmem;
+  //else if (load_insn)
+  //  insn <= rd_pmem;
 end
 
 always @(posedge clk, posedge rst) begin
