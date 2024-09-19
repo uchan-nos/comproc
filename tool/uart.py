@@ -48,7 +48,7 @@ def send_program_and_data(ser, pmem_list, dmem_list, mode):
     dmem_size = len(dmem_list)
     if dmem_size % 2 != 0:
         dmem_list.append(0)
-        emem_size += 1
+        dmem_size += 1
 
     mode_flag = 0x4000 if mode == 'program_packed' else 0x0000
     ser.write((pmem_size | mode_flag).to_bytes(length=2, byteorder='big'))
