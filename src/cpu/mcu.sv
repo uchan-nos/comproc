@@ -14,6 +14,8 @@ module mcu#(
   output [17:0] insn,
   output [5:0] alu_sel, // デバッグ出力
   output load_insn,
+  output [17:0] uart_recv_data,
+  output [`ADDR_WIDTH-1:0] img_pmem_size,
   input  clk125,
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
@@ -37,6 +39,9 @@ logic cpu_rst, we_pmem;
 
 logic [17:0] recv_data;
 logic [`ADDR_WIDTH-1:0] img_recv_addr, pmem_size, dmem_size;
+
+assign uart_recv_data = recv_data;
+assign img_pmem_size = pmem_size;
 
 typedef enum logic [1:0] {
   IMG_RECV_WAIT, // メモリイメージ受信開始（55 AA）を待っている
@@ -309,7 +314,7 @@ always @(posedge rst, posedge clk) begin
     recv_byte_phase <= 2'd0;
   else if (recv_data_v)
     recv_byte_phase <= 2'd0;
-  else
+  else if (uart_rx_full)
     recv_byte_phase <= recv_byte_phase + 2'd1;
 end
 

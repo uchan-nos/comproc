@@ -16,7 +16,8 @@ module main(
   inout [7:0] gpio, // GPIO (HDMI pins)
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
-  output adc_dac_pwm  // ADC の DAC PWM 信号
+  output adc_dac_pwm, // ADC の DAC PWM 信号
+  output [5:0] onboard_led
 );
 
 parameter PERIOD = 16'd27000;
@@ -26,7 +27,7 @@ parameter GAP_OFF = 16'd2000;
 // logic 定義
 logic rst_n;
 logic [15:0] counter;
-logic [3:0] row_index;
+logic [2:0] row_index;
 
 logic mem_wr, mem_byt;
 logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
@@ -38,12 +39,14 @@ logic [7:0] cpu_out;
 logic [15:0] cpu_stack0, cpu_stack1, cpu_insn;
 logic [5:0] cpu_alu_sel;
 logic cpu_load_insn;
+logic [17:0] cpu_uart_recv_data;
+logic [`ADDR_WIDTH-1:0] img_pmem_size;
 
 logic [7:0] io_led, io_lcd, io_gpio;
 logic clk125;
 
 // 継続代入
-assign led_row = 9'h1ff ^ (led_on(counter) << row_index);
+assign led_row = 5'h1f ^ (led_on(counter) << row_index);
 assign led_col = led_pattern(row_index);
 
 assign lcd_e  = io_lcd[0];
@@ -56,6 +59,8 @@ assign rd_data = read_mem_or_io(
 
 assign gpio = io_gpio;
 
+assign onboard_led = 6'b101010;
+
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
@@ -63,19 +68,11 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    4'd0:    led_pattern = cpu_insn[15:8];
-    4'd1:    led_pattern = cpu_insn[7:0];
-    //4'd0:    led_pattern = wr_data[15:8];
-    //4'd1:    led_pattern = wr_data[7:0];
-    4'd2:    led_pattern = cpu_stack0[15:8];
-    4'd3:    led_pattern = cpu_stack0[7:0];
-    4'd4:    led_pattern = cpu_stack1[15:8];
-    4'd5:    led_pattern = cpu_stack1[7:0];
-    4'd6:    led_pattern = {2'd0, cpu_alu_sel};
-    4'd7:    led_pattern = io_led;
-    //4'd6:    led_pattern = {cpu_load_insn, 3'd0, mem_addr[11:8]};
-    //4'd7:    led_pattern = mem_addr[7:0];
-    4'd8:    led_pattern = encode_7seg(mem_addr[4:0]);
+    3'd0:    led_pattern = {6'd0, cpu_uart_recv_data[17:16]};
+    3'd1:    led_pattern = cpu_uart_recv_data[15:8];
+    3'd2:    led_pattern = cpu_uart_recv_data[7:0];
+    3'd3:    led_pattern = img_pmem_size[7:0];
+    3'd4:    led_pattern = io_led;
     default: led_pattern = 8'b00000000;
   endcase
 endfunction
@@ -93,12 +90,12 @@ end
 // counter が 1 周したら row_index を更新する
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    row_index <= 4'd0;
+    row_index <= 3'd0;
   else if (counter == 0)
-    if (row_index < 4'd8)
-      row_index <= row_index + 4'd1;
+    if (row_index < 3'd4)
+      row_index <= row_index + 3'd1;
     else
-      row_index <= 4'd0;
+      row_index <= 3'd0;
 end
 
 // 隣接する行が光らないように制御する
@@ -171,6 +168,8 @@ mcu mcu(
   .stack1(cpu_stack1),
   .insn(cpu_insn),
   .load_insn(cpu_load_insn),
+  .uart_recv_data(cpu_uart_recv_data),
+  .img_pmem_size(img_pmem_size),
   .clk125(clk125),
   .alu_sel(cpu_alu_sel),
   .adc_cmp(adc_cmp),

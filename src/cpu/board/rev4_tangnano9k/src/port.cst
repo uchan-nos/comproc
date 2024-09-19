@@ -86,3 +86,16 @@ IO_LOC "adc_dac_pwm" 57;
 IO_PORT "adc_cmp"     IO_TYPE=LVCMOS33;
 IO_PORT "adc_sh_ctl"  IO_TYPE=LVCMOS33;
 IO_PORT "adc_dac_pwm" IO_TYPE=LVCMOS33;
+
+IO_LOC "onboard_led[0]" 10;
+IO_LOC "onboard_led[1]" 11;
+IO_LOC "onboard_led[2]" 13;
+IO_LOC "onboard_led[3]" 14;
+IO_LOC "onboard_led[4]" 15;
+IO_LOC "onboard_led[5]" 16;
+IO_PORT "onboard_led[0]" IO_TYPE=LVCMOS33;
+IO_PORT "onboard_led[1]" IO_TYPE=LVCMOS33;
+IO_PORT "onboard_led[2]" IO_TYPE=LVCMOS33;
+IO_PORT "onboard_led[3]" IO_TYPE=LVCMOS33;
+IO_PORT "onboard_led[4]" IO_TYPE=LVCMOS33;
+IO_PORT "onboard_led[5]" IO_TYPE=LVCMOS33;
