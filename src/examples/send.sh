@@ -4,8 +4,8 @@ bin="$@"
 
 if [ "$bin" = "" ]
 then
-  echo "Usage: $0 <instruction words (exclude last FFFF)>"
+  echo "Usage: $0 <instruction words>"
   exit 0
 fi
 
-../../tool/uart.py --delim $bin 7f ff
+../../tool/uart.py --program $bin
