@@ -29,21 +29,15 @@ logic rst_n;
 logic [15:0] counter;
 logic [2:0] row_index;
 
-logic mem_wr, mem_byt;
-logic [`ADDR_WIDTH-1:0] mem_addr, mem_addr_d;
-logic [15:0] rd_data, wr_data;
+logic dmem_wen, dmem_byt;
+logic [`ADDR_WIDTH-1:0] dmem_addr, dmem_addr_d;
+logic [15:0] dmem_rdata, dmem_wdata;
 
-logic [15:0] bram_rd_data;
+logic [15:0] dmem_rdata_raw;
 
 logic [7:0] cpu_out;
-logic [15:0] cpu_stack0, cpu_stack1, cpu_insn;
-logic [5:0] cpu_alu_sel;
-logic cpu_load_insn;
 logic [17:0] cpu_uart_recv_data;
 logic [`ADDR_WIDTH-1:0] img_pmem_size;
-logic [15:0] cpu_ip;
-logic [1:0] cpu_phase;
-logic cpu_load_ip;
 
 logic [7:0] io_led, io_lcd, io_gpio;
 logic clk125;
@@ -57,8 +51,8 @@ assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
 
-assign rd_data = read_mem_or_io(
-  mem_addr_d, bram_rd_data, io_led, io_lcd, io_gpio);
+assign dmem_rdata = read_mem_or_io(
+  dmem_addr_d, dmem_rdata_raw, io_led, io_lcd, io_gpio);
 
 assign gpio = io_gpio;
 
@@ -71,10 +65,10 @@ end
 // LED の各行に情報を表示
 function [7:0] led_pattern(input [3:0] row_index);
   case (row_index)
-    3'd0:    led_pattern = cpu_stack0[15:8];
-    3'd1:    led_pattern = cpu_stack0[7:0];
-    3'd2:    led_pattern = {cpu_phase, cpu_alu_sel};
-    3'd3:    led_pattern = {cpu_load_ip, cpu_ip[6:0]};
+    3'd0:    led_pattern = 8'b10000000;
+    3'd1:    led_pattern = 8'b01000000;
+    3'd2:    led_pattern = 8'b00100000;
+    3'd3:    led_pattern = 8'b00010000;
     3'd4:    led_pattern = io_led;
     default: led_pattern = 8'b00000000;
   endcase
@@ -112,25 +106,25 @@ always @(posedge sys_clk, negedge rst_n) begin
     io_lcd <= 0;
     io_gpio <= 0;
   end
-  else if (mem_wr && mem_addr == `ADDR_WIDTH'h080)
-    if (mem_byt)
-      io_led <= wr_data[7:0];
+  else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h080)
+    if (dmem_byt)
+      io_led <= dmem_wdata[7:0];
     else
-      {io_lcd, io_led} <= wr_data;
-  else if (mem_wr && mem_addr == `ADDR_WIDTH'h081)
-    io_lcd <= wr_data[15:8];
-  else if (mem_wr && mem_addr == `ADDR_WIDTH'h082)
-    if (mem_byt)
-      io_gpio <= wr_data[7:0];
+      {io_lcd, io_led} <= dmem_wdata;
+  else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h081)
+    io_lcd <= dmem_wdata[15:8];
+  else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h082)
+    if (dmem_byt)
+      io_gpio <= dmem_wdata[7:0];
     else
-      io_gpio <= wr_data[7:0];
+      io_gpio <= dmem_wdata[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n)
-    mem_addr_d <= `ADDR_WIDTH'd0;
+    dmem_addr_d <= `ADDR_WIDTH'd0;
   else
-    mem_addr_d <= mem_addr;
+    dmem_addr_d <= dmem_addr;
 end
 
 // 周辺機能用高速クロック
@@ -162,22 +156,14 @@ mcu mcu(
   .clk(sys_clk),
   .uart_rx(uart_rx),
   .uart_tx(uart_tx),
-  .mem_addr(mem_addr),
-  .wr_mem(mem_wr),
-  .byt(mem_byt),
-  .rd_data(rd_data),
-  .wr_data(wr_data),
-  .stack0(cpu_stack0),
-  .stack1(cpu_stack1),
-  .insn(cpu_insn),
-  .load_insn(cpu_load_insn),
+  .dmem_addr(dmem_addr),
+  .dmem_wen(dmem_wen),
+  .dmem_byt(dmem_byt),
+  .dmem_rdata(dmem_rdata),
+  .dmem_wdata(dmem_wdata),
   .uart_recv_data(cpu_uart_recv_data),
   .img_pmem_size(img_pmem_size),
-  .ip(cpu_ip),
-  .phase(cpu_phase),
-  .load_ip(cpu_load_ip),
   .clk125(clk125),
-  .alu_sel(cpu_alu_sel),
   .adc_cmp(adc_cmp),
   .adc_sh_ctl(adc_sh_ctl),
   .adc_dac_pwm(adc_dac_pwm),
@@ -201,11 +187,11 @@ mcu mcu(
 dmem dmem(
   .rst(~rst_n),
   .clk(sys_clk),
-  .addr(mem_addr),
-  .wr(mem_wr),
-  .byt(mem_byt),
-  .wr_data(wr_data),
-  .rd_data(bram_rd_data)
+  .addr(dmem_addr),
+  .wen(dmem_wen),
+  .byt(dmem_byt),
+  .data_in(dmem_wdata),
+  .data_out(dmem_rdata_raw)
 );
 
 function [7:0] encode_7seg(input [4:0] n);

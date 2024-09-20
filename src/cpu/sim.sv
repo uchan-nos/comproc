@@ -7,15 +7,14 @@ localparam CLOCK_HZ = 100_000;
 localparam UART_BAUD = 1_000;
 localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
-logic [`ADDR_WIDTH-1:0] mem_addr;
-logic [15:0] rd_data, wr_data;
-logic wr_mem;
-logic byt;
-logic [15:0] stack0, stack1;
+logic [`ADDR_WIDTH-1:0] dmem_addr;
+logic [15:0] dmem_rdata, dmem_wdata;
+logic dmem_wen;
+logic dmem_byt;
 logic [5:0] alu_sel;
 
-logic [15:0] wr_data_mon;
-assign wr_data_mon = wr_mem ? mcu.wr_data : 16'hzzzz;
+logic [15:0] dmem_wdata_mon;
+assign dmem_wdata_mon = dmem_wen ? mcu.dmem_wdata : 16'hzzzz;
 
 integer num_insn = 0;
 integer ip_init = 0;
@@ -49,8 +48,8 @@ assign cur_uart_in = uart_in[uart_index];
 logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx), .insn(), .load_insn(),
-  .ip(), .phase(), .load_ip(), .uart_recv_data(), .img_pmem_size(),
+  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx),
+  .uart_recv_data(), .img_pmem_size(),
   .clk125(1'b0), .adc_cmp(1'b0), .adc_sh_ctl(), .adc_dac_pwm(),
   .uf_xadr(), .uf_yadr(),
   .uf_xe(), .uf_ye(), .uf_se(), .uf_erase(), .uf_prog(), .uf_nvstr(),
@@ -104,9 +103,9 @@ initial begin
   $monitor("%d: rst=%d ip=%02x.%d %04x %-6s",
            $time, rst, mcu.cpu.ip, phase_num, mcu.cpu.insn, insn_name,
            " addr=%03x r=%04x w=%04x byt=%d",
-           mem_addr, rd_data, wr_data_mon, byt,
+           dmem_addr, dmem_rdata, dmem_wdata_mon, dmem_byt,
            " alu_out=%04x stack{%02x %02x} in=%04x fp=%04x",
-           mcu.cpu.alu_out, stack0, stack1, mcu.cpu.stack_in, mcu.cpu.fp,
+           mcu.cpu.alu_out, mcu.cpu.stack0, mcu.cpu.stack1, mcu.cpu.stack_in, mcu.cpu.fp,
            //" cstk{%02x %02x} irq=%d cdt=%04x",
            //mcu.cpu.cstack.data[0], mcu.cpu.cstack.data[1], mcu.cpu.irq, mcu.cdtimer_cnt,
            " mcu_uart_rx=%d cur_uart_in=%02x rx_data=%x rx_full=%d",
@@ -153,43 +152,43 @@ always @(posedge clk) begin
               $stime, rst, phase_num,
               // レジスタ値
               "stack0=%x fp=%x ip=%x insn=%x cstack0=%x ",
-              stack0, mcu.cpu.fp, mcu.cpu.ip, mcu.cpu.insn, mcu.cpu.cstack0,
+              mcu.cpu.stack0, mcu.cpu.fp, mcu.cpu.ip, mcu.cpu.insn, mcu.cpu.cstack0,
               // セレクト信号
               "alu_sel=%x src_a_sel=%x src_b_sel=%x ",
               mcu.cpu.signals.alu_sel, mcu.cpu.src_a_sel, mcu.cpu.src_b_sel,
-              "rd_mem=%x wr_stk1=%x ",
-              mcu.cpu.rd_mem, mcu.cpu.wr_stk1,
+              "dmem_rdata=%x wr_stk1=%x ",
+              mcu.cpu.dmem_rdata, mcu.cpu.wr_stk1,
               // 制御信号
               "pop=%x push=%x load_stk=%x load_fp=%x load_ip=%x ",
               mcu.cpu.pop, mcu.cpu.push, mcu.cpu.load_stk, mcu.cpu.load_fp, mcu.cpu.load_ip,
               "load_isr=%d cpop=%x cpush=%x ",
               mcu.cpu.load_isr, mcu.cpu.cpop, mcu.cpu.cpush,
               // データ値
-              "rd_data=%x wr_data=%x addr_d=%x ",
-              rd_data, wr_data, mcu.cpu.addr_d,
+              "dmem_rdata=%x dmem_wdata=%x dmem_addr_d=%x ",
+              dmem_rdata, dmem_wdata, mcu.cpu.dmem_addr_d,
               "alu_out=%x src_a=%x src_b=%x stack_in=%x imm_mask=%x ",
               mcu.cpu.alu_out, mcu.cpu.src_a, mcu.cpu.src_b, mcu.cpu.stack_in, mcu.cpu.imm_mask
              );
   end
 end
 
-logic [15:0] bram_rd_data;
+logic [15:0] dmem_rdata_raw;
 dmem dmem(
   .rst(rst),
   .clk(clk),
-  .addr(mem_addr),
-  .wr(wr_mem),
-  .byt(byt),
-  .wr_data(wr_data),
-  .rd_data(bram_rd_data)
+  .addr(dmem_addr),
+  .wen(dmem_wen),
+  .byt(dmem_byt),
+  .data_in(dmem_wdata),
+  .data_out(dmem_rdata_raw)
 );
 
-logic [`ADDR_WIDTH-1:0] mem_addr_d;
-assign rd_data = mem_addr_d == `ADDR_WIDTH'h006 ?
-                 uart_in[uart_index] : bram_rd_data;
+logic [`ADDR_WIDTH-1:0] dmem_addr_d;
+assign dmem_rdata = dmem_addr_d == `ADDR_WIDTH'h006 ?
+                    uart_in[uart_index] : dmem_rdata_raw;
 
 always @(posedge clk) begin
-  mem_addr_d <= mem_addr;
+  dmem_addr_d <= dmem_addr;
 end
 
 // MCU への UART 送信

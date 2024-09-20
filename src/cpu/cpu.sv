@@ -3,37 +3,24 @@
 module cpu#(
   parameter CLOCK_HZ = 27_000_000
 ) (
-  input rst,
-  input clk,
-  output [`ADDR_WIDTH-1:0] mem_addr,
-  output rd_mem, wr_mem,
-  output byt,
-  input  [15:0] rd_data,
-  output [15:0] wr_data,
-  input  [17:0] rd_pmem,
-  output [15:0] stack0,
-  output [15:0] stack1,
-  output logic [17:0] insn,
-  output load_insn,
-  output [5:0] alu_sel,
-  output [15:0] ip,
-  output [1:0] phase,
-  output load_ip,
-  input irq
+  input  rst,
+  input  clk,
+  input  irq,
+  output dmem_ren, // dmem read enable: 明示的データメモリ読み込み命令のとき 1
+  output dmem_wen, // dmem write enable: データメモリ書き込み命令のとき 1
+  output dmem_byt, // dmem byte access: バイトアクセスなら 1
+  output [`ADDR_WIDTH-1:0] dmem_addr,
+  input  [15:0] dmem_rdata, // データメモリからの読み込みデータ
+  output [15:0] dmem_wdata, // データメモリへの書き込みデータ
+  output [`ADDR_WIDTH-1:0] pmem_addr,
+  input  [17:0] pmem_rdata  // プログラムメモリからの読み込みデータ
 );
 
 /*
-引数の仕様
+dmem_byt の意味
 
-rd_mem    明示的データメモリ読み込み命令のとき 1
-wr_mem    データメモリ書き込み命令のとき 1
-byt       バイトアクセスなら 1
-rd_data   データメモリからの読み込みデータ
-          byt=0 なら [15:0] が有効
-          byt=1 なら、mem_addr の最下位ビットに応じて [15:8] か [7:0] が有効
-wr_data   データメモリへの書き込みデータ
-          byt とビットの有効範囲は rd_data と同じ
-rd_pmem   プログラムメモリからの読み込みデータ
+dmem_byt=0: dmem_rdata/dmem_wdata の [15:0] が有効
+dmem_byt=1: dmem_addr の最下位ビットに応じて [15:8] か [7:0] が有効
 
 
 命令リスト（即値有り）
@@ -128,19 +115,19 @@ src_a     ALU-A 入力
 src_a_sel ALU-A 入力選択（`SRCA_xxx マクロ）
 src_b     ALU-B 入力
 src_b_sel ALU-B 入力選択（`SRCB_xxx マクロ）
-wr_stk1   0/1: wr_data に stack[0/1] を出力
+wr_stk1   0/1: dmem_wdata に stack[0/1] を出力
 pop/push  stack をポップ/プッシュ
 load_stk  stack[0] に stack_in をロード
 load_fp   FP に alu_out をロード
 load_ip   IP に alu_out をロード
-load_insn INSN に rd_data をロード
+load_insn INSN に pmem_rdata をロード
 load_isr  ISR に alu_out をロード
 cpop      cstack をポップ
 cpush     cstack に値をプッシュ
-rd_mem    stack_in に接続する値の選択
-          0: alu_out, 1: rd_data
-wr_mem    メモリに wr_data を書き込む
-stack_in  stack[0] の入力値（alu_out, rd_data）
+dmem_ren  stack_in に接続する値の選択
+          0: alu_out, 1: dmem_rdata
+dmem_wen  データメモリに dmem_wdata を書き込む
+stack_in  stack[0] の入力値（alu_out, dmem_rdata）
 imm_mask  insn から即値を取り出すためのビットマスク
 
 - stack: 演算用スタック
@@ -149,13 +136,13 @@ imm_mask  insn から即値を取り出すためのビットマスク
 
 レジスタ
 
-名前      説明
+名前         説明
 -----------------------
-fp        フレームポインタ（スタックフレームの先頭を指す）
-ip        命令（instruction）ポインタ（次に実行する命令を指す）
-insn      命令（instruction）レジスタ
-addr0_d   mem_addr の最下位ビットを 1 クロック遅延した値
-isr       割り込みハンドラ（ISR）のアドレスを保持するレジスタ
+fp           フレームポインタ（スタックフレームの先頭を指す）
+ip           命令（instruction）ポインタ（次に実行する命令を指す）
+insn         命令（instruction）レジスタ
+dmem_addr_d  dmem_addr を 1 クロック遅延した値
+isr          割り込みハンドラ（ISR）のアドレスを保持するレジスタ
 
 
 メモリマップ（データメモリ）
@@ -224,11 +211,15 @@ logic sign, wr_stk1, pop, push,
   irq_masked, ien, set_ien, clear_ien;
 logic [1:0] src_a_sel;
 logic [1:0] src_b_sel;
-logic [15:0] alu_out, src_a, src_b, stack_in, cstack0, imm_mask, wr_data_raw;
+logic [1:0] phase;
+logic [5:0] alu_sel;
+logic [15:0] stack0, stack1, stack_in, cstack0,
+             alu_out, src_a, src_b, imm_mask, dmem_wdata_raw;
 
 // レジスタ群
 logic [15:0] fp, ip, isr;
-logic [`ADDR_WIDTH-1:0] addr_d;
+logic [`ADDR_WIDTH-1:0] dmem_addr_d;
+logic [17:0] insn;
 
 // 結線
 assign src_a = src_a_sel === `SRCA_FP   ? fp
@@ -238,10 +229,11 @@ assign src_a = src_a_sel === `SRCA_FP   ? fp
 assign src_b = src_b_sel === 2'd0 ? stack1
                : src_b_sel === 2'd1 ? mask_imm(insn[15:0], imm_mask, sign)
                : isr;
-assign stack_in = rd_mem ? byte_format(rd_data, byt, addr_d[0]) : alu_out;
-assign mem_addr = alu_out[`ADDR_WIDTH-1:0];
-assign wr_data_raw = wr_stk1 ? stack1 : stack0;
-assign wr_data = mem_addr[0] ? {wr_data_raw[7:0], 8'd0} : wr_data_raw;
+assign stack_in = dmem_ren ? byte_format(dmem_rdata, dmem_byt, dmem_addr_d[0]) : alu_out;
+assign dmem_addr = alu_out[`ADDR_WIDTH-1:0];
+assign dmem_wdata_raw = wr_stk1 ? stack1 : stack0;
+assign dmem_wdata = dmem_addr[0] ? {dmem_wdata_raw[7:0], 8'd0} : dmem_wdata_raw;
+assign pmem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign irq_masked = ien & irq;
 
 // CPU コアモジュール群
@@ -282,9 +274,6 @@ signals signals(
   .sign(sign),
   .imm_mask(imm_mask),
   .src_a_sel(src_a_sel),
-  //.src_a_fp(src_a_fp),
-  //.src_a_ip(src_a_ip),
-  //.src_a_cstk(src_a_cstk),
   .src_b_sel(src_b_sel),
   .alu_sel(alu_sel),
   .wr_stk1(wr_stk1),
@@ -297,9 +286,9 @@ signals signals(
   .load_isr(load_isr),
   .cpop(cpop),
   .cpush(cpush),
-  .byt(byt),
-  .rd_mem(rd_mem),
-  .wr_mem(wr_mem),
+  .byt(dmem_byt),
+  .rd_mem(dmem_ren),
+  .wr_mem(dmem_wen),
   .set_ien(set_ien),
   .clear_ien(clear_ien),
   .phase(phase)
@@ -329,16 +318,14 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst | load_insn)
-    insn <= rd_pmem;
-  //else if (load_insn)
-  //  insn <= rd_pmem;
+    insn <= pmem_rdata;
 end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    addr_d <= `ADDR_WIDTH'd0;
+    dmem_addr_d <= `ADDR_WIDTH'd0;
   else
-    addr_d <= mem_addr;
+    dmem_addr_d <= dmem_addr;
 end
 
 always @(posedge clk, posedge rst) begin
@@ -351,9 +338,9 @@ always @(posedge clk, posedge rst) begin
 end
 
 // CPU コア用の function 定義
-function [15:0] byte_format(input [15:0] val16, input byt, input addr1);
+function [15:0] byte_format(input [15:0] val16, input dmem_byt, input addr1);
 begin
-  if (~byt)
+  if (~dmem_byt)
     byte_format = val16;
   else begin
     if (addr1)
