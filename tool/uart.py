@@ -23,6 +23,8 @@ def hex_to_bytes(hex_list, mode=None):
     conv = lambda i: i.to_bytes(1, 'big')
     if mode == 'program_simple':
         conv = lambda i: i.to_bytes(3, 'big')
+    if mode == 'little_2bytes':
+        conv = lambda i: i.to_bytes(2, 'big')
     return b''.join(conv(i) for i in hex_list)
 
 
@@ -45,17 +47,14 @@ def send_program_and_data(ser, pmem_list, dmem_list, mode):
     ser.flush()
 
     pmem_size = len(pmem_list)
-    dmem_size = len(dmem_list)
-    if dmem_size % 2 != 0:
-        dmem_list.append(0)
-        dmem_size += 1
+    dmem_size = len(dmem_list) * 2
 
     mode_flag = 0x4000 if mode == 'program_packed' else 0x0000
     ser.write((pmem_size | mode_flag).to_bytes(length=2, byteorder='big'))
     ser.write(dmem_size.to_bytes(length=2, byteorder='big'))
 
     ser.write(hex_to_bytes(pmem_list, mode))
-    ser.write(hex_to_bytes(dmem_list, mode))
+    ser.write(hex_to_bytes(dmem_list, 'little_2bytes'))
     ser.flush()
 
 

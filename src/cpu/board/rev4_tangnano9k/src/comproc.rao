@@ -4,6 +4,62 @@
     <Mode>Standard</Mode>
     <AoCore index="0" sample_clock="sys_clk" trig_type="0" storage_depth="64" window_num="1" capture_amount="64" implementation="0" trigger_pos="10" module_name="main" force_trigger_by_falling_edge="false" capture_init_data_enabled="false">
         <SignalList>
+            <Bus capture_enable="true" name="mcu/cpu/stack0[15:0]">
+                <Signal>mcu/cpu/stack0[15]</Signal>
+                <Signal>mcu/cpu/stack0[14]</Signal>
+                <Signal>mcu/cpu/stack0[13]</Signal>
+                <Signal>mcu/cpu/stack0[12]</Signal>
+                <Signal>mcu/cpu/stack0[11]</Signal>
+                <Signal>mcu/cpu/stack0[10]</Signal>
+                <Signal>mcu/cpu/stack0[9]</Signal>
+                <Signal>mcu/cpu/stack0[8]</Signal>
+                <Signal>mcu/cpu/stack0[7]</Signal>
+                <Signal>mcu/cpu/stack0[6]</Signal>
+                <Signal>mcu/cpu/stack0[5]</Signal>
+                <Signal>mcu/cpu/stack0[4]</Signal>
+                <Signal>mcu/cpu/stack0[3]</Signal>
+                <Signal>mcu/cpu/stack0[2]</Signal>
+                <Signal>mcu/cpu/stack0[1]</Signal>
+                <Signal>mcu/cpu/stack0[0]</Signal>
+            </Bus>
+            <Bus capture_enable="true" name="mcu/cpu/insn[17:0]">
+                <Signal>mcu/cpu/insn[17]</Signal>
+                <Signal>mcu/cpu/insn[16]</Signal>
+                <Signal>mcu/cpu/insn[15]</Signal>
+                <Signal>mcu/cpu/insn[14]</Signal>
+                <Signal>mcu/cpu/insn[13]</Signal>
+                <Signal>mcu/cpu/insn[12]</Signal>
+                <Signal>mcu/cpu/insn[11]</Signal>
+                <Signal>mcu/cpu/insn[10]</Signal>
+                <Signal>mcu/cpu/insn[9]</Signal>
+                <Signal>mcu/cpu/insn[8]</Signal>
+                <Signal>mcu/cpu/insn[7]</Signal>
+                <Signal>mcu/cpu/insn[6]</Signal>
+                <Signal>mcu/cpu/insn[5]</Signal>
+                <Signal>mcu/cpu/insn[4]</Signal>
+                <Signal>mcu/cpu/insn[3]</Signal>
+                <Signal>mcu/cpu/insn[2]</Signal>
+                <Signal>mcu/cpu/insn[1]</Signal>
+                <Signal>mcu/cpu/insn[0]</Signal>
+            </Bus>
+            <Bus capture_enable="true" name="mcu/wr_data[15:0]">
+                <Signal>mcu/wr_data[15]</Signal>
+                <Signal>mcu/wr_data[14]</Signal>
+                <Signal>mcu/wr_data[13]</Signal>
+                <Signal>mcu/wr_data[12]</Signal>
+                <Signal>mcu/wr_data[11]</Signal>
+                <Signal>mcu/wr_data[10]</Signal>
+                <Signal>mcu/wr_data[9]</Signal>
+                <Signal>mcu/wr_data[8]</Signal>
+                <Signal>mcu/wr_data[7]</Signal>
+                <Signal>mcu/wr_data[6]</Signal>
+                <Signal>mcu/wr_data[5]</Signal>
+                <Signal>mcu/wr_data[4]</Signal>
+                <Signal>mcu/wr_data[3]</Signal>
+                <Signal>mcu/wr_data[2]</Signal>
+                <Signal>mcu/wr_data[1]</Signal>
+                <Signal>mcu/wr_data[0]</Signal>
+            </Bus>
             <Bus capture_enable="true" name="mcu/mem_addr[13:0]">
                 <Signal>mcu/mem_addr[13]</Signal>
                 <Signal>mcu/mem_addr[12]</Signal>
@@ -20,12 +76,6 @@
                 <Signal>mcu/mem_addr[1]</Signal>
                 <Signal>mcu/mem_addr[0]</Signal>
             </Bus>
-            <Signal capture_enable="true">mcu/we_pmem</Signal>
-            <Bus capture_enable="true" name="mcu/img_recv_state[1:0]">
-                <Signal>mcu/img_recv_state[1]</Signal>
-                <Signal>mcu/img_recv_state[0]</Signal>
-            </Bus>
-            <Signal capture_enable="true">mcu/recv_compl</Signal>
         </SignalList>
         <Triggers>
             <Trigger index="0">
@@ -105,12 +155,12 @@
             <Trigger index="15"/>
         </Triggers>
         <MatchUnits>
-            <MatchUnit index="0" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="0"/>
+            <MatchUnit index="0" enabled="1" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="R" value1="0" trigger="0"/>
             <MatchUnit index="1" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="R" value1="0" trigger="1"/>
             <MatchUnit index="2" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="10" value1="00" trigger="2"/>
-            <MatchUnit index="3" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="00000000000010" value1="00000000000000" trigger="3"/>
+            <MatchUnit index="3" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="00000100000100" value1="00000000000000" trigger="3"/>
             <MatchUnit index="4" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="0000000000000000" value1="0000000000000000" trigger="4"/>
-            <MatchUnit index="5" enabled="1" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="5"/>
+            <MatchUnit index="5" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="5"/>
             <MatchUnit index="6" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="7" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="8" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
@@ -123,8 +173,8 @@
             <MatchUnit index="15" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
         </MatchUnits>
         <Expressions type="Static">
-            <Expression>M5</Expression>
+            <Expression>M0</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>0000000100001101</GAO_ID>
+    <GAO_ID>0000110100110010</GAO_ID>
 </GAO_CONFIG>

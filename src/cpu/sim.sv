@@ -27,7 +27,7 @@ integer uart_out = 0;
 string pmem_file, dmem_file;
 integer dmem_file_fd;
 logic [7:0] uart_in[0:255];
-logic [7:0] uart_buf;
+logic [15:0] uart_buf;
 logic [17:0] insn_buf;
 logic [5:0][7:0] insn_name;
 integer uart_index, uart_in_len;
@@ -50,6 +50,7 @@ logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
   .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx), .insn(), .load_insn(),
+  .ip(), .phase(), .load_ip(), .uart_recv_data(), .img_pmem_size(),
   .clk125(1'b0), .adc_cmp(1'b0), .adc_sh_ctl(), .adc_dac_pwm(),
   .uf_xadr(), .uf_yadr(),
   .uf_xe(), .uf_ye(), .uf_se(), .uf_erase(), .uf_prog(), .uf_nvstr(),
@@ -75,9 +76,8 @@ initial begin
     dmem_file_fd = $fopen(dmem_file, "r");
     uart_index = 16'h100 >> 1;
     while ($fscanf(dmem_file_fd, "%h", uart_buf) == 1) begin
-      dmem.mem_lo[uart_index] = uart_buf;
-      if ($fscanf(dmem_file_fd, "%h", uart_buf) == 1)
-        dmem.mem_hi[uart_index] = uart_buf;
+      dmem.mem_lo[uart_index] = uart_buf[7:0];
+      dmem.mem_hi[uart_index] = uart_buf[15:8];
       uart_index += 1;
     end
   end

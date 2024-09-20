@@ -13,6 +13,7 @@
 #define INDENT "\t"
 #define MAX_STRING 256
 #define MAX_LINE (32*1024/2)
+#define GVAR_OFFSET 0x100
 
 char *src;
 void Locate(char *p) {
@@ -870,7 +871,7 @@ int main(int argc, char **argv) {
   }
 
   struct Scope *global_scope = NewGlobalScope(NewSymbol(kSymHead, NULL));
-  global_scope->var_offset = 0x100;
+  global_scope->var_offset = GVAR_OFFSET;
   struct ParseContext parse_ctx = {
     global_scope
   };
@@ -898,16 +899,33 @@ int main(int argc, char **argv) {
     0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
 
-  //struct Instruction *insn_add_fp = InsnRegInt(&gen_ctx, "add", "fp", 0);
+  fprintf(output_file, "section .data\n");
+  int gvar_offset = GVAR_OFFSET;
   for (struct Symbol *sym = global_scope->syms->next; sym; sym = sym->next) {
-    if (sym->kind == kSymGVar && sym->offset == 0) {
-      //size_t mem_size = (SizeofType(sym->type) + 1) & ~((size_t)1);
-      //sym->offset = gvar_offset;
-      //gvar_offset += mem_size;
-      if (sym->def->rhs) {
-        Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
-        InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+    if (sym->kind == kSymGVar && sym->offset == gvar_offset) {
+      // at 属性で配置アドレスを決めたもの（sym->offset != gvar_offset）は無視
+
+      int mem_size = (SizeofType(sym->type) + 1) & 0xfffe;
+      gvar_offset += mem_size;
+
+      fprintf(output_file, "%.*s:", sym->name->len, sym->name->raw);
+      if (sym->def->rhs == NULL || sym->def->rhs->kind != kNodeInteger) {
+        for (int i = 0; i < mem_size; i++) {
+          if ((i & 0xf) == 0) {
+            fprintf(output_file, "\n" INDENT "db 0");
+          } else {
+            fprintf(output_file, ",0");
+          }
+        }
+        if (sym->def->rhs) {
+          Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
+          InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+        }
+      } else { // kind == kNodeInteger
+        int val = sym->def->rhs->token->value.as_int;
+        fprintf(output_file, "\n" INDENT "db %d,%d", val & 0xff, (val >> 8) & 0xff);
       }
+      fprintf(output_file, "\n");
     }
   }
 
@@ -922,7 +940,6 @@ int main(int argc, char **argv) {
   }
   //insn_add_fp->operands[1].val_int = global_scope->var_offset;
 
-  fprintf(output_file, "section .data\n");
   for (int i = 0; i < gen_ctx.num_strings; i++) {
     struct Token *tk_str = gen_ctx.strings[i];
     char buf[256];

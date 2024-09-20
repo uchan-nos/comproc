@@ -684,7 +684,7 @@ int main(int argc, char **argv) {
 
   if (dmem_file) {
     for (int i = 0; i < dmem_size; i += 2) {
-      fprintf(dmem_file, "%02X %02X\n", dmem[i], dmem[i + 1]);
+      fprintf(dmem_file, "%02X%02X\n", dmem[i + 1], dmem[i]);
     }
   }
   for (int i = 0; i < num_insn; i++) {
