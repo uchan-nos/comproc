@@ -8,7 +8,7 @@ localparam UART_BAUD = 1_000;
 localparam TIMEOUT = 1 * CLOCK_HZ * 10; // 1 秒間でタイムアウト
 
 logic [`ADDR_WIDTH-1:0] dmem_addr;
-logic [15:0] dmem_rdata, dmem_wdata;
+logic [15:0] dmem_rdata_io, dmem_wdata;
 logic dmem_wen;
 logic dmem_byt;
 logic [5:0] alu_sel;
@@ -75,8 +75,8 @@ initial begin
     dmem_file_fd = $fopen(dmem_file, "r");
     uart_index = 16'h100 >> 1;
     while ($fscanf(dmem_file_fd, "%h", uart_buf) == 1) begin
-      dmem.mem_lo[uart_index] = uart_buf[7:0];
-      dmem.mem_hi[uart_index] = uart_buf[15:8];
+      mcu.dmem.mem_lo[uart_index] = uart_buf[7:0];
+      mcu.dmem.mem_hi[uart_index] = uart_buf[15:8];
       uart_index += 1;
     end
   end
@@ -103,7 +103,7 @@ initial begin
   $monitor("%d: rst=%d ip=%02x.%d %04x %-6s",
            $time, rst, mcu.cpu.ip, phase_num, mcu.cpu.insn, insn_name,
            " addr=%03x r=%04x w=%04x byt=%d",
-           dmem_addr, dmem_rdata, dmem_wdata_mon, dmem_byt,
+           dmem_addr, mcu.cpu.dmem_rdata, dmem_wdata_mon, dmem_byt,
            " alu_out=%04x stack{%02x %02x} in=%04x fp=%04x",
            mcu.cpu.alu_out, mcu.cpu.stack0, mcu.cpu.stack1, mcu.cpu.stack_in, mcu.cpu.fp,
            //" cstk{%02x %02x} irq=%d cdt=%04x",
@@ -165,31 +165,29 @@ always @(posedge clk) begin
               mcu.cpu.load_isr, mcu.cpu.cpop, mcu.cpu.cpush,
               // データ値
               "dmem_rdata=%x dmem_wdata=%x dmem_addr_d=%x ",
-              dmem_rdata, dmem_wdata, mcu.cpu.dmem_addr_d,
+              mcu.cpu.dmem_rdata, dmem_wdata, mcu.cpu.dmem_addr_d,
               "alu_out=%x src_a=%x src_b=%x stack_in=%x imm_mask=%x ",
               mcu.cpu.alu_out, mcu.cpu.src_a, mcu.cpu.src_b, mcu.cpu.stack_in, mcu.cpu.imm_mask
              );
   end
 end
 
-logic [15:0] dmem_rdata_raw;
-dmem dmem(
-  .rst(rst),
-  .clk(clk),
-  .addr(dmem_addr),
-  .wen(dmem_wen),
-  .byt(dmem_byt),
-  .data_in(dmem_wdata),
-  .data_out(dmem_rdata_raw)
-);
-
+// メモリ読み出しのために 1 クロック遅延したアドレスを生成
 logic [`ADDR_WIDTH-1:0] dmem_addr_d;
-assign dmem_rdata = dmem_addr_d == `ADDR_WIDTH'h006 ?
-                    uart_in[uart_index] : dmem_rdata_raw;
-
 always @(posedge clk) begin
   dmem_addr_d <= dmem_addr;
 end
+
+// ボード依存の I/O は単純なレジスタとしてエミュレート
+logic [15:0] io_regs[(`ADDR_WIDTH'h80 >> 1):((`ADDR_WIDTH'h100 >> 1) - 1)];
+// I/O への出力値を保存
+always @(posedge clk) begin
+  if (dmem_wen && dmem_addr >= `ADDR_WIDTH'h80 && dmem_addr < `ADDR_WIDTH'h100) begin
+    io_regs[dmem_addr >> 1] <= dmem_wdata;
+  end
+end
+// 保存された値を読み出す
+assign dmem_rdata_io = io_regs[dmem_addr_d >> 1];
 
 // MCU への UART 送信
 always #(10*CLOCK_HZ/UART_BAUD) begin

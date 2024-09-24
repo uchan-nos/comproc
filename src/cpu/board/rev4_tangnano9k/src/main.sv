@@ -31,7 +31,7 @@ logic [2:0] row_index;
 
 logic dmem_wen, dmem_byt;
 logic [`ADDR_WIDTH-1:0] dmem_addr, dmem_addr_d;
-logic [15:0] dmem_rdata, dmem_wdata;
+logic [15:0] dmem_rdata_io, dmem_wdata;
 
 logic [15:0] dmem_rdata_raw;
 
@@ -51,8 +51,7 @@ assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
 
-assign dmem_rdata = read_mem_or_io(
-  dmem_addr_d, dmem_rdata_raw, io_led, io_lcd, io_gpio);
+assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd, io_gpio);
 
 assign gpio = io_gpio;
 
@@ -159,7 +158,7 @@ mcu mcu(
   .dmem_addr(dmem_addr),
   .dmem_wen(dmem_wen),
   .dmem_byt(dmem_byt),
-  .dmem_rdata(dmem_rdata),
+  .dmem_rdata_io(dmem_rdata_io),
   .dmem_wdata(dmem_wdata),
   .uart_recv_data(cpu_uart_recv_data),
   .img_pmem_size(img_pmem_size),
@@ -181,17 +180,6 @@ mcu mcu(
   .spi_sclk(tf_sclk),
   .spi_mosi(tf_mosi),
   .spi_miso(tf_miso)
-);
-
-// メモリ
-dmem dmem(
-  .rst(~rst_n),
-  .clk(sys_clk),
-  .addr(dmem_addr),
-  .wen(dmem_wen),
-  .byt(dmem_byt),
-  .data_in(dmem_wdata),
-  .data_out(dmem_rdata_raw)
 );
 
 function [7:0] encode_7seg(input [4:0] n);
@@ -224,16 +212,15 @@ begin
 end
 endfunction
 
-function [15:0] read_mem_or_io(
-  input [`ADDR_WIDTH-1:0] addr, [15:0] mem,
+function [15:0] io_mux(
+  input [`ADDR_WIDTH-1:0] addr,
   [7:0] io_led, io_lcd, io_gpio
 );
 begin
   casex (addr)
-    `ADDR_WIDTH'b1000_000x: read_mem_or_io = {io_lcd, io_led};
-    `ADDR_WIDTH'b1000_001x: read_mem_or_io = {8'd0, io_gpio};
-    `ADDR_WIDTH'b1xxx_xxxx: read_mem_or_io = 16'd0;
-    default:                read_mem_or_io = mem;
+    `ADDR_WIDTH'b1000_000x: return {io_lcd, io_led};
+    `ADDR_WIDTH'b1000_001x: return {8'd0, io_gpio};
+    default:                return 16'd0;
   endcase
 end
 endfunction

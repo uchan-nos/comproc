@@ -8,8 +8,8 @@ module mcu#(
   output uart_tx,
   output [`ADDR_WIDTH-1:0] dmem_addr,
   output dmem_wen, dmem_byt,
-  input  [15:0] dmem_rdata, // メモリ読み込みデータバス
-  output [15:0] dmem_wdata, // メモリ書き込みデータバス
+  input  [15:0] dmem_rdata_io, // メモリ読み込みデータ（IO 領域）
+  output [15:0] dmem_wdata,    // メモリ書き込みデータ（全領域）
   output [17:0] uart_recv_data,
   output [`ADDR_WIDTH-1:0] img_pmem_size,
   input  clk125,
@@ -37,6 +37,7 @@ logic cpu_rst, pmem_wen;
 
 logic [17:0] recv_data;
 logic [`ADDR_WIDTH-1:0] img_recv_addr, pmem_size, dmem_size;
+logic [15:0] dmem_rdata_mem, dmem_rdata_mem_d;
 
 assign uart_recv_data = recv_data;
 assign img_pmem_size = pmem_size;
@@ -63,7 +64,6 @@ localparam CLK_DIV = 1;
 logic [25:0] clk_div_cnt;
 logic clk_div, cpu_clk;
 
-logic [15:0] dmem_rdata_d;
 
 always @(posedge rst, posedge clk) begin
   if (rst)
@@ -85,9 +85,9 @@ end
 
 always @(posedge rst, posedge clk) begin
   if (rst)
-    dmem_rdata_d <= 0;
+    dmem_rdata_mem_d <= 0;
   else if (clk_div_cnt == (CLK_DIV >> 1) + 1)
-    dmem_rdata_d <= dmem_rdata;
+    dmem_rdata_mem_d <= dmem_rdata_mem;
 end
 
 assign cpu_clk = CLK_DIV >= 2 ? clk_div : clk;
@@ -112,6 +112,17 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .dmem_wdata(cpu_dmem_wdata),
   .pmem_addr(cpu_pmem_addr),
   .pmem_rdata(cpu_pmem_rdata)
+);
+
+// データメモリ
+dmem dmem(
+  .rst(rst),
+  .clk(clk),
+  .addr(dmem_addr),
+  .wen(dmem_wen),
+  .byt(dmem_byt),
+  .data_in(dmem_wdata),
+  .data_out(dmem_rdata_mem)
 );
 
 // プログラムメモリ
@@ -237,23 +248,27 @@ always @(posedge rst, posedge clk) begin
 end
 
 // MCU 内蔵周辺機能のメモリマップ
-function [15:0] read_memreg(input [`ADDR_WIDTH-1:0] dmem_addr, input [15:0] dmem_rdata);
+function [15:0] dmem_rdata_mux(
+    input [`ADDR_WIDTH-1:0] dmem_addr,
+    input [15:0] dmem_rdata_mem,
+    input [15:0] dmem_rdata_io);
   casex (dmem_addr)
-    `ADDR_WIDTH'h002: read_memreg = cdtimer_cnt;
-    `ADDR_WIDTH'h004: read_memreg = {14'd0, cdtimer_ie, cdtimer_to};
-    `ADDR_WIDTH'h006: read_memreg = {8'd0, recv_data[7:0]};
-    `ADDR_WIDTH'h008: read_memreg = {13'd0, uart_tx_ready, uart_ie, uart_rx_ready};
-    `ADDR_WIDTH'h00A: read_memreg = {8'd0, adc_result};
-    `ADDR_WIDTH'h010: read_memreg = {7'd0, uf_xadr};
-    `ADDR_WIDTH'h012: read_memreg = {10'd0, uf_yadr};
-    `ADDR_WIDTH'h014: read_memreg = {10'd0, uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe};
-    `ADDR_WIDTH'h018: read_memreg = uf_din[15:0];
-    `ADDR_WIDTH'h01A: read_memreg = uf_din[31:16];
-    `ADDR_WIDTH'h01C: read_memreg = uf_dout[15:0];
-    `ADDR_WIDTH'h01E: read_memreg = uf_dout[31:16];
-    `ADDR_WIDTH'h020: read_memreg = {8'd0, spi_rx_data};
-    `ADDR_WIDTH'h022: read_memreg = {14'd0, spi_cs, spi_tx_ready};
-    default:          read_memreg = CLK_DIV >= 2 ? dmem_rdata_d : dmem_rdata;
+    `ADDR_WIDTH'h002:       return cdtimer_cnt;
+    `ADDR_WIDTH'h004:       return {14'd0, cdtimer_ie, cdtimer_to};
+    `ADDR_WIDTH'h006:       return {8'd0, recv_data[7:0]};
+    `ADDR_WIDTH'h008:       return {13'd0, uart_tx_ready, uart_ie, uart_rx_ready};
+    `ADDR_WIDTH'h00A:       return {8'd0, adc_result};
+    `ADDR_WIDTH'h010:       return {7'd0, uf_xadr};
+    `ADDR_WIDTH'h012:       return {10'd0, uf_yadr};
+    `ADDR_WIDTH'h014:       return {10'd0, uf_nvstr, uf_prog, uf_erase, uf_se, uf_ye, uf_xe};
+    `ADDR_WIDTH'h018:       return uf_din[15:0];
+    `ADDR_WIDTH'h01A:       return uf_din[31:16];
+    `ADDR_WIDTH'h01C:       return uf_dout[15:0];
+    `ADDR_WIDTH'h01E:       return uf_dout[31:16];
+    `ADDR_WIDTH'h020:       return {8'd0, spi_rx_data};
+    `ADDR_WIDTH'h022:       return {14'd0, spi_cs, spi_tx_ready};
+    `ADDR_WIDTH'b1xxx_xxxx: return dmem_rdata_io;
+    default:                return CLK_DIV >= 2 ? dmem_rdata_mem_d : dmem_rdata_mem;
   endcase
 endfunction
 
@@ -265,7 +280,7 @@ assign dmem_addr = recv_compl ? cpu_dmem_addr : img_recv_addr;
 assign dmem_wdata = img_recv_state == IMG_RECV_DMEM ? recv_data[15:0] : cpu_dmem_wdata;
 assign pmem_addr = recv_compl ? cpu_pmem_addr : img_recv_addr;
 assign pmem_wen = img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size;
-assign cpu_dmem_rdata = read_memreg(dmem_addr_d, dmem_rdata);
+assign cpu_dmem_rdata = dmem_rdata_mux(dmem_addr_d, dmem_rdata_mem, dmem_rdata_io);
 assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
 
 always @(posedge rst, posedge clk) begin
