@@ -1,5 +1,5 @@
 int tim_cnt __attribute__((at(0x02)));
-int lcd_port __attribute__((at(0x81)));
+char lcd_port __attribute__((at(0x81)));
 
 void delay_ms(int ms) {
   tim_cnt = ms;

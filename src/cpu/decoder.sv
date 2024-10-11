@@ -40,14 +40,14 @@ assign {sign, src_a, src_b, alu_sel,
 `define IMM  `SRCB_IMM
 `define ISR  `SRCB_ISR
 
-// 27bits = sign:1 + src_a:3 + src_b:2 + alu:6 + signals:15
+// 26bits = sign:1 + src_a:2 + src_b:2 + alu:6 + signals:15
 function [25:0] decode(input [17:0] insn);
   logic sign;
   logic [1:0] src_a;
   logic [1:0] pp;
   logic [4:0] load;
   sign = insn[11];
-  src_a = {1'b0, insn[13:12]};
+  src_a = insn[13:12];
   pp = insn[7:6];
   load = src_a === `IP;
 

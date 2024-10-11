@@ -23,7 +23,9 @@ module mcu#(
   input  [31:0] uf_dout,
   output logic spi_cs,
   output spi_sclk, spi_mosi,
-  input  spi_miso
+  input  spi_miso,
+  input  [7:0] key_col,
+  output [7:0] key_row
 );
 
 localparam DMEM_GVAR_START = `ADDR_WIDTH'h0100;
@@ -247,6 +249,22 @@ always @(posedge rst, posedge clk) begin
     spi_cs <= dmem_wdata[1];
 end
 
+// MCU 内蔵周辺機能：KBC
+logic kbc_queue_len, kbc_queue_ren;
+logic [7:0] kbc_queue;
+
+kbc kbc(
+  .rst(rst),
+  .clk(clk),
+  .key_col(key_col),
+  .key_row(key_row),
+  .queue_len(kbc_queue_len),
+  .queue_ren(kbc_queue_ren),
+  .queue(kbc_queue)
+);
+
+assign kbc_queue_ren = cpu_dmem_ren & dmem_addr_d === `ADDR_WIDTH'h024;
+
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] dmem_rdata_mux(
     input [`ADDR_WIDTH-1:0] dmem_addr,
@@ -267,6 +285,8 @@ function [15:0] dmem_rdata_mux(
     `ADDR_WIDTH'h01E:       return uf_dout[31:16];
     `ADDR_WIDTH'h020:       return {8'd0, spi_rx_data};
     `ADDR_WIDTH'h022:       return {14'd0, spi_cs, spi_tx_ready};
+    `ADDR_WIDTH'h024:       return {8'd0, kbc_queue};
+    `ADDR_WIDTH'h026:       return {15'd0, kbc_queue_len};
     `ADDR_WIDTH'b1xxx_xxxx: return dmem_rdata_io;
     default:                return CLK_DIV >= 2 ? dmem_rdata_mem_d : dmem_rdata_mem;
   endcase

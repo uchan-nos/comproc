@@ -54,7 +54,8 @@ mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .uf_xadr(), .uf_yadr(),
   .uf_xe(), .uf_ye(), .uf_se(), .uf_erase(), .uf_prog(), .uf_nvstr(),
   .uf_din(), .uf_dout(32'hDEADBEEF),
-  .spi_cs(), .spi_sclk(), .spi_mosi(), .spi_miso(1'b0)
+  .spi_cs(), .spi_sclk(), .spi_mosi(), .spi_miso(1'b0),
+  .key_col(8'hFF), .key_row()
 );
 
 // 実行トレース機能
