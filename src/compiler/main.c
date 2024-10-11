@@ -217,6 +217,19 @@ int IsLdFp0(struct AsmLine *al) {
   return 0;
 }
 
+// 命令が 'add fp,N' であれば真を返す
+int IsAddFp(struct AsmLine *al) {
+  if (al->kind != kAsmLineInsn || strcmp("add", al->insn.opcode) != 0) {
+    return 0;
+  }
+  struct Operand *operands = al->insn.operands;
+  if (operands[0].kind == kOprReg && strcmp("fp", operands[0].val_reg) == 0 &&
+      operands[1].kind == kOprInt && operands[2].kind == kOprNone) {
+    return 1;
+  }
+  return 0;
+}
+
 // ISR の内側でのみ pop を行う
 void PopInsideIsr(struct GenContext *ctx) {
   if (ctx->is_isr) {
@@ -676,6 +689,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         add_fp->insn.operands[1].val_int = -ctx->frame_size;
       } else {
         add_fp->kind = kAsmLineDeleted;
+        for (int line = line_add_fp + 1; line < line_body_last; ++line) {
+          if (IsAddFp(ctx->asm_lines + line)) {
+            ctx->asm_lines[line].kind = kAsmLineDeleted;
+          }
+        }
       }
     }
     break;
