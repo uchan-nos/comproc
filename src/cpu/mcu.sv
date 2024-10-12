@@ -24,7 +24,7 @@ module mcu#(
   output logic spi_cs,
   output spi_sclk, spi_mosi,
   input  spi_miso,
-  input  [7:0] key_col,
+  input  [7:0] key_col_n,
   output [7:0] key_row
 );
 
@@ -256,7 +256,7 @@ logic [7:0] kbc_queue;
 kbc kbc(
   .rst(rst),
   .clk(clk),
-  .key_col(key_col),
+  .key_col_n(key_col_n),
   .key_row(key_row),
   .queue_len(kbc_queue_len),
   .queue_ren(kbc_queue_ren),

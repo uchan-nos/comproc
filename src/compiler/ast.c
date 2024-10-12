@@ -338,6 +338,18 @@ struct Node *Assignment(struct ParseContext *ctx) {
     node = NewNodeBinOp(kNodeAssign, op, node,
                         NewNodeBinOp(kNodeSub, op, node, Assignment(ctx)));
     node->type = node->lhs->type;
+  } else if ((op = Consume(kTokenCompAssign + '|'))) {
+    node = NewNodeBinOp(kNodeAssign, op, node,
+                        NewNodeBinOp(kNodeOr, op, node, Assignment(ctx)));
+    node->type = node->lhs->type;
+  } else if ((op = Consume(kTokenCompAssign + '^'))) {
+    node = NewNodeBinOp(kNodeAssign, op, node,
+                        NewNodeBinOp(kNodeXor, op, node, Assignment(ctx)));
+    node->type = node->lhs->type;
+  } else if ((op = Consume(kTokenCompAssign + '&'))) {
+    node = NewNodeBinOp(kNodeAssign, op, node,
+                        NewNodeBinOp(kNodeAnd, op, node, Assignment(ctx)));
+    node->type = node->lhs->type;
   }
 
   return node;

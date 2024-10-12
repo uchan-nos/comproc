@@ -8,23 +8,6 @@ then
   exit 1
 fi
 
-case "$file" in
-  *\.c)
-    asm=$(../compiler/ucc -o - "$file")
-    echo "===================================== ASM ====================================="
-    echo "$asm"
-    bin=$(echo "$asm" | ../assembler/uasm -o - -)
-    echo "===================================== BIN ====================================="
-    echo $bin | fold -s -w 80
-    ;;
-  *\.asm)
-    bin=$(../assembler/uasm -o - "$file")
-    echo "===================================== BIN ====================================="
-    echo $bin | fold -s -w 80
-    ;;
-  *)
-    bin=$(cat "$file")
-    ;;
-esac
-
-./send.sh $bin
+base=$(basename "$file" .c)
+./build.sh "$file"
+./send.sh "$base.pmem.hex" "$base.dmem.hex"

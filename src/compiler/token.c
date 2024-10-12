@@ -163,7 +163,7 @@ static struct Token *NextToken(char *src) {
     return NewToken(kTokenString, src, p + 1 - src);
   }
 
-  if (strchr("+-", p[0]) != NULL && p[1] == '=') {
+  if (strchr("+-|^&", p[0]) != NULL && p[1] == '=') {
     return NewToken(kTokenCompAssign + p[0], p, 2);
   }
 

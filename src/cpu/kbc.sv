@@ -3,7 +3,7 @@
 // Keyboard Controller
 module kbc(
   input  rst, clk,
-  input  [7:0] key_col,
+  input  [7:0] key_col_n,
   output [7:0] key_row,
   output queue_len,   // キューにあるデータの数
   input  queue_ren,   // キュー読み出し信号
@@ -26,7 +26,7 @@ logic [7:0] scancode; // 最後に押された・離されたキーのスキャ�
 
 // key_row はオープンドレイン出力。1 で Hi-Z、0 で 0V 出力となる。
 assign key_row = 8'hff ^ (8'b1 << ks_row_index);
-assign ks_diff_pos = count_leading_zeros(ks_bitmap[ks_row_index] ^ key_col);
+assign ks_diff_pos = count_trailing_zeros(ks_bitmap[ks_row_index] ^ (~key_col_n));
 
 assign queue_len = scancode_v;
 assign queue = scancode;
@@ -60,13 +60,13 @@ always @(posedge rst, posedge clk) begin
     scancode = 8'd0;
   end
   else if (ks_cnt == KEYSCAN_PERIOD/2) begin
-    ks_bitmap[ks_row_index] = key_col;
+    ks_bitmap[ks_row_index] = ~key_col_n;
     if (ks_diff_pos != 4'hF) begin
       // 前回と今回でキー状態に差があるなら、そのキーを scancode へ記録
       scancode_v = 1'b1;
       scancode = keypos_to_scancode(ks_row_index, ks_diff_pos[2:0])
-               | (key_col[ks_diff_pos] << 7);
-      // key_col: 0=push, 1=release
+               | (key_col_n[ks_diff_pos] << 7);
+      // key_col_n: 0=push, 1=release
     end
   end
   else if (queue_ren) begin
@@ -75,16 +75,16 @@ always @(posedge rst, posedge clk) begin
   end
 end
 
-function [3:0] count_leading_zeros(input [7:0] v);
+function [3:0] count_trailing_zeros(input [7:0] v);
   casex (v)
-    8'b1xxxxxxx: return 3'h0;
-    8'b01xxxxxx: return 3'h1;
-    8'b001xxxxx: return 3'h2;
-    8'b0001xxxx: return 3'h3;
-    8'b00001xxx: return 3'h4;
-    8'b000001xx: return 3'h5;
-    8'b0000001x: return 3'h6;
-    8'b00000001: return 3'h7;
+    8'bxxxxxxx1: return 3'h0;
+    8'bxxxxxx10: return 3'h1;
+    8'bxxxxx100: return 3'h2;
+    8'bxxxx1000: return 3'h3;
+    8'bxxx10000: return 3'h4;
+    8'bxx100000: return 3'h5;
+    8'bx1000000: return 3'h6;
+    8'b10000000: return 3'h7;
     default:     return 4'hF;
   endcase
 endfunction

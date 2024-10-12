@@ -1,11 +1,9 @@
 #!/bin/sh -ue
 
-bin="$@"
-
-if [ "$bin" = "" ]
+if [ $# -ne 2 ]
 then
-  echo "Usage: $0 <instruction words>"
-  exit 0
+  echo "Usage: $0 <pmem file> <dmem file>"
+  exit 1
 fi
 
-../../tool/uart.py --program $bin
+../../tool/uart.py --pmem "$1" --dmem "$2"

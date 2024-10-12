@@ -6,7 +6,7 @@ module main(
   output [5:0] onboard_led,
   input  uart_rx,
   output uart_tx,
-  input  [7:0] key_col,
+  input  [7:0] key_col_n,
   output [7:0] key_row,
   output lcd_e,
   output lcd_rw,
@@ -136,7 +136,7 @@ mcu mcu(
   .spi_sclk(tf_sclk),
   .spi_mosi(tf_mosi),
   .spi_miso(tf_miso),
-  .key_col(key_col),
+  .key_col_n(key_col_n),
   .key_row(key_row)
 );
 
