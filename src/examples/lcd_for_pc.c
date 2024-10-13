@@ -46,5 +46,8 @@ int main() {
   lcd_puts("- Brack: markup lang");
   lcd_out8(0, 0xd4);
   lcd_puts("- ComProc PC (ｺﾚ!)");
+
+  // バックライト点灯
+  lcd_port = 0x08;
   return 1;
 }
