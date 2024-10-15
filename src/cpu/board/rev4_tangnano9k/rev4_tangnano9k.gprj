@@ -22,6 +22,7 @@
         <File path="../../adc.sv" type="file.verilog" enable="1"/>
         <File path="../../simple_timer.sv" type="file.verilog" enable="1"/>
         <File path="../../spi.sv" type="file.verilog" enable="1"/>
+        <File path="../../kbc.sv" type="file.verilog" enable="1"/>
         <File path="src/port.cst" type="file.cst" enable="1"/>
         <File path="src/timing.sdc" type="file.sdc" enable="1"/>
         <File path="src/comproc.rao" type="file.gao" enable="0"/>
