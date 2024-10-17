@@ -8,12 +8,13 @@ module i2c_raw#(
   inout  sda,           // I2C data signal
   input  cnd_start,     // send start condition
   input  cnd_stop,      // send stop condition
+  input  rw,            // 1 = read (device -> mcu), 0 = write (mcu -> device)
   input  [7:0] tx_data, // initial value of shift registor
   output [7:0] rx_data, // current value of shift registor
   input  tx_start,      // start transmitting
   output tx_ready,      // ready to transmit
   input  tx_ack,        // ack (mcu -> device)
-  output rx_ack         // ack (device -> mcu)
+  output logic rx_ack   // ack (device -> mcu)
 );
 
 logic scl_out, sda_out;
@@ -42,7 +43,6 @@ assign scl = scl_out ? 1'bz : 1'b0;
 assign sda = sda_out ? 1'bz : 1'b0;
 
 assign tx_ready = ~tx_busy;
-assign mosi = sreg[7];
 assign rx_data = sreg;
 
 assign tim_inc  = tim_cnt + 1;
@@ -107,11 +107,23 @@ always @(posedge rst, posedge clk) begin
     if (tim_phase == 1) sda_out <= 0;
   end
   else if (state == DATA) begin
-    if (tim_phase == 1) sda_out <= sreg[7];
+    if (rw /* read */) sda_out <= 1;
+    else if (tim_phase == 1) sda_out <= sreg[7];
+  end
+  else if (state == ACK) begin
+    if (rw & tim_phase == 1) sda_out <= tx_ack;
   end
   else if (state == STOP) begin
     if (tim_cnt == 0)   sda_out <= 0;
     if (tim_phase == 3) sda_out <= 1;
+  end
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    rx_ack <= 1'b1;
+  else if (state == ACK && tim_phase == 4) begin
+    rx_ack <= sda;
   end
 end
 

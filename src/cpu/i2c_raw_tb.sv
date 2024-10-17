@@ -1,7 +1,9 @@
 module i2c_raw_tb();
 
 logic rst, clk;
-logic scl, sda;
+wire scl, sda;
+logic sda_in;
+logic rw;
 logic cnd_start, cnd_stop;
 logic [7:0] tx_data, rx_data;
 logic tx_start, tx_ready;
@@ -10,9 +12,13 @@ logic tx_ack, rx_ack;
 integer i;
 parameter z = 1'bz;
 
+assign sda = sda_in;
+
 initial begin
   rst <= 1;
   clk <= 1;
+  sda_in <= z;
+  rw <= 0; // write
   cnd_start <= 1;
   cnd_stop <= 1;
   tx_data <= 8'h35;
@@ -58,7 +64,11 @@ initial begin
   test_databit(0); // Bit-1
   test_databit(z); // Bit-0 (LSB)
 
-  test_databit(z); // ACK
+  sda_in <= 0;
+  test_databit(0); // ACK
+  sda_in <= z;
+
+  if (rx_ack !== 0) $error("rx_ack must be 0");
 
   // Stop bit
   #10
@@ -72,6 +82,9 @@ initial begin
   #60
     if (scl !== z) $error("scl must be Hi-Z");
     if (sda !== z) $error("sda must be Hi-Z");
+
+  #10
+    if (tx_ready !== 1) $error("tx_ready must be 1");
 
   repeat(200) @(posedge clk);
   $finish;

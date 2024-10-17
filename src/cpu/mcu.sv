@@ -293,6 +293,7 @@ i2c_raw i2c_raw(
   .clk(clk),
   .scl(i2c_scl),
   .sda(i2c_sda),
+  .rw(1'b0), // write
   .cnd_start(1'b1),
   .cnd_stop(1'b1),
   .tx_data(8'h35),
