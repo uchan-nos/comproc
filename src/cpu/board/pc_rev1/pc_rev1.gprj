@@ -15,6 +15,7 @@
         <File path="../../cdtimer.sv" type="file.verilog" enable="1"/>
         <File path="../../cpu.sv" type="file.verilog" enable="1"/>
         <File path="../../decoder.sv" type="file.verilog" enable="1"/>
+        <File path="../../i2c.sv" type="file.verilog" enable="1"/>
         <File path="../../kbc.sv" type="file.verilog" enable="1"/>
         <File path="../../mcu.sv" type="file.verilog" enable="1"/>
         <File path="../../mem.sv" type="file.verilog" enable="1"/>

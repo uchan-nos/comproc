@@ -25,7 +25,8 @@ module mcu#(
   output spi_sclk, spi_mosi,
   input  spi_miso,
   input  [7:0] key_col_n,
-  output [7:0] key_row
+  output [7:0] key_row,
+  inout  i2c_scl, i2c_sda
 );
 
 localparam DMEM_GVAR_START = `ADDR_WIDTH'h0100;
@@ -264,6 +265,43 @@ kbc kbc(
 );
 
 assign kbc_queue_ren = cpu_dmem_ren & dmem_addr_d === `ADDR_WIDTH'h024;
+
+// MCU 内蔵周辺機能：I2C
+logic i2c_tx_start, i2c_tx_ready;
+logic [31:0] i2c_tx_tim_cnt;
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_tx_tim_cnt <= 0;
+  else if (i2c_tx_tim_cnt < 5399) // 5kHz
+    i2c_tx_tim_cnt <= i2c_tx_tim_cnt + 1;
+  else
+    i2c_tx_tim_cnt <= 0;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_tx_start <= 0;
+  else if (i2c_tx_tim_cnt == 0)
+    i2c_tx_start <= 1;
+  else
+    i2c_tx_start <= 0;
+end
+
+i2c_raw i2c_raw(
+  .rst(rst),
+  .clk(clk),
+  .scl(i2c_scl),
+  .sda(i2c_sda),
+  .cnd_start(1'b1),
+  .cnd_stop(1'b1),
+  .tx_data(8'h35),
+  .rx_data(),
+  .tx_start(i2c_tx_start),
+  .tx_ready(),
+  .tx_ack(1'b1),
+  .rx_ack()
+);
 
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] dmem_rdata_mux(

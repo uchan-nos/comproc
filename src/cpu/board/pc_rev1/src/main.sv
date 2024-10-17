@@ -18,8 +18,7 @@ module main(
   output adc_dac_pwm, // ADC の DAC PWM 信号
   output tf_cs, tf_mosi, tf_sclk,
   input  tf_miso,
-  output scl,         // I2C Clock
-  inout  sda,         // I2C Data
+  inout  scl, sda,    // I2C Clock & Data
   output speaker      // 圧電スピーカ
 );
 
@@ -137,7 +136,9 @@ mcu mcu(
   .spi_mosi(tf_mosi),
   .spi_miso(tf_miso),
   .key_col_n(key_col_n),
-  .key_row(key_row)
+  .key_row(key_row),
+  .i2c_scl(scl),
+  .i2c_sda(sda)
 );
 
 function [15:0] io_mux(

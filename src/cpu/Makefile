@@ -37,6 +37,12 @@ uart_mux_tb.exe: uart_mux_tb.sv uart.sv simple_timer.sv uart_mux.sv
 spi_tb.exe: spi_tb.sv spi.sv simple_timer.sv
 	iverilog -g2012 -o $@ $^
 
+i2c_raw_tb.exe: i2c_raw_tb.sv i2c.sv simple_timer.sv
+	iverilog -g2012 -o $@ $^
+
+i2c_tb.exe: i2c_tb.sv i2c.sv simple_timer.sv
+	iverilog -g2012 -o $@ $^
+
 .PHONY: clean
 clean:
 	rm -f *.exe
