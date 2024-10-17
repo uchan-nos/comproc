@@ -288,7 +288,7 @@ always @(posedge rst, posedge clk) begin
     i2c_tx_start <= 0;
 end
 
-i2c_raw i2c_raw(
+i2c i2c(
   .rst(rst),
   .clk(clk),
   .scl(i2c_scl),

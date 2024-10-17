@@ -1,11 +1,10 @@
-// I2C low level driver
-module i2c_raw#(
+// I2C driver
+module i2c#(
   parameter CLOCK_HZ=27_000_000,
   parameter BAUD=100_000
 ) (
   input  rst, clk,
-  inout  scl,           // I2C clock signal
-  inout  sda,           // I2C data signal
+  inout  scl, sda,      // I2C clock &data signal
   input  cnd_start,     // send start condition
   input  cnd_stop,      // send stop condition
   input  rw,            // 1 = read (device -> mcu), 0 = write (mcu -> device)

@@ -1,4 +1,4 @@
-module i2c_raw_tb();
+module i2c_tb();
 
 logic rst, clk;
 wire scl, sda;
@@ -28,7 +28,7 @@ initial begin
   $monitor("%5t: rst=%d scl=%d sda=%d cnd_start=%d cnd_stop=%d rx_data=%x tx_ready=%d rx_ack=%b",
            $time, rst, scl, sda, cnd_start, cnd_stop, rx_data, tx_ready, rx_ack,
            " i2c_state=%d i2c_bit_cnt=%d",
-           i2c_raw.state, i2c_raw.bit_cnt
+           i2c.state, i2c.bit_cnt
            );
 
   #13
@@ -94,7 +94,7 @@ always #5 begin
   clk <= ~clk;
 end
 
-i2c_raw#(.CLOCK_HZ(100), .BAUD(10)) i2c_raw(.*);
+i2c#(.CLOCK_HZ(100), .BAUD(10)) i2c(.*);
 
 task test_databit(input e_sda);
   if (scl !== 0) $error("scl must be 0");
