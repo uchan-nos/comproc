@@ -4,24 +4,34 @@
     <Mode>Standard</Mode>
     <AoCore index="0" sample_clock="sys_clk" trig_type="0" storage_depth="128" window_num="1" capture_amount="64" implementation="0" trigger_pos="10" module_name="main" force_trigger_by_falling_edge="false" capture_init_data_enabled="false">
         <SignalList>
-            <Signal capture_enable="true">lcd_e</Signal>
-            <Signal capture_enable="true">lcd_rw</Signal>
-            <Signal capture_enable="true">lcd_rs</Signal>
-            <Signal capture_enable="true">lcd_bl</Signal>
-            <Bus capture_enable="true" name="lcd_db[7:4]">
-                <Signal>lcd_db[7]</Signal>
-                <Signal>lcd_db[6]</Signal>
-                <Signal>lcd_db[5]</Signal>
-                <Signal>lcd_db[4]</Signal>
+            <Signal capture_enable="true">mcu/i2c/i2c_tx_start_d</Signal>
+            <Bus capture_enable="true" name="mcu/i2c/bit_cnt[2:0]">
+                <Signal>mcu/i2c/bit_cnt[2]</Signal>
+                <Signal>mcu/i2c/bit_cnt[1]</Signal>
+                <Signal>mcu/i2c/bit_cnt[0]</Signal>
             </Bus>
+            <Bus capture_enable="true" name="mcu/i2c/state[2:0]">
+                <Signal>mcu/i2c/state[2]</Signal>
+                <Signal>mcu/i2c/state[1]</Signal>
+                <Signal>mcu/i2c/state[0]</Signal>
+            </Bus>
+            <Bus capture_enable="true" name="mcu/i2c_state[1:0]">
+                <Signal>mcu/i2c_state[1]</Signal>
+                <Signal>mcu/i2c_state[0]</Signal>
+            </Bus>
+            <Signal capture_enable="true">mcu/i2c/tx_busy</Signal>
         </SignalList>
         <Triggers>
             <Trigger index="0">
                 <SignalList>
-                    <Signal>lcd_e</Signal>
+                    <Signal>mcu/i2c_tx_start</Signal>
                 </SignalList>
             </Trigger>
-            <Trigger index="1"/>
+            <Trigger index="1">
+                <SignalList>
+                    <Signal>mcu/i2c/tx_busy</Signal>
+                </SignalList>
+            </Trigger>
             <Trigger index="2"/>
             <Trigger index="3"/>
             <Trigger index="4"/>
@@ -38,8 +48,8 @@
             <Trigger index="15"/>
         </Triggers>
         <MatchUnits>
-            <MatchUnit index="0" enabled="1" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="R" value1="0" trigger="0"/>
-            <MatchUnit index="1" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
+            <MatchUnit index="0" enabled="1" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="1" value1="0" trigger="0"/>
+            <MatchUnit index="1" enabled="0" match_type="1" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="F" value1="0" trigger="1"/>
             <MatchUnit index="2" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="3" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
             <MatchUnit index="4" enabled="0" match_type="0" counter_enable="0" counter_width="2" counter="2" countinuous="0" func="0" value0="" value1=""/>
@@ -59,5 +69,5 @@
             <Expression>M0</Expression>
         </Expressions>
     </AoCore>
-    <GAO_ID>0101111010001110</GAO_ID>
+    <GAO_ID>1101110010100101</GAO_ID>
 </GAO_CONFIG>

@@ -267,42 +267,97 @@ kbc kbc(
 assign kbc_queue_ren = cpu_dmem_ren & dmem_addr_d === `ADDR_WIDTH'h024;
 
 // MCU 内蔵周辺機能：I2C
-logic i2c_tx_start, i2c_tx_ready;
-logic [31:0] i2c_tx_tim_cnt;
+logic i2c_data_wen; // I2C データレジスタへの書き込みタイミング
+logic i2c_tx_start, i2c_tx_start_d, i2c_tx_ready;
+logic [7:0] i2c_tx_data, i2c_rx_data;
+logic i2c_addr_rw; // アドレスの最下位ビットを保持
+logic i2c_rw; // 1 バイトごとの読み書き方向制御
+logic i2c_cnd_start, i2c_cnd_stop;
+logic i2c_rx_ack;
 
-always @(posedge rst, posedge clk) begin
-  if (rst)
-    i2c_tx_tim_cnt <= 0;
-  else if (i2c_tx_tim_cnt < 5399) // 5kHz
-    i2c_tx_tim_cnt <= i2c_tx_tim_cnt + 1;
-  else
-    i2c_tx_tim_cnt <= 0;
-end
-
-always @(posedge rst, posedge clk) begin
-  if (rst)
-    i2c_tx_start <= 0;
-  else if (i2c_tx_tim_cnt == 0)
-    i2c_tx_start <= 1;
-  else
-    i2c_tx_start <= 0;
-end
+// I2C 通信の状態
+typedef enum logic [1:0] {
+  ADDR,  // アドレス送信開始待ち（待機）
+  DATA,  // データ送受信開始待ち
+  WAIT   // データ送受信中（完了待ち）
+} i2c_state_t;
+i2c_state_t i2c_state;
 
 i2c i2c(
   .rst(rst),
   .clk(clk),
   .scl(i2c_scl),
   .sda(i2c_sda),
-  .rw(1'b0), // write
-  .cnd_start(1'b1),
-  .cnd_stop(1'b1),
-  .tx_data(8'h35),
-  .rx_data(),
-  .tx_start(i2c_tx_start),
-  .tx_ready(),
-  .tx_ack(1'b1),
-  .rx_ack()
+  .rw(i2c_rw),
+  .cnd_start(i2c_cnd_start),
+  .cnd_stop(i2c_cnd_stop),
+  .tx_data(i2c_tx_data),
+  .rx_data(i2c_rx_data),
+  .tx_start(i2c_tx_start_d),
+  .tx_ready(i2c_tx_ready),
+  .tx_ack(1'b0),
+  .rx_ack(i2c_rx_ack)
 );
+
+assign i2c_data_wen = dmem_wen & (dmem_addr === `ADDR_WIDTH'h028);
+assign i2c_tx_start = (i2c_state == ADDR | i2c_state == DATA) & i2c_data_wen;
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_state <= ADDR;
+  else if (i2c_tx_start)
+    i2c_state <= WAIT;
+  else if (i2c_state == WAIT & i2c_tx_ready)
+    i2c_state <= i2c_cnd_stop ? ADDR : DATA;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_cnd_start <= 0;
+  else if (i2c_state == ADDR)
+    i2c_cnd_start <= 1;
+  else if (i2c_state == WAIT & i2c_tx_ready)
+    i2c_cnd_start <= 0;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_cnd_stop <= 0;
+  else if (dmem_wen & dmem_addr === `ADDR_WIDTH'h02A)
+    i2c_cnd_stop <= dmem_wdata[2];
+  else if (i2c_state == WAIT & i2c_tx_ready)
+    i2c_cnd_stop <= 0;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_tx_start_d <= 0;
+  else
+    i2c_tx_start_d <= i2c_tx_start;
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_tx_data <= 8'd0;
+  else if (i2c_data_wen)
+    i2c_tx_data <= dmem_wdata[7:0];
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_addr_rw <= 0;
+  else if (i2c_state == ADDR & i2c_data_wen)
+    i2c_addr_rw <= dmem_wdata[0]; // 1 = read
+end
+
+always @(posedge rst, posedge clk) begin
+  if (rst)
+    i2c_rw <= 0;
+  else if (i2c_state == ADDR)
+    i2c_rw <= 0; // アドレスバイトは必ず write 方向
+  else if (i2c_state == DATA)
+    i2c_rw <= i2c_addr_rw; // データバイトは i2c_addr_rw の設定に従う
+end
 
 // MCU 内蔵周辺機能のメモリマップ
 function [15:0] dmem_rdata_mux(
@@ -326,6 +381,8 @@ function [15:0] dmem_rdata_mux(
     `ADDR_WIDTH'h022:       return {14'd0, spi_cs, spi_tx_ready};
     `ADDR_WIDTH'h024:       return {8'd0, kbc_queue};
     `ADDR_WIDTH'h026:       return {15'd0, kbc_queue_len};
+    `ADDR_WIDTH'h028:       return {8'd0, i2c_rx_data};
+    `ADDR_WIDTH'h02A:       return {12'd0, i2c_rx_ack, i2c_cnd_stop, i2c_tx_ready, i2c_addr_rw};
     `ADDR_WIDTH'b1xxx_xxxx: return dmem_rdata_io;
     default:                return CLK_DIV >= 2 ? dmem_rdata_mem_d : dmem_rdata_mem;
   endcase

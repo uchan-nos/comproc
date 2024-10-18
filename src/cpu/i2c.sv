@@ -127,12 +127,10 @@ always @(posedge rst, posedge clk) begin
 end
 
 always @(posedge rst, posedge clk) begin
-  if (rst)
+  if (rst || state == IDLE || state == NEXT)
     tx_busy <= 0;
   else if (tx_start)
     tx_busy <= 1;
-  else if (bit_cnt === 7 & tim_full)
-    tx_busy <= 0;
 end
 
 always @(posedge rst, posedge clk) begin
