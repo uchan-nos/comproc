@@ -51,6 +51,11 @@ always @(posedge rst, posedge clk) begin
   end
 end
 
+initial begin
+  $readmemh("./ipl.dmem_lo.hex", mem_lo, `ADDR_WIDTH'h100 >> 1);
+  $readmemh("./ipl.dmem_hi.hex", mem_hi, `ADDR_WIDTH'h100 >> 1);
+end
+
 endmodule
 
 
@@ -82,7 +87,7 @@ always @(posedge rst, posedge clk) begin
 end
 
 initial begin
-  $readmemh("./ipl.hex", mem, 0);
+  $readmemh("./ipl.pmem.hex", mem, 0);
 end
 
 endmodule
