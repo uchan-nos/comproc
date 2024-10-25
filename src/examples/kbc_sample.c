@@ -10,7 +10,7 @@ void delay_ms(int ms) {
 }
 
 void lcd_out4(int rs, int val) {
-  lcd_port = (val << 4) | rs | 1;
+  lcd_port = (val << 4) | 8 | rs | 1;
   delay_ms(2);
   lcd_port = lcd_port & 0xfe;
 }
