@@ -1,5 +1,6 @@
 int tim_cnt __attribute__((at(0x02)));
 char lcd_port __attribute__((at(0x81)));
+char gpio __attribute__((at(0x82)));
 
 void delay_ms(int ms) {
   tim_cnt = ms;
@@ -48,6 +49,6 @@ int main() {
   lcd_puts("- ComProc PC (ｺﾚ!)");
 
   // バックライト点灯
-  lcd_port = 0x08;
+  gpio = 0x80;
   return 1;
 }

@@ -11,7 +11,6 @@ module main(
   output lcd_e,
   output lcd_rw,
   output lcd_rs,
-  output lcd_bl,      // バックライト制御
   output [7:4] lcd_db,
   input  adc_cmp,     // ADC のコンパレータ出力
   output adc_sh_ctl,  // ADC のサンプル&ホールドスイッチ制御
@@ -19,7 +18,7 @@ module main(
   output tf_cs, tf_mosi, tf_sclk,
   input  tf_miso,
   inout  scl, sda,    // I2C Clock & Data
-  output speaker      // 圧電スピーカ
+  output [7:0] gpio
 );
 
 // logic 定義
@@ -48,22 +47,24 @@ logic [7:0] cpu_out;
 logic [17:0] cpu_uart_recv_data;
 logic [`ADDR_WIDTH-1:0] img_pmem_size;
 
-logic [7:0] io_led, io_lcd;
+logic [7:0] io_led, io_lcd, io_gpio;
 logic clk125;
 
 // 継続代入
 assign lcd_e  = io_lcd[0];
 assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
-assign lcd_bl = io_lcd[3];
 assign lcd_db = io_lcd[7:4];
 
-assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd);
+assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd, io_gpio);
+
+assign gpio = io_gpio;
 
 always @(posedge sys_clk, negedge rst_n) begin
   if (!rst_n) begin
     io_led <= 0;
     io_lcd <= 0;
+    io_gpio <= 0;
   end
   else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h080)
     if (dmem_byt)
@@ -72,6 +73,11 @@ always @(posedge sys_clk, negedge rst_n) begin
       {io_lcd, io_led} <= dmem_wdata;
   else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h081)
     io_lcd <= dmem_wdata[15:8];
+  else if (dmem_wen && dmem_addr == `ADDR_WIDTH'h082)
+    if (dmem_byt)
+      io_gpio <= dmem_wdata[7:0];
+    else
+      io_gpio <= dmem_wdata[7:0];
 end
 
 always @(posedge sys_clk, negedge rst_n) begin
@@ -139,15 +145,17 @@ mcu mcu(
   .key_row(key_row),
   .i2c_scl(scl),
   .i2c_sda(sda)
+  , .pin41(pin41), .pin42(pin42), .pin51(pin51)
 );
 
 function [15:0] io_mux(
   input [`ADDR_WIDTH-1:0] addr,
-  [7:0] io_led, io_lcd
+  [7:0] io_led, io_lcd, io_gpio
 );
 begin
   casex (addr)
     `ADDR_WIDTH'b1000_000x: return {io_lcd, io_led};
+    `ADDR_WIDTH'b1000_001x: return {8'd0, io_gpio};
     default:                return 16'd0;
   endcase
 end
