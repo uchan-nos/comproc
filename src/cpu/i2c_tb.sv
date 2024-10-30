@@ -76,8 +76,8 @@ initial begin
     if (sda !== 0) $error("sda must be 0");
 
   #30
-    if (scl !== 0) $error("scl must be 0");
-    if (sda !== z) $error("sda must be Hi-Z");
+    if (scl !== z) $error("scl must be 0");
+    if (sda !== 0) $error("sda must be Hi-Z");
 
   #60
     if (scl !== z) $error("scl must be Hi-Z");

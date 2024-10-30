@@ -145,7 +145,6 @@ mcu mcu(
   .key_row(key_row),
   .i2c_scl(scl),
   .i2c_sda(sda)
-  , .pin41(pin41), .pin42(pin42), .pin51(pin51)
 );
 
 function [15:0] io_mux(

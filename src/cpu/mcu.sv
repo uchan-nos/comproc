@@ -21,7 +21,7 @@ module mcu#(
   output logic uf_xe, uf_ye, uf_se, uf_erase, uf_prog, uf_nvstr,
   output logic [31:0] uf_din,
   input  [31:0] uf_dout,
-  output logic spi_cs,
+  output spi_cs,
   output spi_sclk, spi_mosi,
   input  spi_miso,
   input  [7:0] key_col_n,
@@ -226,10 +226,11 @@ always @(posedge clk, posedge cpu_rst) begin
 end
 
 // MCU 内蔵周辺機能：SPI
-logic spi_tx_start, spi_tx_ready;
+logic spi_tx_start, spi_tx_ready, spi_cs_reg;
 logic [7:0] spi_rx_data;
 
 assign spi_tx_start = cpu_dmem_wen & dmem_addr === `ADDR_WIDTH'h020;
+assign spi_cs = spi_cs_reg;
 
 spi#(.CLOCK_HZ(CLOCK_HZ), .BAUD(100_000)) spi(
   .rst(rst),
@@ -245,9 +246,9 @@ spi#(.CLOCK_HZ(CLOCK_HZ), .BAUD(100_000)) spi(
 
 always @(posedge rst, posedge clk) begin
   if (rst)
-    spi_cs <= 1;
+    spi_cs_reg <= 1;
   else if (cpu_dmem_wen & dmem_addr === `ADDR_WIDTH'h022)
-    spi_cs <= dmem_wdata[1];
+    spi_cs_reg <= dmem_wdata[1];
 end
 
 // MCU 内蔵周辺機能：KBC
@@ -279,7 +280,8 @@ logic i2c_rx_ack;
 typedef enum logic [1:0] {
   ADDR,  // アドレス送信開始待ち（待機）
   DATA,  // データ送受信開始待ち
-  WAIT   // データ送受信中（完了待ち）
+  START, // データ送受信開始
+  WAIT   // データ送受信完了待ち
 } i2c_state_t;
 i2c_state_t i2c_state;
 
@@ -306,6 +308,8 @@ always @(posedge rst, posedge clk) begin
   if (rst)
     i2c_state <= ADDR;
   else if (i2c_tx_start)
+    i2c_state <= START;
+  else if (i2c_state == START & ~i2c_tx_ready)
     i2c_state <= WAIT;
   else if (i2c_state == WAIT & i2c_tx_ready)
     i2c_state <= i2c_cnd_stop ? ADDR : DATA;

@@ -93,7 +93,7 @@ always @(posedge rst, posedge clk) begin
     else if (tim_phase == 5) scl_out <= 0;
   end
   else if (state == STOP) begin
-    if (tim_phase == 7) scl_out <= 1;
+    if (tim_phase == 2) scl_out <= 1;
   end
 end
 
@@ -114,7 +114,7 @@ always @(posedge rst, posedge clk) begin
   end
   else if (state == STOP) begin
     if (tim_cnt == 0)   sda_out <= 0;
-    if (tim_phase == 3) sda_out <= 1;
+    if (tim_phase == 5) sda_out <= 1;
   end
 end
 
@@ -127,10 +127,12 @@ always @(posedge rst, posedge clk) begin
 end
 
 always @(posedge rst, posedge clk) begin
-  if (rst || state == IDLE || state == NEXT)
+  if (rst)
     tx_busy <= 0;
   else if (tx_start)
     tx_busy <= 1;
+  else if (state == IDLE || state == NEXT)
+    tx_busy <= 0;
 end
 
 always @(posedge rst, posedge clk) begin
