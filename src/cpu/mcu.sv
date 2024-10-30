@@ -307,12 +307,14 @@ assign i2c_tx_start = (i2c_state == ADDR | i2c_state == DATA) & i2c_data_wen;
 always @(posedge rst, posedge clk) begin
   if (rst)
     i2c_state <= ADDR;
-  else if (i2c_tx_start)
+  else if ((i2c_state == ADDR | i2c_state == DATA) & i2c_tx_start)
     i2c_state <= START;
+  else if (i2c_state == DATA & i2c_cnd_stop)
+    i2c_state <= ADDR;
   else if (i2c_state == START & ~i2c_tx_ready)
     i2c_state <= WAIT;
   else if (i2c_state == WAIT & i2c_tx_ready)
-    i2c_state <= i2c_cnd_stop ? ADDR : DATA;
+    i2c_state <= DATA;
 end
 
 always @(posedge rst, posedge clk) begin
@@ -329,7 +331,7 @@ always @(posedge rst, posedge clk) begin
     i2c_cnd_stop <= 0;
   else if (dmem_wen & dmem_addr === `ADDR_WIDTH'h02A)
     i2c_cnd_stop <= dmem_wdata[2];
-  else if (i2c_state == WAIT & i2c_tx_ready)
+  else if (~i2c_tx_ready)
     i2c_cnd_stop <= 0;
 end
 

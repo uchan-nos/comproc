@@ -19,8 +19,8 @@ initial begin
   clk <= 1;
   sda_in <= z;
   rw <= 0; // write
-  cnd_start <= 1;
-  cnd_stop <= 1;
+  cnd_start <= 0;
+  cnd_stop <= 0;
   tx_data <= 8'h35;
   tx_start <= 0;
   tx_ack <= 0;
@@ -38,11 +38,13 @@ initial begin
 
   @(posedge clk)
     tx_start <= 1;
+    cnd_start <= 1;
     if (scl !== z) $error("scl must be Hi-Z");
     if (sda !== z) $error("sda must be Hi-Z");
 
   @(posedge clk)
     tx_start <= 0;
+    cnd_start <= 0;
   #10
 
   // Start bit
@@ -71,6 +73,14 @@ initial begin
   if (rx_ack !== 0) $error("rx_ack must be 0");
 
   // Stop bit
+  #150
+    if (scl !== 0) $error("scl must be 0");
+    if (sda !== 0) $error("sda must be 0");
+    cnd_stop <= 1;
+
+  #10
+    cnd_stop <= 0;
+
   #10
     if (scl !== 0) $error("scl must be 0");
     if (sda !== 0) $error("sda must be 0");

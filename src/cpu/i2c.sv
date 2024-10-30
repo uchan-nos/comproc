@@ -34,7 +34,7 @@ typedef enum logic [2:0] {
   DATA,  // データビットを送受信している
   ACK,   // ACK ビットを送受信している
   STOP,  // ストップビットを送受信している
-  NEXT   // 次のデータ送受信を待っている（tx_start=1 となるのを待っている）
+  NEXT   // 次のデータ送受信を待っている（tx_start | cnd_stop を待っている）
 } state_t;
 state_t state;
 
@@ -76,8 +76,8 @@ always @(posedge rst, posedge clk) begin
     state <= cnd_stop ? STOP : NEXT;
   else if (state == STOP && tim_full)
     state <= IDLE;
-  else if (state == NEXT && tx_start)
-    state <= DATA;
+  else if (state == NEXT)
+    state <= tx_start ? DATA : (cnd_stop ? STOP : NEXT);
 end
 
 always @(posedge rst, posedge clk) begin
@@ -116,6 +116,9 @@ always @(posedge rst, posedge clk) begin
     if (tim_cnt == 0)   sda_out <= 0;
     if (tim_phase == 5) sda_out <= 1;
   end
+  else if (state == NEXT) begin
+    sda_out <= 0;
+  end
 end
 
 always @(posedge rst, posedge clk) begin
@@ -129,7 +132,7 @@ end
 always @(posedge rst, posedge clk) begin
   if (rst)
     tx_busy <= 0;
-  else if (tx_start)
+  else if (tx_start | cnd_stop)
     tx_busy <= 1;
   else if (state == IDLE || state == NEXT)
     tx_busy <= 0;
