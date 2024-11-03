@@ -85,13 +85,19 @@ int main() {
   lcd_at(0);
   while (1) {
     int key = get_key();
-    if (key == '\b') {
+    if (key == '\b') { // Backspace
       if (i > 0) {
         i--;
         lcd_at(i);
         lcd_out8(4, ' ');
         lcd_at(i);
       }
+    } else if (key == '\n') { // Enter
+      lcd_out8(0, 0x01);
+      lcd_out8(0, 0x80);
+      lcd_puts("Keyboard Sample");
+      i = 0;
+      lcd_at(0);
     } else if (key == 0x0E) { // Shift
       shift = 1;
       led_port |= 0x02;
