@@ -3,6 +3,7 @@ unsigned int kbc_queue __attribute__((at(0x24)));
 unsigned int kbc_status __attribute__((at(0x26)));
 char led_port __attribute__((at(0x80)));
 char lcd_port __attribute__((at(0x81)));
+char gpio __attribute__((at(0x82)));
 
 void delay_ms(int ms) {
   tim_cnt = ms;
@@ -46,6 +47,17 @@ int lcd_at(int linear_pos) {
   return linear_pos;
 }
 
+void play_bootsound() {
+  int i;
+  int j;
+  for (i = 0; i < 100; i++) {
+    gpio = 0x40;
+    for (j = 0; j < 200; j++);
+    gpio = 0x00;
+    for (j = 0; j < 200; j++);
+  }
+}
+
 int main() {
   led_port = 0;
 
@@ -59,6 +71,10 @@ int main() {
   lcd_out8(0, 0x0f);
   lcd_out8(0, 0x06);
   lcd_out8(0, 0x01);
+
+  play_bootsound();
+
+  gpio = 0x80;
 
   lcd_out8(0, 0x80);
   lcd_puts("Keyboard Sample");
