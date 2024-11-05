@@ -304,7 +304,7 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    dp <= 16'h0000;
+    dp <= 16'h0100;
   else if (load_dp)
     dp <= alu_out;
 end

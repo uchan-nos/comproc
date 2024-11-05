@@ -9,12 +9,13 @@ enum SymbolKind {
   kSymGVar, // グローバル変数
   kSymLVar, // ローカル変数
   kSymFunc, // 関数
+  kSymBif,  // ビルトイン関数（built-in function）
 };
 
 struct Type;
 struct Node;
 
-#define SYM_ATTR_ONLY_ON_STACK 0x0001u
+#define SYM_ATTR_FIXED_ADDR 0x0001u
 
 struct Symbol {
   enum SymbolKind kind;

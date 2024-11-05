@@ -160,6 +160,13 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
     Expect('(');
     if ((attr = Consume(kTokenId))) {
       if (strncmp(attr->raw, "at", attr->len) == 0) {
+        if (sym->kind != kSymGVar) {
+          fprintf(stderr, "'at' attribute can only be used with global variables\n");
+          Locate(attr->raw);
+          exit(1);
+        }
+        sym->attr |= SYM_ATTR_FIXED_ADDR;
+
         Expect('(');
         struct Token *addr = Expect(kTokenInteger);
         sym->offset = addr->value.as_int;

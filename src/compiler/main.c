@@ -136,8 +136,13 @@ struct Instruction *InsnLabelAutoL(struct GenContext *ctx, const char *opcode, i
   return InsnLabelAuto(ctx, opcode, kLabelAutoL, label);
 }
 
-struct Instruction *InsnLabelAutoS(struct GenContext *ctx, const char *opcode, int label) {
-  return InsnLabelAuto(ctx, opcode, kLabelAutoS, label);
+struct Instruction *InsnLabelAutoS(struct GenContext *ctx, const char *opcode, const char *base, int label) {
+  struct Instruction *i = Insn(ctx, opcode);
+  i->operands[0].kind = kOprBaseLabel;
+  i->operands[0].val_base_label.base = base;
+  i->operands[0].val_base_label.label.kind = kLabelAutoS;
+  i->operands[0].val_base_label.label.label_no = label;
+  return i;
 }
 
 struct Label *AddLabel(struct GenContext *ctx) {
@@ -331,29 +336,36 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
         break;
       case kSymGVar:
-        assert(sym->type);
-        if (sym->type->kind == kTypeArray) {
-          if (value_class == VC_LVAL) {
-            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
-                    sym->name->len, sym->name->raw);
-            exit(1);
-          } else {
-            InsnInt(ctx, "push", sym->offset);
+        {
+          const char *base = "dp";
+          if (sym->attr & SYM_ATTR_FIXED_ADDR) {
+            base = NULL;
           }
-        } else {
-          if (value_class == VC_LVAL) {
-            InsnInt(ctx, "push", sym->offset);
-          } else {
-            // value_class == VC_NO_NEED だとしても ld 命令は発効する。
-            // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
-            if (SizeofType(sym->type) == 1) {
-              InsnBaseOff(ctx, "ld1", "zero", sym->offset);
+
+          assert(sym->type);
+          if (sym->type->kind == kTypeArray) {
+            if (value_class == VC_LVAL) {
+              fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+                      sym->name->len, sym->name->raw);
+              exit(1);
             } else {
-              InsnBaseOff(ctx, "ld", "zero", sym->offset);
+              InsnBaseOff(ctx, "push", base, sym->offset);
+            }
+          } else {
+            if (value_class == VC_LVAL) {
+              InsnBaseOff(ctx, "push", base, sym->offset);
+            } else {
+              // value_class == VC_NO_NEED だとしても ld 命令は発効する。
+              // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
+              if (SizeofType(sym->type) == 1) {
+                InsnBaseOff(ctx, "ld1", base, sym->offset);
+              } else {
+                InsnBaseOff(ctx, "ld", base, sym->offset);
+              }
             }
           }
+          break;
         }
-        break;
       case kSymLVar:
         assert(sym->type);
         if (value_class == VC_NO_NEED) {
@@ -387,6 +399,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         }
         InsnLabelToken(ctx, "push", sym->name);
         break;
+      case kSymBif:
+        fprintf(stderr, "cannot take address of a built-in function\n");
+        Locate(node->token->raw);
+        exit(1);
+        break;
       }
       if (value_class == VC_NO_NEED) {
         node->type = NewType(kTypeVoid);
@@ -402,7 +419,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
       }
       ctx->strings[ctx->num_strings] = node->token;
-      InsnLabelAutoS(ctx, "push", ctx->num_strings);
+      InsnLabelAutoS(ctx, "push", "dp", ctx->num_strings);
       ctx->num_strings++;
     }
     break;
@@ -469,6 +486,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   case kNodeCall:
     {
       PRINT_NODE_COMMENT(ctx, node, "Call");
+
       struct Node *args[10];
       int num_args = 0;
       for (struct Node *arg = node->rhs; arg; arg = arg->next) {
@@ -483,7 +501,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         Generate(ctx, args[num_args - 1 - i], VC_RVAL, 1);
       }
       if (node->lhs->kind == kNodeId) {
-        InsnLabelToken(ctx, "call", node->lhs->token);
+        struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
+        if (sym && sym->kind == kSymBif && strcmp(sym->name->raw, "__builtin_set_dp") == 0) {
+          InsnReg(ctx, "pop", "dp");
+        } else {
+          InsnLabelToken(ctx, "call", node->lhs->token);
+        }
       } else {
         fprintf(stderr, "not implemented call of non-id expression\n");
         Locate(node->lhs->token->raw);
@@ -844,6 +867,26 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   return gen_result;
 }
 
+const char *builtin_sym_names[] = {
+  "__builtin_set_dp",
+};
+
+struct Symbol *make_builtin_syms() {
+  struct Symbol *builtin_syms = NewSymbol(kSymHead, NULL);
+  struct Symbol *sym = builtin_syms;
+  const char *name;
+  struct Token *tk;
+
+  name = "__builtin_set_dp";
+  tk = NewToken(kTokenId, strdup(name), strlen(name));
+  sym = AppendSymbol(sym, NewSymbol(kSymBif, tk));
+  sym->def = NewNode(kNodeDefFunc, tk);
+  sym->def->lhs = NewNode(kNodeTypeSpec, tk);
+  sym->def->lhs->type = NewType(kTypeVoid);
+
+  return builtin_syms;
+}
+
 int main(int argc, char **argv) {
   int print_ast = 0;
   const char *input_filename = NULL;
@@ -888,8 +931,7 @@ int main(int argc, char **argv) {
     fclose(input_file);
   }
 
-  struct Scope *global_scope = NewGlobalScope(NewSymbol(kSymHead, NULL));
-  global_scope->var_offset = GVAR_OFFSET;
+  struct Scope *global_scope = NewGlobalScope(make_builtin_syms());
   struct ParseContext parse_ctx = {
     global_scope
   };
@@ -918,10 +960,10 @@ int main(int argc, char **argv) {
   };
 
   fprintf(output_file, "section .data\n");
-  int gvar_offset = GVAR_OFFSET;
+  int gvar_offset = 0;
   for (struct Symbol *sym = global_scope->syms->next; sym; sym = sym->next) {
-    if (sym->kind == kSymGVar && sym->offset == gvar_offset) {
-      // at 属性で配置アドレスを決めたもの（sym->offset != gvar_offset）は無視
+    if (sym->kind == kSymGVar && (sym->attr & SYM_ATTR_FIXED_ADDR) == 0) {
+      // at 属性で配置アドレスを決めたもの（SYM_ATTR_FIXED_ADDR）は無視
 
       int mem_size = (SizeofType(sym->type) + 1) & 0xfffe;
       gvar_offset += mem_size;
@@ -937,7 +979,7 @@ int main(int argc, char **argv) {
         }
         if (sym->def->rhs) {
           Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
-          InsnBaseOff(&gen_ctx, "st", "zero", sym->offset);
+          InsnBaseOff(&gen_ctx, "st", "dp", sym->offset);
         }
       } else { // kind == kNodeInteger
         int val = sym->def->rhs->token->value.as_int;
@@ -948,7 +990,7 @@ int main(int argc, char **argv) {
   }
 
   InsnLabelStr(&gen_ctx, "call", "main");
-  InsnBaseOff(&gen_ctx, "st", NULL, 0x06);
+  InsnBaseOff(&gen_ctx, "st", NULL, 0x06); // UART へ出力
   AddLabelStr(&gen_ctx, "fin");
   InsnLabelStr(&gen_ctx, "jmp", "fin");
   for (struct Node *n = ast; n; n = n->next) {
@@ -1018,6 +1060,12 @@ int main(int argc, char **argv) {
           }
           fprintf(output_file, "%d", opr->val_base_off.offset);
           break;
+        case kOprBaseLabel:
+          if (opr->val_base_label.base) {
+            fprintf(output_file, "%s+", opr->val_base_label.base);
+          }
+          PrintLabel(output_file, &opr->val_base_label.label);
+          break;
         }
       }
       fprintf(output_file, "\n");
@@ -1034,6 +1082,11 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
+  // built-in functions
+  //fprintf(output_file, "__builtin_set_dp:\n"
+  //                     INDENT "pop dp\n"
+  //                     INDENT "ret\n");
 
   if (output_file != stdout) {
     fclose(output_file);

@@ -40,17 +40,27 @@ initial begin
     if (cpu.stack0 !== 16'h00A5) $error("stack0 must be 0x00A5");
 
   @(posedge cpu.load_insn)
-    pmem_rdata <= 18'h30001; // 002: PUSH 0x01
+    pmem_rdata <= 18'h30200; // 002: PUSH 0x200
     if (cpu.stack0 !== 16'hFF5A) $error("stack0 must be 0xFF5A");
 
   @(posedge cpu.load_insn)
-    pmem_rdata <= 18'h04FFF; // 003: JMP IP-1
+    pmem_rdata <= 18'h1C821; // 003: POP dp
+    if (cpu.stack0 !== 16'h0200) $error("stack0 must be 0x0200");
+    if (cpu.dp !== 16'h0100) $error("dp must be 0x0100 (initial value)");
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h30001; // 004: PUSH 0x01
+    if (cpu.stack0 !== 16'hFF5A) $error("stack0 must be 0xFF5A");
+    if (cpu.dp !== 16'h0200) $error("dp must be 0x0200");
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h04FFF; // 005: JMP IP-1
 
   #11 // decode
   #10 // exec
-    if (cpu.alu_out !== 16'h003) $error("alu_out must be 0x003");
+    if (cpu.alu_out !== 16'h005) $error("alu_out must be 0x005");
   #10 // rdmem
-    pmem_rdata <= 18'h06020; // 003: JZ 0x20
+    pmem_rdata <= 18'h06020; // 005: JZ 0x20
   @(posedge cpu.load_insn)
     if (cpu.stack0 !== 16'h0001) $error("stack0 must be 0x0001");
     if (cpu.stack1 !== 16'hFF5A) $error("stack1 must be 0xFF5A");
@@ -60,8 +70,8 @@ initial begin
     if (cpu.stack0 !== 16'h0001) $error("stack0 must be 0x0001");
   #10 // rdmem
     if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
-    if (pmem_addr !== `ADDR_WIDTH'h004) $error("pmem_addr must be 0x004");
-    pmem_rdata <= 18'h06030; // 004: JZ 0x30
+    if (pmem_addr !== `ADDR_WIDTH'h006) $error("pmem_addr must be 0x006");
+    pmem_rdata <= 18'h0602E; // 006: JZ 0x2E
   @(posedge cpu.load_insn)
 
   #11 // decode
@@ -70,12 +80,12 @@ initial begin
   #10 // rdmem
     if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
     if (pmem_addr !== `ADDR_WIDTH'h035) $error("pmem_addr must be 0x035");
-    pmem_rdata <= 18'h08103; // 035: LD1 zero+0x103
+    pmem_rdata <= 18'h0A103; // 035: LD1 dp+0x103
   @(posedge cpu.load_insn)
 
   #11 // decode
   #10 // exec
-    if (dmem_addr !== 16'h0103) $error("dmem_addr must be 0x0103");
+    if (dmem_addr !== 16'h0303) $error("dmem_addr must be 0x0303");
     if (dmem_ren !== 1'b0) $error("dmem_ren must be 0 (at exec stage)");
   #10 // rdmem
     if (dmem_ren !== 1'b1) $error("dmem_ren must be 1 (at rdmem stage)");

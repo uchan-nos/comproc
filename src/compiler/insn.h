@@ -35,6 +35,7 @@ enum OperandKind {
   kOprLabel,
   kOprReg,
   kOprBaseOff,
+  kOprBaseLabel,
 };
 
 struct Operand {
@@ -47,6 +48,10 @@ struct Operand {
       const char *base;
       int offset;
     } val_base_off;
+    struct {
+      const char *base;
+      struct Label label;
+    } val_base_label;
   };
 };
 

@@ -8,7 +8,6 @@
 #define MAX_BP 256
 #define MAX_LABEL 256
 #define MAX_LINE 256
-#define DMEM_ORIGIN 0x100
 
 // 文字列をすべて小文字にする
 void ToLower(char *s) {
@@ -67,7 +66,7 @@ struct LabelAddr {
 
 enum BPType {
   BP_IP_REL12,
-  BP_IP_ABS14,
+  BP_IP_REL14,
   BP_ABS16,
 };
 
@@ -96,13 +95,13 @@ void NewBackpatch(struct Backpatch *backpatches, int *num_backpatches,
 enum AddrBase {
   AB_ZERO,
   AB_FP,
-  AB_IP,
-  AB_CSTK,
+  AB_DP,
+  AB_RSVD,
 };
 
 // X+imm 形式のオペランドを読み取る
 // 戻り値: X の種類を表す数値
-enum AddrBase ParseAddrOffset(char *opr, uint16_t *off) {
+enum AddrBase ParseAddrOffset(char *opr, uint16_t *off, struct LabelAddr *labels, int num_labels) {
   char *plus = strchr(opr, '+');
   char *off_s = opr;
   enum AddrBase ab = AB_ZERO;
@@ -116,20 +115,32 @@ enum AddrBase ParseAddrOffset(char *opr, uint16_t *off) {
       ab = AB_ZERO;
     } else if (strcmp(opr, "fp") == 0) {
       ab = AB_FP;
-    } else if (strcmp(opr, "ip") == 0) {
-      ab = AB_IP;
-    } else if (strcmp(opr, "cs") == 0) {
-      ab = AB_CSTK;
-    } else if (strcmp(opr, "cstack") == 0) {
-      ab = AB_CSTK;
+    } else if (strcmp(opr, "dp") == 0) {
+      ab = AB_DP;
+    } else {
+      ab = AB_RSVD;
     }
   }
-  char *endptr;
-  *off = strtol(off_s, &endptr, 0);
+  if (isdigit(*off_s)) {
+    char *endptr;
+    *off = strtol(off_s, &endptr, 0);
 
-  if (*endptr) {
-    fprintf(stderr, "failed to parse addr offset: '%s'\n", endptr);
-    exit(1);
+    if (*endptr) {
+      fprintf(stderr, "failed to parse addr offset: '%s'\n", endptr);
+      exit(1);
+    }
+  } else {
+    int i = 0;
+    for (; i < num_labels; ++i) {
+      if (strcmp(labels[i].label, off_s) == 0) {
+        break;
+      }
+    }
+    if (i == num_labels) {
+      fprintf(stderr, "no such label: '%s'\n", off_s);
+      exit(1);
+    }
+    *off = labels[i].addr;
   }
 
   return ab;
@@ -207,29 +218,26 @@ int DataByte(uint8_t *dmem, char **operands, int num_opr) {
 // insn: 機械語テンプレート
 // opr: "X+off" 形式の文字列
 // mask: 即値のビットマスク
-uint32_t GenLoadStoreImm(uint32_t insn, char *operand, uint16_t mask) {
+uint32_t GenLoadStoreImm(uint32_t insn, char *operand, uint16_t mask, struct LabelAddr *labels, int num_labels) {
   uint16_t off;
-  enum AddrBase ab = ParseAddrOffset(operand, &off);
+  enum AddrBase ab = ParseAddrOffset(operand, &off, labels, num_labels);
   return insn | (ab << 12) | (mask & off);
 }
 
 enum PopReg {
   POP_FP,
-  POP_IP,
+  POP_DP,
   POP_ISR,
-  POP_BAR,
 };
 
 enum PopReg ParsePopReg(char *opr) {
   ToLower(opr);
   if (strcmp(opr, "fp") == 0) {
     return POP_FP;
-  } else if (strcmp(opr, "ip") == 0) {
-    return POP_IP;
+  } else if (strcmp(opr, "dp") == 0) {
+    return POP_DP;
   } else if (strcmp(opr, "isr") == 0) {
     return POP_ISR;
-  } else if (strcmp(opr, "bar") == 0) {
-    return POP_BAR;
   }
 
   fprintf(stderr, "invalid register for POP X: '%s'\n", opr);
@@ -291,7 +299,7 @@ int ProcessDataSection(FILE *input_file, FILE *map_file,
   while (fgets(line, MAX_LINE, input_file) != NULL) {
     SplitOpcode(line, al);
     *num_labels += SetLabel(labels + *num_labels, al->label,
-                            DMEM_ORIGIN + size, map_file);
+                            size, map_file);
     if (al->mnemonic == NULL) {
       continue;
     }
@@ -413,7 +421,7 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
         }
       } else {
         uint16_t off;
-        enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off);
+        enum AddrBase ab = ParseAddrOffset(GET_STR(0), &off, labels, *num_labels);
         pmem[ip] = 0x14000 | (ab << 12) | (0xfff & off);
       }
     } else if (strcmp(al->mnemonic, "jmp") == 0) {
@@ -435,22 +443,22 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
 
         pmem[ip] = 0x00000;
         if (call_to) { // 後方（既知のラベル）への call
-          pmem[ip] |= call_to->addr;
+          pmem[ip] |= 0x3fffu & (call_to->addr - ip - 1);
         } else {
-          NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_ABS14);
+          NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL14);
         }
       }
     } else if (strcmp(al->mnemonic, "jz") == 0) {
       NewBackpatch(backpatches, &num_backpatches, ip, GET_STR(0), BP_IP_REL12);
       pmem[ip] = 0x06000;
     } else if (strcmp(al->mnemonic, "ld1") == 0) {
-      pmem[ip] = GenLoadStoreImm(0x08000, GET_STR(0), 0xfff);
+      pmem[ip] = GenLoadStoreImm(0x08000, GET_STR(0), 0xfff, labels, *num_labels);
     } else if (strcmp(al->mnemonic, "st1") == 0) {
-      pmem[ip] = GenLoadStoreImm(0x0c000, GET_STR(0), 0xfff);
+      pmem[ip] = GenLoadStoreImm(0x0c000, GET_STR(0), 0xfff, labels, *num_labels);
     } else if (strcmp(al->mnemonic, "ld") == 0) {
-      pmem[ip] = GenLoadStoreImm(0x10000, GET_STR(0), 0xffe);
+      pmem[ip] = GenLoadStoreImm(0x10000, GET_STR(0), 0xffe, labels, *num_labels);
     } else if (strcmp(al->mnemonic, "st") == 0) {
-      pmem[ip] = GenLoadStoreImm(0x10001, GET_STR(0), 0xffe);
+      pmem[ip] = GenLoadStoreImm(0x10001, GET_STR(0), 0xffe, labels, *num_labels);
     } else if (strcmp(al->mnemonic, "add") == 0) {
       if (al->num_opr == 0) {
         pmem[ip] = 0x1c060;
@@ -585,8 +593,12 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
         }
         ins = (ins & 0x3f000u) | (diff_pc & 0xfffu);
         break;
-      case BP_IP_ABS14:
-        ins = (ins & 0x3c000u) | (labels[l].addr & 0x3fffu);
+      case BP_IP_REL14:
+        if (diff_pc < -0x2000 || 0x2000 <= diff_pc) {
+          fprintf(stderr, "jump target is too far (BP_IP_REL14): diff=%d\n", diff_pc);
+          exit(1);
+        }
+        ins = (ins & 0x3c000u) | (diff_pc & 0x3fffu);
         break;
       case BP_ABS16:
         ins = (ins & 0x30000u) | (labels[l].addr & 0xffffu);
