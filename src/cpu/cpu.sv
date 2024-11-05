@@ -28,7 +28,7 @@ dmem_byt=1: dmem_addr の最下位ビットに応じて [15:8] か [7:0] が有�
 mnemonic        17   12   7      0  説明
 ----------------------------------------
 PUSH uimm16    |11     uimm16     | uimm16 を stack にプッシュ
-CALL uimm14    |0000    uimm14    | コールスタックに ip+1 をプッシュし、uimm14 にジャンプ
+CALL simm14    |0000    simm14    | コールスタックに ip をプッシュし、ip+simm14 にジャンプ
 JMP simm12     |000100   simm12   | ip+simm12 にジャンプ
 ADD fp,simm12  |000101   simm12   | fp += simm12
 JZ  simm12     |000110   simm12   | stack から値をポップし、0 なら ip+simm12 にジャンプ
@@ -38,7 +38,7 @@ ST1 X+uimm12   |0011xx   uimm12   | バイトバージョン
 LD  X+uimm12   |0100xx   uimm11  0| mem[X+uimm12] から読んだ値を stack にプッシュ
 ST  X+uimm12   |0100xx   uimm11  1| stack からポップした値を mem[X+uimm12] に書く
 PUSH X+uimm12  |0101xx   uimm12   | X+uimm12 を stack にプッシュ
-                                    X の選択: 0=0, 1=fp, 2=ip, 3=cstack[0]
+                                    X の選択: 0=0, 1=fp, 2=dp, 3=予約
                |0110xxxxxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxxxx| 即値なし命令（別表）
 binop uimm10   |10 ALU6   uimm10  | uimm10 と stack[0] を使った 2 項演算
@@ -91,10 +91,7 @@ STD1       |011100100000001111| byte version
 INT        |011100100000010000| ソフトウェア割り込みを発生
 IRET       |011100100000010010| 割り込みハンドラから戻る
 POP X      |0111001000001000xx| stack から値を取り出し、レジスタ X に書く
-                              X の選択: 0=fp, 1=ip, 2=isr
-
-           |011111111111111110| プログラム転送終了・データ転送開始マーク
-           |011111111111111111| メモリ転送終了マーク
+                              X の選択: 0=fp, 1=dp, 2=isr
 
 
 
@@ -119,6 +116,7 @@ wr_stk1   0/1: dmem_wdata に stack[0/1] を出力
 pop/push  stack をポップ/プッシュ
 load_stk  stack[0] に stack_in をロード
 load_fp   FP に alu_out をロード
+load_dp   DP に alu_out をロード
 load_ip   IP に alu_out をロード
 load_insn INSN に pmem_rdata をロード
 load_isr  ISR に alu_out をロード
@@ -207,9 +205,9 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic sign, wr_stk1, pop, push,
-  load_stk, load_fp, load_ip, load_isr, cpop, cpush,
+  load_stk, load_fp, load_dp, load_ip, load_isr, cpop, cpush,
   irq_masked, ien, set_ien, clear_ien;
-logic [1:0] src_a_sel;
+logic [2:0] src_a_sel;
 logic [1:0] src_b_sel;
 logic [1:0] phase;
 logic [5:0] alu_sel;
@@ -217,12 +215,13 @@ logic [15:0] stack0, stack1, stack_in, cstack0,
              alu_out, src_a, src_b, imm_mask, dmem_wdata_raw;
 
 // レジスタ群
-logic [15:0] fp, ip, isr;
+logic [15:0] fp, dp, ip, isr;
 logic [`ADDR_WIDTH-1:0] dmem_addr_d;
 logic [17:0] insn;
 
 // 結線
 assign src_a = src_a_sel === `SRCA_FP   ? fp
+             : src_a_sel === `SRCA_DP   ? dp
              : src_a_sel === `SRCA_IP   ? ip
              : src_a_sel === `SRCA_CSTK ? cstack0
              : stack0;
@@ -281,6 +280,7 @@ signals signals(
   .push(push),
   .load_stk(load_stk),
   .load_fp(load_fp),
+  .load_dp(load_dp),
   .load_ip(load_ip),
   .load_insn(load_insn),
   .load_isr(load_isr),
@@ -300,6 +300,13 @@ always @(posedge clk, posedge rst) begin
     fp <= 16'h4000;
   else if (load_fp)
     fp <= alu_out;
+end
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    dp <= 16'h0000;
+  else if (load_dp)
+    dp <= alu_out;
 end
 
 always @(posedge clk, posedge rst) begin

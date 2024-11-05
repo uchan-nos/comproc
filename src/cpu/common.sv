@@ -26,11 +26,12 @@
 `define ALU_ADDNZ 6'h31
 
 // Source A
-`define SRCA_STK0 2'h0
-`define SRCA_FP   2'h1
-`define SRCA_IP   2'h2
-`define SRCA_CSTK 2'h3
-`define SRCA_X    2'hx
+`define SRCA_STK0 3'h0
+`define SRCA_FP   3'h1
+`define SRCA_DP   3'h2
+`define SRCA_IP   3'h3
+`define SRCA_CSTK 3'h4
+`define SRCA_X    3'hx
 
 // Source B
 `define SRCB_STK1 2'h0

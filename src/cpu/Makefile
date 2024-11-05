@@ -1,6 +1,6 @@
 sim.exe: sim.sv cpu.sv mem.sv alu.sv stack.sv signals.sv cdtimer.sv \
 	signalizer.sv decoder.sv mcu.sv uart.sv uart_mux.sv adc.sv \
-	simple_timer.sv spi.sv kbc.sv
+	simple_timer.sv spi.sv kbc.sv i2c.sv
 	iverilog -g2012 -o $@ $^
 
 stack_tb.exe: stack_tb.sv stack.sv
