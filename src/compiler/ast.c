@@ -78,6 +78,19 @@ struct Node *ExternalDeclaration(struct ParseContext *ctx) {
     return NULL;
   }
 
+  if (Consume('(')) { // 関数ポインタ
+    Expect('*');
+    struct Token *id = Expect(kTokenId);
+    Expect(')');
+    Expect('(');
+    Expect(')');
+
+    struct Type *type_fp = NewType(kTypePtr);
+    type_fp->base = tspec->type;
+    tspec->type = type_fp;
+    return VariableDefinition(ctx, tspec, id);
+  }
+
   struct Token *id = Expect(kTokenId);
   if (Consume('(')) {
     return FunctionDefinition(ctx, tspec, id);

@@ -504,6 +504,9 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
         if (sym && sym->kind == kSymBif && strcmp(sym->name->raw, "__builtin_set_dp") == 0) {
           InsnReg(ctx, "pop", "dp");
+        } else if (sym && (sym->kind == kSymGVar || sym->kind == kSymLVar) && sym->type->kind == kTypePtr) {
+          Generate(ctx, node->lhs, VC_RVAL, 1);
+          Insn(ctx, "call");
         } else {
           InsnLabelToken(ctx, "call", node->lhs->token);
         }
