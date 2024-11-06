@@ -303,22 +303,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   switch (node->kind) {
   case kNodeInteger:
     if (value_class == VC_RVAL) {
-      if (node->token->value.as_int <= 0x7fff) {
-        if (req_onstack) {
-          InsnInt(ctx, "push", node->token->value.as_int);
-        } else {
-          InsnInt(ctx, "push", node->token->value.as_int)->kind = kInsnInterp;
-          gen_result |= GEN_INTERP;
-        }
+      if (req_onstack) {
+        InsnInt(ctx, "push", node->token->value.as_int & 0xffff);
       } else {
-        if (req_onstack) {
-          InsnInt(ctx, "push", node->token->value.as_int & 0x7fff);
-          Insn(ctx, "sign");
-        } else {
-          InsnInt(ctx, "push", node->token->value.as_int & 0x7fff)->kind = kInsnInterp;
-          Insn(ctx, "sign")->kind = kInsnInterp;
-          gen_result |= GEN_INTERP;
-        }
+        InsnInt(ctx, "push", node->token->value.as_int)->kind = kInsnInterp;
+        gen_result |= GEN_INTERP;
       }
     }
     break;
