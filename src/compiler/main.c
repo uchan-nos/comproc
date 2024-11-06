@@ -470,6 +470,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         GetLastInsn(ctx)->kind = kInsnNormal;
       } else if (req_onstack) {
         GetLastInsn(ctx)->kind = kInsnInterpResult;
+      } else {
+        gen_result |= GEN_INTERP;
       }
     }
     break;
