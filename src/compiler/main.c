@@ -215,6 +215,7 @@ int IsLdFp0(struct AsmLine *al) {
   }
   struct Operand *operands = al->insn.operands;
   if (operands[0].kind == kOprBaseOff && operands[1].kind == kOprNone &&
+      operands[0].val_base_off.base != NULL &&
       strcmp("fp", operands[0].val_base_off.base) == 0 &&
       operands[0].val_base_off.offset == 0) {
     return 1;
