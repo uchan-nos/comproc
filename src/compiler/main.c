@@ -891,6 +891,7 @@ int main(int argc, char **argv) {
   const char *input_filename = NULL;
   const char *output_filename = "a.s";
 
+  int ret_from_start = 0; // 真なら start 関数は return する
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--ast") == 0) {
       print_ast = 1;
@@ -904,6 +905,8 @@ int main(int argc, char **argv) {
     } else if (input_filename) {
       fprintf(stderr, "multiple inputs are not supported: '%s'\n", argv[i]);
       exit(1);
+    } else if (strcmp(argv[i], "--ret-from-start") == 0) {
+      ret_from_start = 1;
     } else {
       input_filename = argv[i];
     }
@@ -988,10 +991,17 @@ int main(int argc, char **argv) {
     }
   }
 
-  InsnLabelStr(&gen_ctx, "call", "main");
-  InsnBaseOff(&gen_ctx, "st", NULL, 0x06); // UART へ出力
-  AddLabelStr(&gen_ctx, "fin");
-  InsnLabelStr(&gen_ctx, "jmp", "fin");
+  AddLabelStr(&gen_ctx, "start");
+  if (ret_from_start) {
+    InsnLabelStr(&gen_ctx, "call", "main");
+    Insn(&gen_ctx, "ret");
+  } else {
+    InsnLabelStr(&gen_ctx, "call", "main");
+    InsnBaseOff(&gen_ctx, "st", NULL, 0x06); // UART へ出力
+    AddLabelStr(&gen_ctx, "fin");
+    InsnLabelStr(&gen_ctx, "jmp", "fin");
+  }
+
   for (struct Node *n = ast; n; n = n->next) {
     if (n->kind == kNodeDefFunc) {
       Generate(&gen_ctx, n, VC_NO_NEED, 0);
