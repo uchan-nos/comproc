@@ -491,8 +491,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
       if (node->lhs->kind == kNodeId) {
         struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
-        if (sym && sym->kind == kSymBif && strcmp(sym->name->raw, "__builtin_set_dp") == 0) {
+        int is_bif = sym && sym->kind == kSymBif;
+        if (is_bif && strcmp(sym->name->raw, "__builtin_set_dp") == 0) {
           InsnReg(ctx, "pop", "dp");
+        } else if (is_bif && strcmp(sym->name->raw, "__builtin_write_pmem") == 0) {
+          Insn(ctx, "spha");
+          Insn(ctx, "spla");
         } else if (sym && (sym->kind == kSymGVar || sym->kind == kSymLVar) && sym->type->kind == kTypePtr) {
           Generate(ctx, node->lhs, VC_RVAL, 1);
           Insn(ctx, "call");
@@ -859,22 +863,24 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   return gen_result;
 }
 
-const char *builtin_sym_names[] = {
-  "__builtin_set_dp",
-};
+struct Symbol *AppendBifSymbol(struct Symbol *head, const char *id, struct Type *ret_type) {
+  struct Token *tk = NewToken(kTokenId, strdup(id), strlen(id));
+  struct Symbol *sym = AppendSymbol(head, NewSymbol(kSymBif, tk));
+  sym->def = NewNode(kNodeDefFunc, tk);
+  sym->def->lhs = NewNode(kNodeTypeSpec, tk);
+  sym->def->lhs->type = ret_type;
+  return sym;
+}
 
 struct Symbol *make_builtin_syms() {
   struct Symbol *builtin_syms = NewSymbol(kSymHead, NULL);
   struct Symbol *sym = builtin_syms;
-  const char *name;
-  struct Token *tk;
 
-  name = "__builtin_set_dp";
-  tk = NewToken(kTokenId, strdup(name), strlen(name));
-  sym = AppendSymbol(sym, NewSymbol(kSymBif, tk));
-  sym->def = NewNode(kNodeDefFunc, tk);
-  sym->def->lhs = NewNode(kNodeTypeSpec, tk);
-  sym->def->lhs->type = NewType(kTypeVoid);
+  struct Type *type_uint = NewType(kTypeInt);
+  type_uint->attr &= ~TYPE_ATTR_SIGNED;
+
+  sym = AppendBifSymbol(sym, "__builtin_set_dp", NewType(kTypeVoid));
+  sym = AppendBifSymbol(sym, "__builtin_write_pmem", type_uint);
 
   return builtin_syms;
 }
@@ -1076,8 +1082,10 @@ int main(int argc, char **argv) {
   }
 
   // built-in functions
-  //fprintf(output_file, "__builtin_set_dp:\n"
-  //                     INDENT "pop dp\n"
+  // addr_t __builtin_write_pmem(addr_t pmem_addr, uint16_t insn_hi, uint16_t insn_lo);
+  //fprintf(output_file, "__builtin_write_pmem:\n"
+  //                     INDENT "siha\n"
+  //                     INDENT "sila\n"
   //                     INDENT "ret\n");
 
   if (output_file != stdout) {

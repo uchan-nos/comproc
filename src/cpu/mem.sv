@@ -64,7 +64,7 @@ module pmem(
   input rst,
   input clk,
   input [`ADDR_WIDTH-1:0] addr,
-  input wen,
+  input wenh, wenl,
   input [17:0] data_in,
   output logic [17:0] data_out
 );
@@ -74,8 +74,12 @@ logic [17:0] mem[0:`ADDR_WIDTH'h1fff];
 always @(posedge rst, posedge clk) begin
   if (rst) begin
   end
-  else if (wen)
-    mem[addr] <= data_in;
+  else begin
+    if (wenh)
+      mem[addr][17:16] <= data_in[17:16];
+    if (wenl)
+      mem[addr][15:0] <= data_in[15:0];
+  end
 end
 
 always @(posedge rst, posedge clk) begin

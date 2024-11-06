@@ -271,6 +271,8 @@ always @(posedge clk) begin
       18'b01_11xx_1000_0000_1111: insn_name <= "std1";
       18'b01_11xx_1000_0001_0000: insn_name <= "int";
       18'b01_11xx_1000_0001_0001: insn_name <= "isr";
+      18'b01_11xx_1000_0010_0100: insn_name <= "spha";
+      18'b01_11xx_1000_0010_0101: insn_name <= "spla";
       default:                    insn_name <= "UNDEF";
     endcase
   end

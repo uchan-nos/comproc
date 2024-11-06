@@ -34,11 +34,11 @@ localparam DMEM_GVAR_START = `ADDR_WIDTH'h0100;
 // CPU コア
 logic [`ADDR_WIDTH-1:0] cpu_dmem_addr, dmem_addr_d, cpu_pmem_addr, pmem_addr;
 logic [15:0] cpu_dmem_rdata, cpu_dmem_wdata;
-logic [17:0] cpu_pmem_rdata;
+logic [17:0] cpu_pmem_rdata, cpu_pmem_wdata;
 logic cpu_dmem_ren, cpu_dmem_wen, cpu_dmem_byt, cpu_irq;
-logic cpu_rst, pmem_wen;
+logic cpu_rst, cpu_pmem_wenh, cpu_pmem_wenl, pmem_wenh, pmem_wenl;
 
-logic [17:0] recv_data;
+logic [17:0] recv_data, pmem_wdata;
 logic [`ADDR_WIDTH-1:0] img_recv_addr, pmem_size, dmem_size;
 logic [15:0] dmem_rdata_mem, dmem_rdata_mem_d;
 
@@ -113,8 +113,11 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .dmem_addr(cpu_dmem_addr),
   .dmem_rdata(cpu_dmem_rdata),
   .dmem_wdata(cpu_dmem_wdata),
+  .pmem_wenh(cpu_pmem_wenh),
+  .pmem_wenl(cpu_pmem_wenl),
   .pmem_addr(cpu_pmem_addr),
-  .pmem_rdata(cpu_pmem_rdata)
+  .pmem_rdata(cpu_pmem_rdata),
+  .pmem_wdata(cpu_pmem_wdata)
 );
 
 // データメモリ
@@ -133,8 +136,9 @@ pmem pmem(
   .rst(rst),
   .clk(clk),
   .addr(pmem_addr),
-  .wen(pmem_wen),
-  .data_in(recv_data),
+  .wenh(pmem_wenh),
+  .wenl(pmem_wenl),
+  .data_in(pmem_wdata),
   .data_out(cpu_pmem_rdata)
 );
 
@@ -401,7 +405,11 @@ assign dmem_byt = cpu_dmem_byt;
 assign dmem_addr = recv_compl ? cpu_dmem_addr : img_recv_addr;
 assign dmem_wdata = img_recv_state == IMG_RECV_DMEM ? recv_data[15:0] : cpu_dmem_wdata;
 assign pmem_addr = recv_compl ? cpu_pmem_addr : img_recv_addr;
-assign pmem_wen = img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size;
+assign pmem_wenh = (img_recv_state == IMG_RECV_WAIT & cpu_pmem_wenh)
+                 | (img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size);
+assign pmem_wenl = (img_recv_state == IMG_RECV_WAIT & cpu_pmem_wenl)
+                 | (img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size);
+assign pmem_wdata = img_recv_state == IMG_RECV_PMEM ? recv_data : cpu_pmem_wdata;
 assign cpu_dmem_rdata = dmem_rdata_mux(dmem_addr_d, dmem_rdata_mem, dmem_rdata_io);
 assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
 

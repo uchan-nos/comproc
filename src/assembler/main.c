@@ -567,6 +567,10 @@ int ProcessTextSection(FILE *input_file, FILE *map_file,
       pmem[ip] = 0x1c810;
     } else if (strcmp(al->mnemonic, "iret") == 0) {
       pmem[ip] = 0x1c812;
+    } else if (strcmp(al->mnemonic, "spha") == 0) {
+      pmem[ip] = 0x1c824;
+    } else if (strcmp(al->mnemonic, "spla") == 0) {
+      pmem[ip] = 0x1c825;
     } else {
       fprintf(stderr, "unknown mnemonic: %s\n", al->mnemonic);
       exit(1);

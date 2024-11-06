@@ -12,8 +12,10 @@ module cpu#(
   output [`ADDR_WIDTH-1:0] dmem_addr,
   input  [15:0] dmem_rdata, // データメモリからの読み込みデータ
   output [15:0] dmem_wdata, // データメモリへの書き込みデータ
+  output pmem_wenh, pmem_wenl,
   output [`ADDR_WIDTH-1:0] pmem_addr,
-  input  [17:0] pmem_rdata  // プログラムメモリからの読み込みデータ
+  input  [17:0] pmem_rdata, // プログラムメモリからの読み込みデータ
+  output [17:0] pmem_wdata  // プログラムメモリへの書き込みデータ
 );
 
 /*
@@ -92,6 +94,9 @@ INT        |011100100000010000| ソフトウェア割り込みを発生
 IRET       |011100100000010010| 割り込みハンドラから戻る
 POP X      |0111001000001000xx| stack から値を取り出し、レジスタ X に書く
                               X の選択: 0=fp, 1=dp, 2=isr
+SPHA       |011100100000100100| stack から値とアドレスをポップし pmem の上位 3 ビットに書き、アドレスをプッシュ
+SPLA       |011100100000100101| SPHA の下位 16 ビット版
+                                stack[1] = data, stack[0] = addr
 
 
 
@@ -127,6 +132,8 @@ dmem_ren  stack_in に接続する値の選択
 dmem_wen  データメモリに dmem_wdata を書き込む
 stack_in  stack[0] の入力値（alu_out, dmem_rdata）
 imm_mask  insn から即値を取り出すためのビットマスク
+pmem_wenh プログラムメモリの上位ビットに dmem_wdata[1:0] を書き込む
+pmem_wenl プログラムメモリの下位ビットに dmem_wdata[15:0] を書き込む
 
 - stack: 演算用スタック
 - cstack: コールスタック（CALL の戻り先アドレスと FP の記憶）
@@ -233,6 +240,7 @@ assign dmem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign dmem_wdata_raw = wr_stk1 ? stack1 : stack0;
 assign dmem_wdata = dmem_addr[0] ? {dmem_wdata_raw[7:0], 8'd0} : dmem_wdata_raw;
 assign pmem_addr = alu_out[`ADDR_WIDTH-1:0];
+assign pmem_wdata = {dmem_wdata_raw[1:0], dmem_wdata_raw};
 assign irq_masked = ien & irq;
 
 // CPU コアモジュール群
@@ -287,11 +295,13 @@ signals signals(
   .cpop(cpop),
   .cpush(cpush),
   .byt(dmem_byt),
-  .rd_mem(dmem_ren),
-  .wr_mem(dmem_wen),
+  .dmem_ren(dmem_ren),
+  .dmem_wen(dmem_wen),
   .set_ien(set_ien),
   .clear_ien(clear_ien),
-  .phase(phase)
+  .phase(phase),
+  .pmem_wenh(pmem_wenh),
+  .pmem_wenl(pmem_wenl)
 );
 
 // CPU コアのレジスタ群

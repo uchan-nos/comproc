@@ -18,10 +18,11 @@ module decoder(
   output cpop,
   output cpush,
   output byt,
-  output rd_mem,
-  output wr_mem,
+  output dmem_ren,
+  output dmem_wen,
   output set_ien, clear_ien,
-  output call
+  output call,
+  output pmem_wenh, pmem_wenl
 );
 
 assign imm_mask = calc_imm_mask(insn[17:14]);
@@ -29,8 +30,8 @@ assign imm_mask = calc_imm_mask(insn[17:14]);
 assign {sign, src_a, src_b, alu_sel,
   load_stk, load_fp, load_dp, load_ip, load_isr,
   push, pop, cpush, cpop,
-  wr_stk1, byt, rd_mem, wr_mem,
-  set_ien, clear_ien, call} = decode(insn);
+  wr_stk1, byt, dmem_ren, dmem_wen,
+  set_ien, clear_ien, call, pmem_wenh, pmem_wenl} = decode(insn);
 
 `define STK0 `SRCA_STK0
 `define FP   `SRCA_FP
@@ -41,8 +42,8 @@ assign {sign, src_a, src_b, alu_sel,
 `define IMM  `SRCB_IMM
 `define ISR  `SRCB_ISR
 
-// 28bits = sign:1 + src_a:3 + src_b:2 + alu:6 + signals:16
-function [27:0] decode(input [17:0] insn);
+// 30bits = sign:1 + src_a:3 + src_b:2 + alu:6 + signals:18
+function [29:0] decode(input [17:0] insn);
   logic sign;
   logic [2:0] src_a;
   logic [1:0] pp;
@@ -53,76 +54,80 @@ function [27:0] decode(input [17:0] insn);
   load = src_a === `IP;
 
   casex (insn)
-                                //                                call
-                                //                 set_ien/clear_ien |
-                                //      wr_stk1/byt/rd_mem/wr_mem || |
-                                //       push/pop/cpush/cpop |  | || |
-                                //load_stk/fp/dp/ip/isr |  | |  | || |
-    18'b11_xxxx_xxxx_xxxx_xxxx: // PUSH uimm16    |___| |__| |__| || |
-      return {1'b0, `STK0, `IMM,  `ALU_B,     16'b10000_1000_0000_00_0};
+                                //                   call/pmem_wenh/wenl
+                                //                 set_ien/clear_ien | |
+                                //       wr_stk1/byt/dmem_ren/wen || | |
+                                //       push/pop/cpush/cpop |  | || | |
+                                //load_stk/fp/dp/ip/isr |  | |  | || | |
+    18'b11_xxxx_xxxx_xxxx_xxxx: // PUSH uimm16    |___| |__| |__| || | |
+      return {1'b0, `STK0, `IMM,  `ALU_B,     18'b10000_1000_0000_00_000};
     18'b00_00xx_xxxx_xxxx_xxxx: // CALL simm14
-      return {sign, `IP,   `IMM,  `ALU_ADD,   16'b00010_0010_0000_00_1};
+      return {sign, `IP,   `IMM,  `ALU_ADD,   18'b00010_0010_0000_00_100};
     18'b00_0100_xxxx_xxxx_xxxx: // JMP simm12
-      return {sign, `IP,   `IMM,  `ALU_ADD,   16'b00010_0000_0000_00_0};
+      return {sign, `IP,   `IMM,  `ALU_ADD,   18'b00010_0000_0000_00_000};
     18'b00_0101_xxxx_xxxx_xxxx: // ADD FP,simm12
-      return {sign, src_a, `IMM,  `ALU_ADD,   16'b01000_0000_0000_00_0};
+      return {sign, src_a, `IMM,  `ALU_ADD,   18'b01000_0000_0000_00_000};
     18'b00_0110_xxxx_xxxx_xxxx: // JZ simm12
-      return {sign, `IP,   `IMM,  `ALU_ADDZ,  16'b00010_0100_0000_00_0};
+      return {sign, `IP,   `IMM,  `ALU_ADDZ,  18'b00010_0100_0000_00_000};
     18'b00_1000_xxxx_xxxx_xxxx: // LD1 0+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_B,     16'b10000_1000_0110_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_B,     18'b10000_1000_0110_00_000};
     18'b00_10xx_xxxx_xxxx_xxxx: // LD1 X+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_ADD,   16'b10000_1000_0110_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_ADD,   18'b10000_1000_0110_00_000};
     18'b00_1100_xxxx_xxxx_xxxx: // ST1 0+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_B,     16'b00000_0100_0101_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_B,     18'b00000_0100_0101_00_000};
     18'b00_11xx_xxxx_xxxx_xxxx: // ST1 X+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_ADD,   16'b00000_0100_0101_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_ADD,   18'b00000_0100_0101_00_000};
     18'b01_0000_xxxx_xxxx_xxx0: // LD 0+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_B,     16'b10000_1000_0010_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_B,     18'b10000_1000_0010_00_000};
     18'b01_00xx_xxxx_xxxx_xxx0: // LD X+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_ADD,   16'b10000_1000_0010_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_ADD,   18'b10000_1000_0010_00_000};
     18'b01_0000_xxxx_xxxx_xxx1: // ST 0+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_B,     16'b00000_0100_0001_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_B,     18'b00000_0100_0001_00_000};
     18'b01_00xx_xxxx_xxxx_xxx1: // ST X+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_ADD,   16'b00000_0100_0001_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_ADD,   18'b00000_0100_0001_00_000};
     18'b01_01xx_xxxx_xxxx_xxxx: // PUSH X+uimm12
-      return {1'b0, src_a, `IMM,  `ALU_ADD,   16'b10000_1000_0000_00_0};
+      return {1'b0, src_a, `IMM,  `ALU_ADD,   18'b10000_1000_0000_00_000};
     18'b01_11xx_0xxx_xxxx_xxxx: // stack だけを使う演算形命令
-      return {1'b0, `STK0, `STK1, insn[5:0],  16'b10000_0000_0000_00_0 | (pp << 9)};
-                                //                                call
-                                //                 set_ien/clear_ien |
-                                //      wr_stk1/byt/rd_mem/wr_mem || |
-                                //       push/pop/cpush/cpop |  | || |
-                                //load_stk/fp/dp/ip/isr |  | |  | || |
-    18'b01_11xx_1xxx_xx00_0x00: // RET            |___| |__| |__| || |
-      return {1'b0, `CSTK, `IMM,  `ALU_A,     16'b00010_0001_0000_00_0};
+      return {1'b0, `STK0, `STK1, insn[5:0],  18'b10000_0000_0000_00_000 | (pp << 11)};
+                                //                   call/pmem_wenh/wenl
+                                //                 set_ien/clear_ien | |
+                                //       wr_stk1/byt/dmem_ren/wen || | |
+                                //       push/pop/cpush/cpop |  | || | |
+                                //load_stk/fp/dp/ip/isr |  | |  | || | |
+    18'b01_11xx_1xxx_xx00_0x00: // RET            |___| |__| |__| || | |
+      return {1'b0, `CSTK, `IMM,  `ALU_A,     18'b00010_0001_0000_00_000};
     18'b01_11xx_1xxx_xx00_0x01: // CALL
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b00010_0110_0000_00_1};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00010_0110_0000_00_100};
     18'b01_11xx_1xxx_xx00_0x10: // CPOP FP
-      return {1'b0, `CSTK, `IMM,  `ALU_A,     16'b01000_0001_0000_00_0};
+      return {1'b0, `CSTK, `IMM,  `ALU_A,     18'b01000_0001_0000_00_000};
     18'b01_11xx_1xxx_xx00_0x11: // CPUSH FP
-      return {1'b0, `FP,   `IMM,  `ALU_A,     16'b00000_0010_0000_00_0};
+      return {1'b0, `FP,   `IMM,  `ALU_A,     18'b00000_0010_0000_00_000};
     18'b01_11xx_1xxx_xx00_10x0: // LDD
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b10000_0000_0010_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0000_0010_00_000};
     18'b01_11xx_1xxx_xx00_1100: // STA
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b10000_0100_1001_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0100_1001_00_000};
     18'b01_11xx_1xxx_xx00_1110: // STD
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b00000_0100_1001_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00000_0100_1001_00_000};
     18'b01_11xx_1xxx_xx00_10x1: // LDD1
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b10000_0000_0110_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0000_0110_00_000};
     18'b01_11xx_1xxx_xx00_1101: // STA1
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b10000_0100_1101_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0100_1101_00_000};
     18'b01_11xx_1xxx_xx00_1111: // STD1
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b00000_0100_1101_00_0};
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00000_0100_1101_00_000};
     18'b01_11xx_1xxx_xxx1_xx0x: // INT
-      return {1'b0, `IP,   `ISR,  `ALU_B,     16'b00010_0010_0000_00_0};
+      return {1'b0, `IP,   `ISR,  `ALU_B,     18'b00010_0010_0000_00_000};
     18'b01_11xx_1xxx_xxx1_xx1x: // IRET
-      return {1'b0, `CSTK, `IMM,  `ALU_A,     16'b00010_0001_0000_10_0};
-    18'b01_11xx_1xxx_xx1x_xx00: // POP FP
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b01000_0100_0000_00_0};
-    18'b01_11xx_1xxx_xx1x_xx01: // POP DP
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b00100_0100_0000_00_0};
-    18'b01_11xx_1xxx_xx1x_xx10: // POP ISR
-      return {1'b0, `STK0, `IMM,  `ALU_A,     16'b00001_0100_0000_00_0};
+      return {1'b0, `CSTK, `IMM,  `ALU_A,     18'b00010_0001_0000_10_000};
+    18'b01_11xx_1xxx_xx1x_x000: // POP FP
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b01000_0100_0000_00_000};
+    18'b01_11xx_1xxx_xx1x_x001: // POP DP
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00100_0100_0000_00_000};
+    18'b01_11xx_1xxx_xx1x_x010: // POP ISR
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00001_0100_0000_00_000};
+    18'b01_11xx_1xxx_xx1x_x100: // SPHA
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0100_1000_00_010};
+    18'b01_11xx_1xxx_xx1x_x101: // SPLA
+      return {1'b0, `STK0, `IMM,  `ALU_A,     18'b10000_0100_1000_00_001};
   endcase
 endfunction
 

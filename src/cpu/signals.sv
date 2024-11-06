@@ -22,10 +22,11 @@ module signals(
   output cpop,
   output cpush,
   output byt,
-  output rd_mem,
-  output wr_mem,
+  output dmem_ren,
+  output dmem_wen,
   output set_ien, clear_ien,
-  output [1:0] phase
+  output [1:0] phase,
+  output pmem_wenh, pmem_wenl
 );
 
 logic src_a_fp, src_a_dp, src_a_ip, src_a_cstk;
@@ -42,8 +43,8 @@ assign src_a_cstk = phase_half & (insn_src_a === `SRCA_CSTK) & ~irq_pend;
 assign src_b_sel = irq_pend ? `SRCB_ISR : insn_src_b;
 assign alu_sel = phase_exec ? (irq_pend ? `ALU_B : insn_alu_sel) : phase_fetch ? `ALU_INC : `ALU_A;
 assign pop = (insn_pop & ~irq_pend) & phase_exec;
-assign push = (insn_push & ~irq_pend) & (insn_rd ? phase_rdmem : phase_exec);
-assign load_stk = (insn_stk & ~irq_pend) & (insn_rd ? phase_rdmem : phase_exec);
+assign push = (insn_push & ~irq_pend) & (insn_dmem_ren ? phase_rdmem : phase_exec);
+assign load_stk = (insn_stk & ~irq_pend) & (insn_dmem_ren ? phase_rdmem : phase_exec);
 assign load_fp = (insn_fp & ~irq_pend) & phase_exec;
 assign load_dp = (insn_dp & ~irq_pend) & phase_exec;
 assign load_ip = reload_ip | (phase_fetch & ~irq /* not irq_pend */);
@@ -52,13 +53,15 @@ assign load_isr = (insn_isr & ~irq_pend) & phase_exec;
 assign cpop = (insn_cpop & ~irq_pend) & phase_exec;
 assign cpush = (insn_cpush | irq_pend) & phase_decode;
 assign byt = (insn_byt & ~irq_pend);
-assign rd_mem = phase_rdmem & insn_rd;
-assign wr_mem = (insn_wr & ~irq_pend) & phase_exec;
+assign dmem_ren = phase_rdmem & insn_dmem_ren;
+assign dmem_wen = (insn_dmem_wen & ~irq_pend) & phase_exec;
 assign set_ien = (insn_set_ien & ~irq_pend) & phase_exec;
 assign clear_ien = (insn_clear_ien | irq_pend) & phase_exec;
 assign phase = phase_decode ? 2'd0
              : phase_exec ? 2'd1
              : phase_rdmem ? 2'd2 : 2'd3;
+assign pmem_wenh = (insn_pmem_wenh & ~irq_pend) & phase_exec;
+assign pmem_wenl = (insn_pmem_wenl & ~irq_pend) & phase_exec;
 
 logic phase_decode, phase_exec, phase_rdmem, phase_fetch, irq_pend;
 signalizer signalizer(.*);
@@ -67,8 +70,8 @@ logic [2:0] insn_src_a;
 logic [1:0] insn_src_b;
 logic [5:0] insn_alu_sel;
 logic insn_pop, insn_push, insn_stk, insn_fp, insn_dp, insn_ip, insn_isr,
-  insn_cpop, insn_cpush, insn_byt, insn_rd, insn_wr,
-  insn_set_ien, insn_clear_ien, insn_call;
+  insn_cpop, insn_cpush, insn_byt, insn_dmem_ren, insn_dmem_wen,
+  insn_set_ien, insn_clear_ien, insn_call, insn_pmem_wenh, insn_pmem_wenl;
 decoder decoder(
   .insn(insn),
   .sign(sign),
@@ -87,11 +90,13 @@ decoder decoder(
   .cpop(insn_cpop),
   .cpush(insn_cpush),
   .byt(insn_byt),
-  .rd_mem(insn_rd),
-  .wr_mem(insn_wr),
+  .dmem_ren(insn_dmem_ren),
+  .dmem_wen(insn_dmem_wen),
   .set_ien(insn_set_ien),
   .clear_ien(insn_clear_ien),
-  .call(insn_call)
+  .call(insn_call),
+  .pmem_wenh(insn_pmem_wenh),
+  .pmem_wenl(insn_pmem_wenl)
 );
 
 logic reload_ip;

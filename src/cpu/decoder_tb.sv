@@ -4,7 +4,7 @@ module decoder_tb;
 
 logic [17:0] insn;
 logic sign, wr_stk1, pop, push, load_stk, load_fp, load_dp, load_ip, load_isr,
-  cpop, cpush, byt, rd_mem, wr_mem, set_ien, clear_ien, call;
+  cpop, cpush, byt, dmem_ren, dmem_wen, set_ien, clear_ien, call, pmem_wenh, pmem_wenl;
 logic [15:0] imm_mask;
 logic [2:0] src_a;
 logic [1:0] src_b;
@@ -32,10 +32,12 @@ task test_sig(
   input e_cpop,
   input e_cpush,
   input e_byt,
-  input e_rd_mem,
-  input e_wr_mem,
+  input e_dmem_ren,
+  input e_dmem_wen,
   input e_set_ien, e_clear_ien,
-  input e_call
+  input e_call,
+  input e_pmem_wenh,
+  input e_pmem_wenl
 );
 begin
   `test_sig1(sign);
@@ -58,11 +60,13 @@ begin
   `test_sig1(cpop);
   `test_sig1(cpush);
   `test_sig1(byt);
-  `test_sig1(rd_mem);
-  `test_sig1(wr_mem);
+  `test_sig1(dmem_ren);
+  `test_sig1(dmem_wen);
   `test_sig1(set_ien);
   `test_sig1(clear_ien);
   `test_sig1(call);
+  `test_sig1(pmem_wenh);
+  `test_sig1(pmem_wenl);
 end
 endtask
 
@@ -75,8 +79,8 @@ initial begin
            pop, push, load_stk, load_fp, load_dp, load_ip, load_isr,
            " cpop=%d cpush=%d",
            cpop, cpush,
-           " byt=%d rd=%d wr=%d set/clr_ien=%d/%d call=%d",
-           byt, rd_mem, wr_mem, set_ien, clear_ien, call);
+           " byt=%d ren=%d wen=%d set/clr_ien=%d/%d call=%d pmem_wenh/l=%d/%d",
+           byt, dmem_ren, dmem_wen, set_ien, clear_ien, call, pmem_wenh, pmem_wenl);
 
   insn <= 18'h30BEF;    // PUSH uimm16
   #1 test_sig(0,        // sign,
@@ -95,11 +99,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h04020; // JMP ip+0x20
@@ -119,11 +125,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h03ff0; // CALL ip+0x3ff0
@@ -143,11 +151,13 @@ initial begin
               0,        // cpop
               1,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              1         // call
+              1,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h0A8CE; // LD1 dp+0x8CE
@@ -167,11 +177,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               1,        // byt
-              1,        // rd_mem
-              0,        // wr_mem
+              1,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h0D039; // ST1 fp+0x39
@@ -191,11 +203,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               1,        // byt
-              0,        // rd_mem
-              1,        // wr_mem
+              0,        // dmem_ren
+              1,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h10E20; // LD zero+0xE20
@@ -215,11 +229,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              1,        // rd_mem
-              0,        // wr_mem
+              1,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h11039; // ST fp+0x38
@@ -239,11 +255,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              0,        // rd_mem
-              1,        // wr_mem
+              0,        // dmem_ren
+              1,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h10039; // ST 0+0x38
@@ -263,11 +281,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              0,        // rd_mem
-              1,        // wr_mem
+              0,        // dmem_ren
+              1,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h05820; // ADD fp,0x820
@@ -287,11 +307,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C001; // INC
@@ -311,11 +333,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C005; // SIGN
@@ -335,11 +359,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C050; // AND
@@ -359,11 +385,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C08F; // DUP1
@@ -383,11 +411,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C800; // RET
@@ -407,11 +437,13 @@ initial begin
               1,        // cpop
               0,        // cpush
               0,        // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C801; // CALL
@@ -431,11 +463,13 @@ initial begin
               0,        // cpop
               1,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              1         // call
+              1,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C808; // LDD
@@ -455,11 +489,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              1,        // rd_mem
-              0,        // wr_mem
+              1,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C80C; // STA
@@ -479,11 +515,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              0,        // rd_mem
-              1,        // wr_mem
+              0,        // dmem_ren
+              1,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C80E; // STD
@@ -503,11 +541,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               0,        // byt
-              0,        // rd_mem
-              1,        // wr_mem
+              0,        // dmem_ren
+              1,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C810; // INT
@@ -527,11 +567,13 @@ initial begin
               0,        // cpop
               1,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C822; // POP isr
@@ -551,11 +593,13 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C812; // IRET
@@ -575,11 +619,13 @@ initial begin
               1,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               1,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
             );
 
   #1 insn <= 18'h1C821; // POP dp
@@ -599,11 +645,65 @@ initial begin
               0,        // cpop
               0,        // cpush
               `x,       // byt
-              0,        // rd_mem
-              0,        // wr_mem
+              0,        // dmem_ren
+              0,        // dmem_wen
               0,        // set_ien
               0,        // clear_ien
-              0         // call
+              0,        // call
+              0,        // pmem_wenh
+              0         // pmem_wenl
+            );
+
+  #1 insn <= 18'h1C824; // SPHA
+  #1 test_sig(`x,       // sign,
+              16'hxxxx, // imm_mask
+              `SRCA_STK0,// src_a
+              `SRCB_X,  // src_b
+              `ALU_A,   // alu
+              1,        // wr_stk1
+              1,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_dp
+              0,        // load_ip
+              0,        // load_isr
+              0,        // cpop
+              0,        // cpush
+              0,        // byt
+              0,        // dmem_ren
+              0,        // dmem_wen
+              0,        // set_ien
+              0,        // clear_ien
+              0,        // call
+              1,        // pmem_wenh
+              0         // pmem_wenl
+            );
+
+  #1 insn <= 18'h1C825; // SPLA
+  #1 test_sig(`x,       // sign,
+              16'hxxxx, // imm_mask
+              `SRCA_STK0,// src_a
+              `SRCB_X,  // src_b
+              `ALU_A,   // alu
+              1,        // wr_stk1
+              1,        // pop
+              0,        // push
+              1,        // load_stk
+              0,        // load_fp
+              0,        // load_dp
+              0,        // load_ip
+              0,        // load_isr
+              0,        // cpop
+              0,        // cpush
+              0,        // byt
+              0,        // dmem_ren
+              0,        // dmem_wen
+              0,        // set_ien
+              0,        // clear_ien
+              0,        // call
+              0,        // pmem_wenh
+              1         // pmem_wenl
             );
 
 end

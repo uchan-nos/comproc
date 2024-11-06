@@ -24,12 +24,8 @@ then
   uart_out_opt="+uart_out=$uart_out"
 fi
 
-../compiler/ucc -o $filename.s $src
-echo "Compiler output:   $filename.s"
+./build.sh $src
 
-cat $filename.s | ../assembler/uasm > $filename.hex
-echo "Assembler output:  $filename.hex"
-
-cat $filename.hex | ../cpu/sim.exe $uart_in $uart_out_opt > $filename.trace 2> $filename.simout
+../cpu/sim.exe +pmem=$filename.pmem.hex +dmem=$filename.dmem.hex $uart_in $uart_out_opt > $filename.trace 2> $filename.simout
 echo "Simulation trace:  $filename.trace"
 echo "Simulation output: $(cat $filename.simout) ($filename.simout)"

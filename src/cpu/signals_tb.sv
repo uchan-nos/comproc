@@ -7,8 +7,8 @@ logic [17:0] insn;
 logic sign,
   wr_stk1, pop, push,
   load_stk, load_fp, load_dp, load_ip, load_insn, load_isr,
-  cpop, cpush, byt, rd_mem, wr_mem,
-  set_ien, clear_ien;
+  cpop, cpush, byt, dmem_ren, dmem_wen,
+  set_ien, clear_ien, pmem_wenh, pmem_wenl;
 logic [2:0] src_a_sel;
 logic [1:0] src_b_sel;
 logic [15:0] imm_mask;
@@ -32,7 +32,7 @@ initial begin
            " load=%d%d%d%d%d%d",
            load_stk, load_fp, load_dp, load_ip, load_insn, load_isr,
            " cpop/sh=%d%d byt=%d rd=%d wr=%d",
-           cpop, cpush, byt, rd_mem, wr_mem,
+           cpop, cpush, byt, dmem_ren, dmem_wen,
            " insn_cpush=%d", signals.insn_cpush,
            " set/clr_ien=%d/%d", set_ien, clear_ien
          );
@@ -68,8 +68,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -92,8 +92,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -116,8 +116,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -140,8 +140,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -164,8 +164,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     0,         // byt
-                    0,         // rd_mem
-                    1,         // wr_mem
+                    0,         // dmem_ren
+                    1,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -188,8 +188,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -212,8 +212,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -236,8 +236,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -266,8 +266,8 @@ initial begin
              0,         // cpop
              0,         // cpush
              x,         // byt
-             x,         // rd_mem
-             0,         // wr_mem
+             x,         // dmem_ren
+             0,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -290,8 +290,8 @@ initial begin
              0,         // cpop
              0,         // cpush
              1,         // byt
-             1,         // rd_mem
-             0,         // wr_mem
+             1,         // dmem_ren
+             0,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -318,8 +318,8 @@ initial begin
                     1,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -342,8 +342,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    0,         // rd_mem
-                    0,         // wr_mem
+                    0,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -366,8 +366,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -390,8 +390,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -422,8 +422,8 @@ initial begin
              0,         // cpop
              0,         // cpush
              x,         // byt
-             0,         // rd_mem
-             0,         // wr_mem
+             0,         // dmem_ren
+             0,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -450,8 +450,8 @@ initial begin
              0,         // cpop
              0,         // cpush
              x,         // byt
-             x,         // rd_mem
-             0,         // wr_mem
+             x,         // dmem_ren
+             0,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -475,8 +475,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     1          // clear_ien
                   );
@@ -500,8 +500,8 @@ initial begin
                     1,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     1,         // set_ien
                     0          // clear_ien
                   );
@@ -524,8 +524,8 @@ initial begin
                     0,         // cpop
                     0,         // cpush
                     x,         // byt
-                    x,         // rd_mem
-                    0,         // wr_mem
+                    x,         // dmem_ren
+                    0,         // dmem_wen
                     0,         // set_ien
                     0          // clear_ien
                   );
@@ -557,8 +557,8 @@ task test_sig(
   input e_cpop,
   input e_cpush,
   input e_byt,
-  input e_rd_mem,
-  input e_wr_mem,
+  input e_dmem_ren,
+  input e_dmem_wen,
   input e_set_ien, e_clear_ien);
 begin
   if (e_imm_mask !== 16'hxxxx && imm_mask !== e_imm_mask)
@@ -581,8 +581,8 @@ begin
   `test_sig1(cpop);
   `test_sig1(cpush);
   `test_sig1(byt);
-  `test_sig1(rd_mem);
-  `test_sig1(wr_mem);
+  `test_sig1(dmem_ren);
+  `test_sig1(dmem_wen);
   `test_sig1(set_ien);
   `test_sig1(clear_ien);
 end
@@ -607,8 +607,8 @@ begin
              0,         // cpop
              1,         // cpush
              x,         // byt
-             x,         // rd_mem
-             x,         // wr_mem
+             x,         // dmem_ren
+             x,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -629,8 +629,8 @@ begin
              0,         // cpop
              0,         // cpush
              x,         // byt
-             x,         // rd_mem
-             x,         // wr_mem
+             x,         // dmem_ren
+             x,         // dmem_wen
              0,         // set_ien
              0          // clear_ien
            );
@@ -656,8 +656,8 @@ begin
            0,         // cpop
            0,         // cpush
            x,         // byt
-           x,         // rd_mem
-           0,         // wr_mem
+           x,         // dmem_ren
+           0,         // dmem_wen
            0,         // set_ien
            0          // clear_ien
          );
@@ -683,8 +683,8 @@ begin
            0,         // cpop
            0,         // cpush
            x,         // byt
-           x,         // rd_mem
-           0,         // wr_mem
+           x,         // dmem_ren
+           0,         // dmem_wen
            0,         // set_ien
            0          // clear_ien
          );
@@ -708,8 +708,8 @@ task test_sig_phases(
   input e_cpop,
   input e_cpush,
   input e_byt,
-  input e_rd_mem,
-  input e_wr_mem,
+  input e_dmem_ren,
+  input e_dmem_wen,
   input e_set_ien, e_clear_ien);
 begin
   @(negedge clk)
@@ -721,7 +721,7 @@ begin
     test_sig(e_imm_mask, e_src_a_sel, e_src_b_sel,
              e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_dp, e_load_ip,
              0 /* load_insn */, e_load_isr,
-             e_cpop, e_cpush, e_byt, e_rd_mem, e_wr_mem,
+             e_cpop, e_cpush, e_byt, e_dmem_ren, e_dmem_wen,
              e_set_ien, e_clear_ien);
 
   @(negedge clk)

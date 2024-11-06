@@ -2,7 +2,7 @@
 
 module cpu_tb;
 
-logic rst, clk, irq, dmem_ren, dmem_wen, dmem_byt;
+logic rst, clk, irq, dmem_ren, dmem_wen, dmem_byt, pmem_wenh, pmem_wenl;
 logic [`ADDR_WIDTH-1:0] dmem_addr, last_wr_addr, pmem_addr;
 logic [15:0] dmem_rdata, dmem_wdata, last_wr_data;
 logic [17:0] pmem_rdata;
@@ -17,8 +17,8 @@ initial begin
            cpu.stack0, cpu.stack1, cpu.fp, cpu.ip, last_wr_addr, last_wr_data,
            " phase=%d",
            cpu.signals.phase,
-           " irq=%d",
-           cpu.irq
+           " irq=%d pmem_wenh/wenl=%d/%d",
+           cpu.irq, pmem_wenh, pmem_wenl
            );
 
   rst <= 1;
@@ -155,7 +155,7 @@ initial begin
   #11 // decode
   #10 // exec
   #10 // rdmem
-    pmem_rdata <= 18'h300FE; // 03F: PUSH 0xFE
+    pmem_rdata <= 18'h30123; // 03F: PUSH 0x0123
     if (cpu.ien !== 1'b1) $error("IEN must be 1");
     if (pmem_addr !== `ADDR_WIDTH'h03F) $error("pmem_addr must be 0x03F");
 
@@ -163,7 +163,27 @@ initial begin
   #11 // decode
   #10 // exec
   #10 // rdmem
-    if (cpu.stack0 !== 16'h00FE) $error("stack0 must be 0x00FE");
+    if (cpu.stack0 !== 16'h0123) $error("stack0 must be 0x0123");
+    if (cpu.stack1 !== 16'h00FF) $error("stack1 must be 0x00FF");
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h30044; // 040: PUSH 0x044
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h1C825; // 041: SPLA (3xxxx to pmem[0x044])
+    if (cpu.stack0 !== 16'h0044) $error("stack0 must be 0x0044");
+    if (cpu.stack1 !== 16'h0123) $error("stack1 must be 0x0123");
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h1C824; // 042: SPHA (x0123 to pmem[0x044])
+    if (cpu.stack0 !== 16'h0044) $error("stack0 must be 0x0044");
+    if (cpu.stack1 !== 16'h00FF) $error("stack1 must be 0x00FF");
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h3CAFE; // 043: PUSH 0xCAFE
+
+  @(posedge cpu.load_insn)
+    pmem_rdata <= 18'h30123; // 044: PUSH 0x0123
 
   $finish;
 end
