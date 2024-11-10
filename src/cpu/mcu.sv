@@ -2,6 +2,7 @@
 
 module mcu#(
   parameter CLOCK_HZ = 27_000_000,
+  //parameter CLOCK_HZ = 13_500_000,
   parameter UART_BAUD = 115200
 ) (
   input rst, clk, uart_rx,
@@ -27,7 +28,68 @@ module mcu#(
   input  [7:0] key_col_n,
   output [7:0] key_row,
   inout  i2c_scl, i2c_sda
+  , output [2:0] dbgio
 );
+
+logic [7:0] dbgio8;
+logic [2:0] dbgio3;
+assign key_row = (img_recv_state == IMG_RECV_DMEM) ? recv_data[7:0] : dbgio8;
+assign dbgio = (img_recv_state == IMG_RECV_DMEM) ? {dmem_byt, dmem_wen, dmem_addr[1]} : dbgio3;
+
+//assign dbgio[0] = dmem_wen;
+//assign dbgio[1] = dmem_addr[1];
+//assign dbgio[2] = recv_data_v;
+
+//logic [23:0] dbgreg;
+//logic [4:0] dbgbitcnt;
+//logic dbgspiclk, dbgspibusy;
+//logic [4:0] dbgspitim;
+//assign dbgio[0] = dbgspiclk;
+//assign dbgio[1] = dbgreg[dbgbitcnt];
+//assign dbgio[2] = dbgspibusy;
+
+//always @(posedge clk, posedge rst) begin
+//  if (rst)
+//    dbgreg <= 0;
+//  else if (recv_data_v)
+//    dbgreg <= {6'd0, recv_data};
+//end
+//
+//always @(posedge clk, posedge rst) begin
+//  if (rst)
+//    dbgbitcnt <= 0;
+//  else if (~dbgspibusy)
+//    dbgbitcnt <= 0;
+//  else if (dbgspitim == 31)
+//    dbgbitcnt <= dbgbitcnt + 1;
+//end
+//
+//always @(posedge clk, posedge rst) begin
+//  if (rst)
+//    dbgspiclk <= 0;
+//  else if (dbgspitim == 15)
+//    dbgspiclk <= 1;
+//  else if (dbgspitim == 31)
+//    dbgspiclk <= 0;
+//end
+//
+//always @(posedge clk, posedge rst) begin
+//  if (rst)
+//    dbgspitim <= 0;
+//  else if (dbgspibusy)
+//    dbgspitim <= dbgspitim + 1;
+//  else if (~dbgspibusy)
+//    dbgspitim <= 0;
+//end
+//
+//always @(posedge clk, posedge rst) begin
+//  if (rst)
+//    dbgspibusy <= 0;
+//  else if (recv_data_v)
+//    dbgspibusy <= 1;
+//  else if (dbgbitcnt == 24)
+//    dbgspibusy <= 0;
+//end
 
 localparam DMEM_GVAR_START = `ADDR_WIDTH'h0100;
 
@@ -118,6 +180,7 @@ cpu#(.CLOCK_HZ(CLOCK_HZ)) cpu(
   .pmem_addr(cpu_pmem_addr),
   .pmem_rdata(cpu_pmem_rdata),
   .pmem_wdata(cpu_pmem_wdata)
+  , .dbgio(dbgio3), .dbgio8(dbgio8)
 );
 
 // データメモリ
@@ -263,7 +326,8 @@ kbc kbc(
   .rst(rst),
   .clk(clk),
   .key_col_n(key_col_n),
-  .key_row(key_row),
+  //.key_row(key_row),
+  .key_row(),
   .queue_len(kbc_queue_len),
   .queue_ren(kbc_queue_ren),
   .queue(kbc_queue)
@@ -289,7 +353,7 @@ typedef enum logic [1:0] {
 } i2c_state_t;
 i2c_state_t i2c_state;
 
-i2c i2c(
+i2c#(.CLOCK_HZ(CLOCK_HZ)) i2c(
   .rst(rst),
   .clk(clk),
   .scl(i2c_scl),
@@ -400,8 +464,8 @@ endfunction
 
 // 信号結線
 assign dmem_wen = (img_recv_state == IMG_RECV_WAIT & cpu_dmem_wen)
-                | (img_recv_state == IMG_RECV_DMEM & img_recv_addr < DMEM_GVAR_START + dmem_size);
-assign dmem_byt = cpu_dmem_byt;
+                | (img_recv_state == IMG_RECV_DMEM & img_recv_addr < DMEM_GVAR_START + dmem_size & recv_data_v);
+assign dmem_byt = img_recv_state == IMG_RECV_WAIT & cpu_dmem_byt;
 assign dmem_addr = recv_compl ? cpu_dmem_addr : img_recv_addr;
 assign dmem_wdata = img_recv_state == IMG_RECV_DMEM ? recv_data[15:0] : cpu_dmem_wdata;
 assign pmem_addr = recv_compl ? cpu_pmem_addr : img_recv_addr;

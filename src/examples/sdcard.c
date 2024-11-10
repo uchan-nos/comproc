@@ -2,7 +2,9 @@ int spi_dat __attribute__((at(0x020)));
 int spi_ctl __attribute__((at(0x022)));
 
 int tim_cnt __attribute__((at(0x02)));
-int lcd_port __attribute__((at(0x81)));
+char lcd_port __attribute__((at(0x81)));
+
+int cnt;
 
 void delay_ms(int ms) {
   tim_cnt = ms;
@@ -13,6 +15,7 @@ void lcd_out4(int rs, int val) {
   lcd_port = (val << 4) | rs | 1;
   delay_ms(2);
   lcd_port = lcd_port & 0xfe;
+  //delay_ms(1);
 }
 
 void lcd_out8(int rs, int val) {
@@ -490,22 +493,45 @@ int main() {
       ((block_buf[0] & 0x00ff) == 0xE9)) {
     lcd_puts("PBR");
   } else if (((block_buf[223] >> 8) & 0x7f) == 0) {
-    lcd_puts("MBR ");
-    int2hex(block_buf[223 + 2] >> 8, buf, 2);
-    buf[2] = 0;
-    lcd_puts(buf);
-    lcd_puts(" ");
+    //char *p = "DEF";
+    //lcd_puts("DEF");
+    //lcd_puts(p);
+    //while (*p) {
+    //  //lcd_putc(*p);
+    //  //lcd_out8(4, *p);
+    //  //lcd_out4(4, *p >> 4);
+    //  //lcd_out4(4, *p & 0x0f);
+    //  lcd_out4(4, *p >> 4);
+    //  lcd_out4(4, *p & 0x0f);
+    //  p++;
+    //}
+    //for (i = 0; i < 3; i++) {
+    //  lcd_out8(4, *p++);
+    //}
+    //lcd_putc('D');
+    //lcd_putc('E');
+    //lcd_putc('F');
+    //lcd_puts("MBR ");
+    //lcd_puts("MBR ");
+    lcd_puts("ABC");
+    lcd_puts("DEF");
+    lcd_puts("GHI");
+    //int2hex(block_buf[223 + 2] >> 8, buf, 2);
+    //buf[2] = 0;
+    //lcd_puts(buf);
+    //lcd_puts(" ");
 
     lba_start_lo = block_buf[223 + 4];
     // LBA Start はリトルエンディアンなので、エンディアンを変換する
     lba_start_lo = (lba_start_lo >> 8) | (lba_start_lo << 8);
 
-    int2hex(lba_start_lo, buf, 4);
-    buf[4] = 0;
-    lcd_puts(buf);
+    //int2hex(lba_start_lo, buf, 4);
+    //buf[4] = 0;
+    //lcd_puts(buf);
   } else {
     lcd_puts("Unknown BS");
   }
 
+  //return cnt;
   return 0;
 }

@@ -11,7 +11,7 @@ load=1 かつ clk の立ち上がりで data を初期値として取り込む�
 */
 
 module cdtimer#(
-  parameter PERIOD = 27_000,
+  parameter PERIOD,
   parameter WIDTH = 16
 ) (
   input rst,

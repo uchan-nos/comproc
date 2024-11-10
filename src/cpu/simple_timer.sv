@@ -1,5 +1,5 @@
 module simple_timer#(
-  parameter PERIOD=27_000_000/9600,
+  parameter PERIOD,
   parameter BITS=24
 ) (
   input rst, clk,

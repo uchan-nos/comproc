@@ -19,15 +19,18 @@ module main(
   input  tf_miso,
   inout  scl, sda,    // I2C Clock & Data
   output [7:0] gpio
+  , output [2:0] dbgio
 );
 
 // logic 定義
 logic rst_n;
+logic clk;
 
 // ********
 // 継続代入
 // ********
 assign onboard_led = ~io_led[5:0];
+assign clk = sys_clk;
 
 // ****************
 // その他のロジック
@@ -36,6 +39,13 @@ assign onboard_led = ~io_led[5:0];
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
 end
+
+//always @(posedge sys_clk, negedge rst_n) begin
+//  if (~rst_n)
+//    clk <= 0;
+//  else
+//    clk <= ~clk;
+//end
 
 logic dmem_wen, dmem_byt;
 logic [`ADDR_WIDTH-1:0] dmem_addr, dmem_addr_d;
@@ -60,7 +70,7 @@ assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd, io_gpio);
 
 assign gpio = io_gpio;
 
-always @(posedge sys_clk, negedge rst_n) begin
+always @(posedge clk, negedge rst_n) begin
   if (!rst_n) begin
     io_led <= 0;
     io_lcd <= 0;
@@ -80,7 +90,7 @@ always @(posedge sys_clk, negedge rst_n) begin
       io_gpio <= dmem_wdata[7:0];
 end
 
-always @(posedge sys_clk, negedge rst_n) begin
+always @(posedge clk, negedge rst_n) begin
   if (!rst_n)
     dmem_addr_d <= `ADDR_WIDTH'd0;
   else
@@ -113,7 +123,7 @@ FLASH608K flash608k_instance(
 // 自作 CPU を接続する
 mcu mcu(
   .rst(~rst_n),
-  .clk(sys_clk),
+  .clk(clk),
   .uart_rx(uart_rx),
   .uart_tx(uart_tx),
   .dmem_addr(dmem_addr),
@@ -145,6 +155,7 @@ mcu mcu(
   .key_row(key_row),
   .i2c_scl(scl),
   .i2c_sda(sda)
+  , .dbgio(dbgio)
 );
 
 function [15:0] io_mux(

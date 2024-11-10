@@ -1,6 +1,6 @@
 module uart_mux#(
-  parameter CLOCK_HZ=27_000_000,
-  parameter BAUD=9600,
+  parameter CLOCK_HZ,
+  parameter BAUD,
   parameter DATA_BITS=8,
   parameter TIM_WIDTH=16
 ) (

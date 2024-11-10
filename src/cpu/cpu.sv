@@ -1,7 +1,7 @@
 `include "common.sv"
 
 module cpu#(
-  parameter CLOCK_HZ = 27_000_000
+  parameter CLOCK_HZ
 ) (
   input  rst,
   input  clk,
@@ -16,7 +16,142 @@ module cpu#(
   output [`ADDR_WIDTH-1:0] pmem_addr,
   input  [17:0] pmem_rdata, // プログラムメモリからの読み込みデータ
   output [17:0] pmem_wdata  // プログラムメモリへの書き込みデータ
+  , output logic [2:0] dbgio, output logic [7:0] dbgio8
 );
+
+//assign dbg_cnt[0] = dmem_wen;
+//assign dbg_cnt[1] = (`ADDR_WIDTH'h0100 <= dmem_addr) &
+//                    (dmem_addr < `ADDR_WIDTH'h015C);
+//assign dbg_cnt[2] = dbg_cnt[0] & dbg_cnt[1];
+
+//assign dbgio8 = phase == 2'd3 ? stack0[7:0] : 8'd0;
+
+logic dump_mem;
+logic dump_tim;
+logic [`ADDR_WIDTH-1:0] dump_mem_addr;
+logic sig_dmem_wen;
+assign dmem_wen = dump_mem ? 1'b0 : sig_dmem_wen;
+
+always @(posedge clk) begin
+  if (rst)
+    dbgio <= 0;
+  else if (dump_mem)
+    dbgio <= {dump_mem_addr[6], dump_mem_addr[4], dump_mem_addr[0]};
+  else
+    dbgio <= make_marker(ip, phase);
+end
+
+always @(posedge clk) begin
+  if (rst)
+    dbgio8 <= 8'd0;
+  else if (dump_mem & dump_tim)
+    dbgio8 <= dump_mem_addr[0] ? dmem_rdata[15:8] : dmem_rdata[7:0];
+  else if (~dump_mem)
+    dbgio8 <= stack0[7:0];
+end
+
+always @(posedge clk) begin
+  if (rst)
+    dump_mem <= 0;
+  //else if (dump_mem_addr == 16'h007f)
+  //  dump_mem <= 0;
+  //else if (dump_mem_addr == 0)
+  //  dump_mem <= 1;
+end
+
+always @(posedge clk) begin
+  if (rst | ~dump_mem)
+    dump_tim <= 0;
+  else
+    dump_tim <= ~dump_tim;
+end
+
+always @(posedge clk) begin
+  if (rst)
+    dump_mem_addr <= 0;
+  else if (dump_tim)
+    dump_mem_addr <= dump_mem_addr + 1;
+end
+
+function [2:0] make_marker(input [15:0] ip, input [1:0] phase);
+  case ({phase, ip})
+    18'h20037: return 3'h1; // L_3 of lcd_puts
+    18'h30037: return 3'h2;
+    18'h20038: return 3'h1; // ld fp+0 (s)
+    18'h30038: return 3'h3;
+    18'h20039: return 3'h1; // ldd1 (*s)
+    18'h30039: return 3'h4;
+    18'h2003A: return 3'h1; // push 0
+    18'h3003A: return 3'h5;
+    18'h2003B: return 3'h1; // neq
+    18'h3003B: return 3'h6;
+    18'h2003D: return 3'h1; // ld fp+0 (s)
+    18'h3003D: return 3'h7;
+    18'h2003E: return 3'h2; // dup 0
+    18'h3003E: return 3'h1;
+    18'h2003F: return 3'h2; // push 1
+    18'h3003F: return 3'h3;
+    18'h20040: return 3'h2; // add
+    18'h30040: return 3'h4;
+    18'h20041: return 3'h2; // push fp+0 (&s)
+    18'h30041: return 3'h5;
+    18'h20042: return 3'h2; // sta
+    18'h30042: return 3'h6;
+    18'h20043: return 3'h2; // pop
+    18'h30043: return 3'h7;
+    18'h20044: return 3'h3; // ldd1 (*s)
+    18'h30044: return 3'h1;
+    18'h20047: return 3'h3; // ret from lcd_puts
+    18'h30047: return 3'h2;
+    18'h20032: return 3'h7; // lcd_putc
+    18'h30032: return 3'h1;
+    18'h20033: return 3'h7; // push 4
+    18'h30033: return 3'h2;
+    18'h20034: return 3'h7; // ret from lcd_putc
+    18'h30034: return 3'h3;
+    default:   return 3'd0;
+  endcase
+endfunction
+
+/*
+  else if (ip == 16'h0037 && phase == 2'd3) // L_3 of lcd_puts
+    dbgio <= 3'h6;
+  else if (ip == 16'h0038 && phase == 2'd3) // ld fp+0
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0039 && phase == 2'd3) // ldd1 (load *s)
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h003A && phase == 2'd3) // push 0
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h003B && phase == 2'd3) // neq
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h003D && phase == 2'd3) // ld fp+0 (load s)
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h003E && phase == 2'd3) // dup 0
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h003F && phase == 2'd3) // push 1
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0040 && phase == 2'd3) // add
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0041 && phase == 2'd3) // push fp+0
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0042 && phase == 2'd3) // sta
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0043 && phase == 2'd3) // pop
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0044 && phase == 2'd3) // ldd1 (load *s) for call arg
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0047 && phase == 2'd3) // ret from lcd_puts
+    dbgio <= 3'h3;
+  else if (ip == 16'h0032 && phase == 2'd3) // lcd_putc
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0033 && phase == 2'd3) // push 4
+    dbgio <= stack0[2:0];
+  else if (ip == 16'h0034 && phase == 2'd3) // ret from lcd_putc
+    dbgio <= 3'h7;
+  else
+    dbgio <= 3'h0;
+end
+*/
 
 /*
 dmem_byt の意味
@@ -236,12 +371,14 @@ assign src_b = src_b_sel === 2'd0 ? stack1
                : src_b_sel === 2'd1 ? mask_imm(insn[15:0], imm_mask, sign)
                : isr;
 assign stack_in = dmem_ren ? byte_format(dmem_rdata, dmem_byt, dmem_addr_d[0]) : alu_out;
-assign dmem_addr = alu_out[`ADDR_WIDTH-1:0];
+assign dmem_addr = dump_mem ? ((dump_mem_addr + `ADDR_WIDTH'h0100) & `ADDR_WIDTH'h3ffe)
+                            : alu_out[`ADDR_WIDTH-1:0];
 assign dmem_wdata_raw = wr_stk1 ? stack1 : stack0;
 assign dmem_wdata = dmem_addr[0] ? {dmem_wdata_raw[7:0], 8'd0} : dmem_wdata_raw;
 assign pmem_addr = alu_out[`ADDR_WIDTH-1:0];
 assign pmem_wdata = {dmem_wdata_raw[1:0], dmem_wdata_raw};
 assign irq_masked = ien & irq;
+assign dbg_ip = ip;
 
 // CPU コアモジュール群
 alu alu(
@@ -296,7 +433,7 @@ signals signals(
   .cpush(cpush),
   .byt(dmem_byt),
   .dmem_ren(dmem_ren),
-  .dmem_wen(dmem_wen),
+  .dmem_wen(sig_dmem_wen),
   .set_ien(set_ien),
   .clear_ien(clear_ien),
   .phase(phase),
