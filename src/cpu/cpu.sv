@@ -1,7 +1,7 @@
 `include "common.sv"
 
 module cpu#(
-  parameter CLOCK_HZ
+  parameter CLOCK_HZ = 27_000_000
 ) (
   input  rst,
   input  clk,

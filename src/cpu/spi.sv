@@ -1,6 +1,6 @@
 // SPI Mode0
 module spi#(
-  parameter CLOCK_HZ,
+  parameter CLOCK_HZ=27_000_000,
   parameter BAUD=100_000
 ) (
   input  rst, clk,

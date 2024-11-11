@@ -1,8 +1,8 @@
 module uart#(
-  parameter CLOCK_HZ,
-  parameter BAUD,
-  parameter DATA_BITS,
-  parameter TIM_WIDTH
+  parameter CLOCK_HZ=27_000_000,
+  parameter BAUD=9600,
+  parameter DATA_BITS=8,
+  parameter TIM_WIDTH=16
 ) (
   input  rst, clk,
   input  rx,      // UART RX signal
