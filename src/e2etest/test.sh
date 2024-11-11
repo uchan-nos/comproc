@@ -195,3 +195,4 @@ test_value 07 'int gx=0; void f(int x){gx=x+1;} int main() {int i=3; f(i); retur
 test_value 5b 'int gx; int main() {__builtin_set_dp(0x300); gx=0x5a; return *((int*)0x300)+1;}'
 test_value 07 'int g() {return 7;} int main() {int(*f)()=g; return f();}'
 test_value 12 'int main() {__builtin_write_pmem(512,3,0x12); __builtin_write_pmem(513,1,0xC800); int(*f)()=512; return f();}'
+test_value 03 'void f(){int i;for(i=0;i<1;++i){int a=7;}} int main(){int i=3; f(); return i;}'

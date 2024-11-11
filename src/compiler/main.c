@@ -721,7 +721,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     break;
   case kNodeBlock:
     ctx->scope = node->scope;
-    if (ctx->frame_size > node->scope->var_offset) {
+    if (ctx->frame_size < node->scope->var_offset) {
       ctx->frame_size = node->scope->var_offset;
     }
     for (struct Node *n = node->rhs; n; n = n->next) {
