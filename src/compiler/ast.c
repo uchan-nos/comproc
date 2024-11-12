@@ -574,6 +574,12 @@ struct Node *Unary(struct ParseContext *ctx) {
   } else if ((op = Consume('~'))) {
     node = NewNodeBinOp(kNodeNot, op, NULL, Cast(ctx));
     node->type = node->rhs->type;
+  } else if ((op = Consume('!'))) {
+    struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
+    zero_tk->value.as_int = 0;
+    struct Node *zero = NewNodeInteger(zero_tk);
+    node = NewNodeBinOp(kNodeEq, op, zero, Unary(ctx));
+    node->type = node->rhs->type;
   } else {
     node = Postfix(ctx);
   }
