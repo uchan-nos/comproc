@@ -664,8 +664,11 @@ int main() {
   }
   int (*f)() = 0x1000;
   __builtin_set_dp(block_buf);
+  int ret_code = f();
+  __builtin_set_dp(0x100);
 
-  int2hex(f(), buf, 4);
+  lcd_cmd(0x94);
+  int2hex(ret_code, buf, 4);
   buf[4] = 0;
   lcd_puts("f()=");
   lcd_puts(buf);
