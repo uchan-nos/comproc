@@ -391,8 +391,8 @@ int sd_set_block_len_512() {
   return 0;
 }
 
-// 1 ブロック読み込み
-int sd_read_block(unsigned int *buf, int block_addr, int ccs) {
+// buf へ 1 ブロック読み込み
+int sd_read_block(unsigned char *buf, int block_addr, int ccs) {
   int i;
   int r1;
 
@@ -418,10 +418,101 @@ int sd_read_block(unsigned int *buf, int block_addr, int ccs) {
   while (spi_dat != 0xfe) { // Start Block トークンを探す
     send_spi(0xff);
   }
-  for (i = 0; i < 256; i++) {
-    buf[i] = recv_spi_16();
+  for (i = 0; i < 512; i++) {
+    send_spi(0xff);
+    buf[i] = spi_dat;
   }
   deassert_cs();
+  return 0;
+}
+
+int has_signature_55AA(unsigned char *block_buf) {
+  return block_buf[510] == 0x55 & block_buf[511] == 0xAA;
+}
+
+int is_valid_PBR(unsigned char *block_buf) {
+  return (block_buf[0] == 0xEB && block_buf[2] == 0x90)
+      || (block_buf[0] == 0xE9);
+}
+
+unsigned int BPB_BytsPerSec;
+unsigned int BPB_SecPerClus;
+unsigned int BPB_ResvdSecCnt;
+unsigned int BPB_NumFATs;
+unsigned int BPB_RootEntCnt;
+unsigned int BPB_FATSz16;
+unsigned int FirstDataSector;
+unsigned int PartitionSector;
+
+void set_bpb_values(unsigned char *block_buf) {
+  BPB_BytsPerSec = block_buf[11] | (block_buf[12] << 8);
+  BPB_SecPerClus = block_buf[13];
+  BPB_ResvdSecCnt = block_buf[14] | (block_buf[15] << 8);
+  BPB_NumFATs = block_buf[16];
+  BPB_RootEntCnt = block_buf[17] | (block_buf[18] << 8);
+  BPB_FATSz16 = block_buf[22] | (block_buf[23] << 8);
+  FirstDataSector =
+    PartitionSector
+    + BPB_ResvdSecCnt
+    + BPB_NumFATs*BPB_FATSz16
+    + (BPB_RootEntCnt >> 4);
+}
+
+unsigned int clus_to_sec(unsigned int clus) {
+  return FirstDataSector + (clus - 2)*BPB_SecPerClus;
+}
+
+int load_pmem(unsigned int pmem_addr, unsigned int pmem_lba, unsigned char *block_buf, int ccs) {
+  int i;
+  char buf[5];
+
+  if (sd_read_block(block_buf, pmem_lba, ccs) < 0) {
+    return -1;
+  }
+
+  for (i = 0; i < 170; ++i) { // insn[0]=0~2, insn[169]=507~509
+    if (i < 3) {
+      //buf[0] = ' ';
+      //int2hex(block_buf[3*i], buf + 1, 1);
+      //buf[2] = 0;
+      //lcd_puts(buf);
+      //int2hex((block_buf[3*i+1] << 8) | block_buf[3*i+2], buf, 4);
+      //buf[4] = 0;
+      //lcd_puts(buf);
+      //int2hex(pmem_addr, buf, 4);
+      //buf[4] = 0;
+      //lcd_puts(buf);
+    }
+    __builtin_write_pmem(pmem_addr, block_buf[3*i+2], (block_buf[3*i+1] << 8) | block_buf[3*i]);
+    ++pmem_addr;
+  }
+
+  // insn[170]=510~512
+  unsigned int insn_buf;
+  insn_buf = (block_buf[511] << 8) | block_buf[510];
+
+  if (sd_read_block(block_buf, pmem_lba + 1, ccs) < 0) {
+    return -1;
+  }
+  __builtin_write_pmem(pmem_addr, block_buf[0], insn_buf);
+  ++pmem_addr;
+
+  for (i = 0; i < 170; ++i) { // insn[171]=1~3, insn[171+169]=508~510
+    __builtin_write_pmem(pmem_addr, block_buf[3*i+3], (block_buf[3*i+2] << 8) | block_buf[3*i+1]);
+    ++pmem_addr;
+  }
+
+  return 0;
+}
+
+int strncmp(char *a, char *b, int n) {
+  int i;
+  for (i = 0; i < n; i++) {
+    int v = a[i] - b[i];
+    if (v != 0 | a[i] == 0) {
+      return v;
+    }
+  }
   return 0;
 }
 
@@ -432,8 +523,7 @@ int main() {
   int cap_mib;
   char buf[5];
   unsigned int csd[9]; // 末尾は 16 ビットの CRC
-  unsigned int block_buf[256];
-  unsigned int lba_start_lo;
+  unsigned char block_buf[512];
 
   lcd_init();
 
@@ -482,30 +572,103 @@ int main() {
   lcd_cmd(0xc0);
 
   // MBR か PBR の判定
-  if (block_buf[255] != 0x55AA) { // 最終 2 バイトが 55 AA ではない
+  if (!has_signature_55AA(block_buf)) {
     lcd_puts("not found 55 AA");
     return 1;
   }
-  if ((((block_buf[0] & 0x00ff) == 0xEB && (block_buf[1] >> 8) == 0x90)) ||
-      ((block_buf[0] & 0x00ff) == 0xE9)) {
-    lcd_puts("PBR");
-  } else if (((block_buf[223] >> 8) & 0x7f) == 0) {
-    lcd_puts("MBR ");
-    int2hex(block_buf[223 + 2] >> 8, buf, 2);
-    buf[2] = 0;
-    lcd_puts(buf);
-    lcd_puts(" ");
+  if (!is_valid_PBR(block_buf)) {
+    for (i = 0; i < 4; ++i) {
+      int item_offset = 446 + (i << 4);
+      if ((block_buf[item_offset] & 0x7f) != 0) {
+        continue;
+      }
+      int part_type = block_buf[item_offset + 4];
+      if ((part_type & 0xef) != 0x0e) {
+        continue;
+      }
+      // FAT16 パーティションを見つけたので、PBR を読む
 
-    lba_start_lo = block_buf[223 + 4];
-    // LBA Start はリトルエンディアンなので、エンディアンを変換する
-    lba_start_lo = (lba_start_lo >> 8) | (lba_start_lo << 8);
+      PartitionSector = block_buf[item_offset + 8] | (block_buf[item_offset + 9] << 8);
+      // LBA Start は 4 バイトだが、上位 16 ビットは無視
+      // （32MiB までにあるパーティションのみ正常に読める）
 
-    int2hex(lba_start_lo, buf, 4);
-    buf[4] = 0;
-    lcd_puts(buf);
+      if (sd_read_block(block_buf, PartitionSector, (sdinfo & 2) != 0) < 0) {
+        return 1;
+      }
+      break;
+    }
+    if (i == 4) {
+      lcd_puts("MBR with no FAT16 pt");
+      return 1;
+    }
   } else {
     lcd_puts("Unknown BS");
+    return 1;
   }
+
+  if (!is_valid_PBR(block_buf)) {
+    lcd_puts("no valid PBR");
+    return 1;
+  }
+
+  set_bpb_values(block_buf);
+  if (BPB_BytsPerSec != 512) {
+    lcd_puts("BPB_BytsPerSec!=512");
+    return 1;
+  }
+
+  unsigned int rootdir_sec = PartitionSector + BPB_ResvdSecCnt + BPB_NumFATs * BPB_FATSz16;
+  unsigned int dmembin_clus = 0;
+  unsigned int pmembin_clus = 0;
+  int find_loop;
+  for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
+    if (sd_read_block(block_buf, rootdir_sec + find_loop, (sdinfo & 2) != 0) < 0) {
+      lcd_puts("failed to read block");
+      return 1;
+    }
+    for (i = 0; i < 16; ++i) {
+      if (strncmp("DMEM    BIN", block_buf + 32*i, 11) == 0) {
+        dmembin_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
+      } else if (strncmp("PMEM    BIN", block_buf + 32*i, 11) == 0) {
+        pmembin_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
+      }
+    }
+
+    if (dmembin_clus > 0 & pmembin_clus > 0) {
+      break;
+    }
+  }
+  if (dmembin_clus == 0 | pmembin_clus == 0) {
+    lcd_puts("no dmem or pmem bin");
+    return 1;
+  }
+
+  unsigned int dmem_lba = clus_to_sec(dmembin_clus);
+  unsigned int pmem_lba = clus_to_sec(pmembin_clus);
+
+  if (load_pmem(0x1000, pmem_lba, block_buf, (sdinfo & 2) != 0) < 0) {
+    lcd_puts("failed to load pmem");
+    return 1;
+  }
+
+  if (sd_read_block(block_buf, dmem_lba, (sdinfo & 2) != 0) < 0) {
+    lcd_puts("failed to load dmem");
+    return 1;
+  }
+
+  lcd_puts("executing pmem 3sec");
+  for (i = 0; i < 3; ++i) {
+    delay_ms(1000);
+    lcd_cmd(0xcf);
+    lcd_putc('0' + (2 - i));
+  }
+  int (*f)() = 0x1000;
+  __builtin_set_dp(block_buf);
+
+  int2hex(f(), buf, 4);
+  buf[4] = 0;
+  lcd_puts("f()=");
+  lcd_puts(buf);
 
   return 0;
 }
