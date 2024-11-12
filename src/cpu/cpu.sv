@@ -40,7 +40,7 @@ ST1 X+uimm12   |0011xx   uimm12   | バイトバージョン
 LD  X+uimm12   |0100xx   uimm11  0| mem[X+uimm12] から読んだ値を stack にプッシュ
 ST  X+uimm12   |0100xx   uimm11  1| stack からポップした値を mem[X+uimm12] に書く
 PUSH X+uimm12  |0101xx   uimm12   | X+uimm12 を stack にプッシュ
-                                    X の選択: 0=0, 1=fp, 2=dp, 3=予約
+                                    X の選択: 0=0, 1=fp, 2=gp, 3=予約
                |0110xxxxxxxxxxxxxx| 予約
                |0111xxxxxxxxxxxxxx| 即値なし命令（別表）
 binop uimm10   |10 ALU6   uimm10  | uimm10 と stack[0] を使った 2 項演算
@@ -93,7 +93,7 @@ STD1       |011100100000001111| byte version
 INT        |011100100000010000| ソフトウェア割り込みを発生
 IRET       |011100100000010010| 割り込みハンドラから戻る
 POP X      |0111001000001000xx| stack から値を取り出し、レジスタ X に書く
-                              X の選択: 0=fp, 1=dp, 2=isr
+                              X の選択: 0=fp, 1=gp, 2=isr
 SPHA       |011100100000100100| stack から値とアドレスをポップし pmem の上位 3 ビットに書き、アドレスをプッシュ
 SPLA       |011100100000100101| SPHA の下位 16 ビット版
                                 stack[1] = data, stack[0] = addr
@@ -121,7 +121,7 @@ wr_stk1   0/1: dmem_wdata に stack[0/1] を出力
 pop/push  stack をポップ/プッシュ
 load_stk  stack[0] に stack_in をロード
 load_fp   FP に alu_out をロード
-load_dp   DP に alu_out をロード
+load_gp   GP に alu_out をロード
 load_ip   IP に alu_out をロード
 load_insn INSN に pmem_rdata をロード
 load_isr  ISR に alu_out をロード
@@ -212,7 +212,7 @@ doc/signal-timing-design に記載
 
 // CPU コアの信号
 logic sign, wr_stk1, pop, push,
-  load_stk, load_fp, load_dp, load_ip, load_isr, cpop, cpush,
+  load_stk, load_fp, load_gp, load_ip, load_isr, cpop, cpush,
   irq_masked, ien, set_ien, clear_ien;
 logic [2:0] src_a_sel;
 logic [1:0] src_b_sel;
@@ -222,13 +222,13 @@ logic [15:0] stack0, stack1, stack_in, cstack0,
              alu_out, src_a, src_b, imm_mask, dmem_wdata_raw;
 
 // レジスタ群
-logic [15:0] fp, dp, ip, isr;
+logic [15:0] fp, gp, ip, isr;
 logic [`ADDR_WIDTH-1:0] dmem_addr_d;
 logic [17:0] insn;
 
 // 結線
 assign src_a = src_a_sel === `SRCA_FP   ? fp
-             : src_a_sel === `SRCA_DP   ? dp
+             : src_a_sel === `SRCA_GP   ? gp
              : src_a_sel === `SRCA_IP   ? ip
              : src_a_sel === `SRCA_CSTK ? cstack0
              : stack0;
@@ -288,7 +288,7 @@ signals signals(
   .push(push),
   .load_stk(load_stk),
   .load_fp(load_fp),
-  .load_dp(load_dp),
+  .load_gp(load_gp),
   .load_ip(load_ip),
   .load_insn(load_insn),
   .load_isr(load_isr),
@@ -314,9 +314,9 @@ end
 
 always @(posedge clk, posedge rst) begin
   if (rst)
-    dp <= 16'h0100;
-  else if (load_dp)
-    dp <= alu_out;
+    gp <= 16'h0100;
+  else if (load_gp)
+    gp <= alu_out;
 end
 
 always @(posedge clk, posedge rst) begin

@@ -327,7 +327,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         break;
       case kSymGVar:
         {
-          const char *base = "dp";
+          const char *base = "gp";
           if (sym->attr & SYM_ATTR_FIXED_ADDR) {
             base = NULL;
           }
@@ -409,7 +409,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
       }
       ctx->strings[ctx->num_strings] = node->token;
-      InsnLabelAutoS(ctx, "push", "dp", ctx->num_strings);
+      InsnLabelAutoS(ctx, "push", "gp", ctx->num_strings);
       ctx->num_strings++;
     }
     break;
@@ -495,8 +495,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       if (node->lhs->kind == kNodeId) {
         struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
         int is_bif = sym && sym->kind == kSymBif;
-        if (is_bif && strcmp(sym->name->raw, "__builtin_set_dp") == 0) {
-          InsnReg(ctx, "pop", "dp");
+        if (is_bif && strcmp(sym->name->raw, "__builtin_set_gp") == 0) {
+          InsnReg(ctx, "pop", "gp");
         } else if (is_bif && strcmp(sym->name->raw, "__builtin_write_pmem") == 0) {
           Insn(ctx, "spha");
           Insn(ctx, "spla");
@@ -882,7 +882,7 @@ struct Symbol *make_builtin_syms() {
   struct Type *type_uint = NewType(kTypeInt);
   type_uint->attr &= ~TYPE_ATTR_SIGNED;
 
-  sym = AppendBifSymbol(sym, "__builtin_set_dp", NewType(kTypeVoid));
+  sym = AppendBifSymbol(sym, "__builtin_set_gp", NewType(kTypeVoid));
   sym = AppendBifSymbol(sym, "__builtin_write_pmem", type_uint);
 
   return builtin_syms;
@@ -983,7 +983,7 @@ int main(int argc, char **argv) {
         }
         if (sym->def->rhs) {
           Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
-          InsnBaseOff(&gen_ctx, "st", "dp", sym->offset);
+          InsnBaseOff(&gen_ctx, "st", "gp", sym->offset);
         }
       } else { // kind == kNodeInteger
         int val = sym->def->rhs->token->value.as_int;

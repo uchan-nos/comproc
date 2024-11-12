@@ -44,14 +44,14 @@ initial begin
     if (cpu.stack0 !== 16'hFF5A) $error("stack0 must be 0xFF5A");
 
   @(posedge cpu.load_insn)
-    pmem_rdata <= 18'h1C821; // 003: POP dp
+    pmem_rdata <= 18'h1C821; // 003: POP gp
     if (cpu.stack0 !== 16'h0200) $error("stack0 must be 0x0200");
-    if (cpu.dp !== 16'h0100) $error("dp must be 0x0100 (initial value)");
+    if (cpu.gp !== 16'h0100) $error("gp must be 0x0100 (initial value)");
 
   @(posedge cpu.load_insn)
     pmem_rdata <= 18'h30001; // 004: PUSH 0x01
     if (cpu.stack0 !== 16'hFF5A) $error("stack0 must be 0xFF5A");
-    if (cpu.dp !== 16'h0200) $error("dp must be 0x0200");
+    if (cpu.gp !== 16'h0200) $error("gp must be 0x0200");
 
   @(posedge cpu.load_insn)
     pmem_rdata <= 18'h04FFF; // 005: JMP IP-1
@@ -80,7 +80,7 @@ initial begin
   #10 // rdmem
     if (~cpu.signals.phase_rdmem) $error("phase_rdmem must be 1");
     if (pmem_addr !== `ADDR_WIDTH'h035) $error("pmem_addr must be 0x035");
-    pmem_rdata <= 18'h0A103; // 035: LD1 dp+0x103
+    pmem_rdata <= 18'h0A103; // 035: LD1 gp+0x103
   @(posedge cpu.load_insn)
 
   #11 // decode

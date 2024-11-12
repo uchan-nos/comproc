@@ -12,7 +12,7 @@ module decoder(
   output push,
   output load_stk,
   output load_fp,
-  output load_dp,
+  output load_gp,
   output load_ip,
   output load_isr,
   output cpop,
@@ -28,7 +28,7 @@ module decoder(
 assign imm_mask = calc_imm_mask(insn[17:14]);
 
 assign {sign, src_a, src_b, alu_sel,
-  load_stk, load_fp, load_dp, load_ip, load_isr,
+  load_stk, load_fp, load_gp, load_ip, load_isr,
   push, pop, cpush, cpop,
   wr_stk1, byt, dmem_ren, dmem_wen,
   set_ien, clear_ien, call, pmem_wenh, pmem_wenl} = decode(insn);
@@ -58,7 +58,7 @@ function [29:0] decode(input [17:0] insn);
                                 //                 set_ien/clear_ien | |
                                 //       wr_stk1/byt/dmem_ren/wen || | |
                                 //       push/pop/cpush/cpop |  | || | |
-                                //load_stk/fp/dp/ip/isr |  | |  | || | |
+                                //load_stk/fp/gp/ip/isr |  | |  | || | |
     18'b11_xxxx_xxxx_xxxx_xxxx: // PUSH uimm16    |___| |__| |__| || | |
       return {1'b0, `STK0, `IMM,  `ALU_B,     18'b10000_1000_0000_00_000};
     18'b00_00xx_xxxx_xxxx_xxxx: // CALL simm14
@@ -93,7 +93,7 @@ function [29:0] decode(input [17:0] insn);
                                 //                 set_ien/clear_ien | |
                                 //       wr_stk1/byt/dmem_ren/wen || | |
                                 //       push/pop/cpush/cpop |  | || | |
-                                //load_stk/fp/dp/ip/isr |  | |  | || | |
+                                //load_stk/fp/gp/ip/isr |  | |  | || | |
     18'b01_11xx_1xxx_xx00_0x00: // RET            |___| |__| |__| || | |
       return {1'b0, `CSTK, `IMM,  `ALU_A,     18'b00010_0001_0000_00_000};
     18'b01_11xx_1xxx_xx00_0x01: // CALL
@@ -120,7 +120,7 @@ function [29:0] decode(input [17:0] insn);
       return {1'b0, `CSTK, `IMM,  `ALU_A,     18'b00010_0001_0000_10_000};
     18'b01_11xx_1xxx_xx1x_x000: // POP FP
       return {1'b0, `STK0, `IMM,  `ALU_A,     18'b01000_0100_0000_00_000};
-    18'b01_11xx_1xxx_xx1x_x001: // POP DP
+    18'b01_11xx_1xxx_xx1x_x001: // POP GP
       return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00100_0100_0000_00_000};
     18'b01_11xx_1xxx_xx1x_x010: // POP ISR
       return {1'b0, `STK0, `IMM,  `ALU_A,     18'b00001_0100_0000_00_000};

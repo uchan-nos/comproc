@@ -28,7 +28,7 @@
 // Source A
 `define SRCA_STK0 3'h0
 `define SRCA_FP   3'h1
-`define SRCA_DP   3'h2
+`define SRCA_GP   3'h2
 `define SRCA_IP   3'h3
 `define SRCA_CSTK 3'h4
 `define SRCA_X    3'hx

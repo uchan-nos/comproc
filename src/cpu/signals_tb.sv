@@ -6,7 +6,7 @@ logic rst, clk, irq;
 logic [17:0] insn;
 logic sign,
   wr_stk1, pop, push,
-  load_stk, load_fp, load_dp, load_ip, load_insn, load_isr,
+  load_stk, load_fp, load_gp, load_ip, load_insn, load_isr,
   cpop, cpush, byt, dmem_ren, dmem_wen,
   set_ien, clear_ien, pmem_wenh, pmem_wenl;
 logic [2:0] src_a_sel;
@@ -30,7 +30,7 @@ initial begin
            " wr_stk1=%d pop/sh=%d%d",
            wr_stk1, pop, push,
            " load=%d%d%d%d%d%d",
-           load_stk, load_fp, load_dp, load_ip, load_insn, load_isr,
+           load_stk, load_fp, load_gp, load_ip, load_insn, load_isr,
            " cpop/sh=%d%d byt=%d rd=%d wr=%d",
            cpop, cpush, byt, dmem_ren, dmem_wen,
            " insn_cpush=%d", signals.insn_cpush,
@@ -62,7 +62,7 @@ initial begin
                     1,         // push
                     1,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -86,7 +86,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -110,7 +110,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -134,7 +134,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -147,10 +147,10 @@ initial begin
                   );
 
   @(posedge clk)
-    insn <= 18'h12021; // ST DP+0x20
+    insn <= 18'h12021; // ST GP+0x20
     test_sig_phases(0,         // call
                     16'h0ffe,  // imm_mask
-                    `SRCA_DP,  // src_a_sel
+                    `SRCA_GP,  // src_a_sel
                     `SRCB_IMM, // src_b_sel
                     `ALU_ADD,  // alu_sel
                     0,         // wr_stk1
@@ -158,7 +158,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -171,10 +171,10 @@ initial begin
                   );
 
   @(posedge clk)
-    insn <= 18'h16FFE; // PUSH DP+0xFFE
+    insn <= 18'h16FFE; // PUSH GP+0xFFE
     test_sig_phases(0,         // call
                     16'h0fff,  // imm_mask
-                    `SRCA_DP,  // src_a_sel
+                    `SRCA_GP,  // src_a_sel
                     `SRCB_IMM, // src_b_sel
                     `ALU_ADD,  // alu_sel
                     0,         // wr_stk1
@@ -182,7 +182,7 @@ initial begin
                     1,         // push
                     1,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -206,7 +206,7 @@ initial begin
                     0,         // push
                     1,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -230,7 +230,7 @@ initial begin
                     0,         // push
                     1,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -259,7 +259,7 @@ initial begin
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip
              0,         // load_insn
              0,         // load_isr
@@ -283,7 +283,7 @@ initial begin
              0,         // push
              1,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip
              0,         // load_insn
              0,         // load_isr
@@ -312,7 +312,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     1,         // cpop
@@ -336,7 +336,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -360,7 +360,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -384,7 +384,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     1,         // load_isr
                     0,         // cpop
@@ -415,7 +415,7 @@ initial begin
              1,         // push
              1,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip
              0,         // load_insn
              0,         // load_isr
@@ -443,7 +443,7 @@ initial begin
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip  IRQ=1 なら IP を更新しない
              1,         // load_insn
              0,         // load_isr
@@ -469,7 +469,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -494,7 +494,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     0,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     1,         // load_ip
                     0,         // load_isr
                     1,         // cpop
@@ -518,7 +518,7 @@ initial begin
                     0,         // push
                     0,         // load_stk
                     1,         // load_fp
-                    0,         // load_dp
+                    0,         // load_gp
                     0,         // load_ip
                     0,         // load_isr
                     0,         // cpop
@@ -550,7 +550,7 @@ task test_sig(
   input e_push,
   input e_load_stk,
   input e_load_fp,
-  input e_load_dp,
+  input e_load_gp,
   input e_load_ip,
   input e_load_insn,
   input e_load_isr,
@@ -574,7 +574,7 @@ begin
   `test_sig1(push);
   `test_sig1(load_stk);
   `test_sig1(load_fp);
-  `test_sig1(load_dp);
+  `test_sig1(load_gp);
   `test_sig1(load_ip);
   `test_sig1(load_insn);
   `test_sig1(load_isr);
@@ -600,7 +600,7 @@ begin
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip
              0,         // load_insn
              0,         // load_isr
@@ -622,7 +622,7 @@ begin
              0,         // push
              0,         // load_stk
              0,         // load_fp
-             0,         // load_dp
+             0,         // load_gp
              0,         // load_ip
              0,         // load_insn
              0,         // load_isr
@@ -649,7 +649,7 @@ begin
            0,         // push
            0,         // load_stk
            0,         // load_fp
-           0,         // load_dp
+           0,         // load_gp
            0,         // load_ip
            0,         // load_insn
            0,         // load_isr
@@ -676,7 +676,7 @@ begin
            0,         // push
            0,         // load_stk
            0,         // load_fp
-           0,         // load_dp
+           0,         // load_gp
            1,         // load_ip
            1,         // load_insn
            0,         // load_isr
@@ -702,7 +702,7 @@ task test_sig_phases(
   input e_push,
   input e_load_stk,
   input e_load_fp,
-  input e_load_dp,
+  input e_load_gp,
   input e_load_ip,
   input e_load_isr,
   input e_cpop,
@@ -719,7 +719,7 @@ begin
   @(negedge clk)
     if (~signals.phase_exec) $error("phase_exec must be 1");
     test_sig(e_imm_mask, e_src_a_sel, e_src_b_sel,
-             e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_dp, e_load_ip,
+             e_alu_sel, e_wr_stk1, e_pop, e_push, e_load_stk, e_load_fp, e_load_gp, e_load_ip,
              0 /* load_insn */, e_load_isr,
              e_cpop, e_cpush, e_byt, e_dmem_ren, e_dmem_wen,
              e_set_ien, e_clear_ien);

@@ -15,7 +15,7 @@ module signals(
   output push,
   output load_stk,
   output load_fp,
-  output load_dp,
+  output load_gp,
   output load_ip,
   output load_insn,
   output load_isr,
@@ -29,15 +29,15 @@ module signals(
   output pmem_wenh, pmem_wenl
 );
 
-logic src_a_fp, src_a_dp, src_a_ip, src_a_cstk;
+logic src_a_fp, src_a_gp, src_a_ip, src_a_cstk;
 
 assign src_a_sel = src_a_fp ? `SRCA_FP
-                   : src_a_dp ? `SRCA_DP
+                   : src_a_gp ? `SRCA_GP
                    : src_a_ip ? `SRCA_IP
                    : src_a_cstk ? `SRCA_CSTK
                    : `SRCA_STK0;
 assign src_a_fp = phase_half & (insn_src_a === `SRCA_FP) & ~irq_pend;
-assign src_a_dp = phase_half & (insn_src_a === `SRCA_DP) & ~irq_pend;
+assign src_a_gp = phase_half & (insn_src_a === `SRCA_GP) & ~irq_pend;
 assign src_a_ip = ~phase_half | (insn_src_a === `SRCA_IP) | irq_pend | (insn_call & phase_decode);
 assign src_a_cstk = phase_half & (insn_src_a === `SRCA_CSTK) & ~irq_pend;
 assign src_b_sel = irq_pend ? `SRCB_ISR : insn_src_b;
@@ -46,7 +46,7 @@ assign pop = (insn_pop & ~irq_pend) & phase_exec;
 assign push = (insn_push & ~irq_pend) & (insn_dmem_ren ? phase_rdmem : phase_exec);
 assign load_stk = (insn_stk & ~irq_pend) & (insn_dmem_ren ? phase_rdmem : phase_exec);
 assign load_fp = (insn_fp & ~irq_pend) & phase_exec;
-assign load_dp = (insn_dp & ~irq_pend) & phase_exec;
+assign load_gp = (insn_gp & ~irq_pend) & phase_exec;
 assign load_ip = reload_ip | (phase_fetch & ~irq /* not irq_pend */);
 assign load_insn = phase_fetch;
 assign load_isr = (insn_isr & ~irq_pend) & phase_exec;
@@ -69,7 +69,7 @@ signalizer signalizer(.*);
 logic [2:0] insn_src_a;
 logic [1:0] insn_src_b;
 logic [5:0] insn_alu_sel;
-logic insn_pop, insn_push, insn_stk, insn_fp, insn_dp, insn_ip, insn_isr,
+logic insn_pop, insn_push, insn_stk, insn_fp, insn_gp, insn_ip, insn_isr,
   insn_cpop, insn_cpush, insn_byt, insn_dmem_ren, insn_dmem_wen,
   insn_set_ien, insn_clear_ien, insn_call, insn_pmem_wenh, insn_pmem_wenl;
 decoder decoder(
@@ -84,7 +84,7 @@ decoder decoder(
   .push(insn_push),
   .load_stk(insn_stk),
   .load_fp(insn_fp),
-  .load_dp(insn_dp),
+  .load_gp(insn_gp),
   .load_ip(insn_ip),
   .load_isr(insn_isr),
   .cpop(insn_cpop),

@@ -95,7 +95,7 @@ void NewBackpatch(struct Backpatch *backpatches, int *num_backpatches,
 enum AddrBase {
   AB_ZERO,
   AB_FP,
-  AB_DP,
+  AB_GP,
   AB_RSVD,
 };
 
@@ -115,8 +115,8 @@ enum AddrBase ParseAddrOffset(char *opr, uint16_t *off, struct LabelAddr *labels
       ab = AB_ZERO;
     } else if (strcmp(opr, "fp") == 0) {
       ab = AB_FP;
-    } else if (strcmp(opr, "dp") == 0) {
-      ab = AB_DP;
+    } else if (strcmp(opr, "gp") == 0) {
+      ab = AB_GP;
     } else {
       ab = AB_RSVD;
     }
@@ -226,7 +226,7 @@ uint32_t GenLoadStoreImm(uint32_t insn, char *operand, uint16_t mask, struct Lab
 
 enum PopReg {
   POP_FP,
-  POP_DP,
+  POP_GP,
   POP_ISR,
 };
 
@@ -234,8 +234,8 @@ enum PopReg ParsePopReg(char *opr) {
   ToLower(opr);
   if (strcmp(opr, "fp") == 0) {
     return POP_FP;
-  } else if (strcmp(opr, "dp") == 0) {
-    return POP_DP;
+  } else if (strcmp(opr, "gp") == 0) {
+    return POP_GP;
   } else if (strcmp(opr, "isr") == 0) {
     return POP_ISR;
   }
