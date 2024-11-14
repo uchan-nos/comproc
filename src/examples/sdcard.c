@@ -663,9 +663,9 @@ int main() {
     lcd_putc('0' + (2 - i));
   }
   int (*f)() = 0x1000;
-  __builtin_set_dp(block_buf);
+  __builtin_set_gp(block_buf);
   int ret_code = f();
-  __builtin_set_dp(0x100);
+  __builtin_set_gp(0x100);
 
   lcd_cmd(0x94);
   int2hex(ret_code, buf, 4);
