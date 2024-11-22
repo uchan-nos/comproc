@@ -4,8 +4,8 @@ module mcu#(
   parameter CLOCK_HZ = 27_000_000,
   parameter UART_BAUD = 115200
 ) (
-  input rst, clk, uart_rx,
-  output uart_tx,
+  input rst, clk, uart_rx, uart2_rx,
+  output uart_tx, uart2_tx,
   output [`ADDR_WIDTH-1:0] dmem_addr,
   output dmem_wen, dmem_byt,
   input  [15:0] dmem_rdata_io, // メモリ読み込みデータ（IO 領域）
@@ -194,6 +194,34 @@ always @(posedge clk, posedge rst) begin
     uart_ie <= 1'b0;
   else if (cpu_dmem_wen && dmem_addr === `ADDR_WIDTH'h008)
     uart_ie <= dmem_wdata[1];
+end
+
+// MCU 内蔵周辺機能：UART2
+logic [7:0] uart2_rx_byte, uart2_tx_byte;
+logic uart2_rd, uart2_rx_full, uart2_wr, uart2_tx_ready, uart2_ie;
+
+uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(9600), .TIM_WIDTH(12)) uart2(
+  .rst(rst),
+  .clk(clk),
+  .rx(uart2_rx),
+  .tx(uart2_tx),
+  .rx_data(uart2_rx_byte),
+  .tx_data(uart2_tx_byte),
+  .rd(uart2_rd),
+  .rx_full(uart2_rx_full),
+  .wr(uart2_wr),
+  .tx_ready(uart2_tx_ready)
+);
+
+assign uart2_rd = cpu_dmem_ren & dmem_addr_d === `ADDR_WIDTH'h02C;
+assign uart2_wr = cpu_dmem_wen & dmem_addr === `ADDR_WIDTH'h02C;
+assign uart2_tx_byte = cpu_dmem_wdata[7:0];
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    uart2_ie <= 1'b0;
+  else if (cpu_dmem_wen && dmem_addr === `ADDR_WIDTH'h02E)
+    uart2_ie <= dmem_wdata[1];
 end
 
 // MCU 内蔵周辺機能：ADC
@@ -393,6 +421,8 @@ function [15:0] dmem_rdata_mux(
     `ADDR_WIDTH'h026:       return {15'd0, kbc_queue_len};
     `ADDR_WIDTH'h028:       return {8'd0, i2c_rx_data};
     `ADDR_WIDTH'h02A:       return {12'd0, i2c_rx_ack, i2c_cnd_stop, i2c_tx_ready, i2c_addr_rw};
+    `ADDR_WIDTH'h02C:       return {8'd0, uart2_rx_byte};
+    `ADDR_WIDTH'h02E:       return {13'd0, uart2_tx_ready, uart2_ie, uart2_rx_full};
     `ADDR_WIDTH'b1xxx_xxxx: return dmem_rdata_io;
     default:                return CLK_DIV >= 2 ? dmem_rdata_mem_d : dmem_rdata_mem;
   endcase
@@ -411,7 +441,7 @@ assign pmem_wenl = (img_recv_state == IMG_RECV_WAIT & cpu_pmem_wenl)
                  | (img_recv_state == IMG_RECV_PMEM & img_recv_addr < pmem_size);
 assign pmem_wdata = img_recv_state == IMG_RECV_PMEM ? recv_data : cpu_pmem_wdata;
 assign cpu_dmem_rdata = dmem_rdata_mux(dmem_addr_d, dmem_rdata_mem, dmem_rdata_io);
-assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie);
+assign cpu_irq  = (cdtimer_to & cdtimer_ie) | (uart_rx_ready & uart_ie) | (uart2_rx_full & uart2_ie);
 
 always @(posedge rst, posedge clk) begin
   if (rst)

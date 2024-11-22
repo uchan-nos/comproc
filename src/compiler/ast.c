@@ -697,7 +697,7 @@ struct Node *TypeSpec() {
     type->attr |= TYPE_ATTR_SIGNED;
   }
 
-  if (Consume('*')) {
+  while (Consume('*')) {
     struct Type *t = NewType(kTypePtr);
     t->base = type;
     type = t;

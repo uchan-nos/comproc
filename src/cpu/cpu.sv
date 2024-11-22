@@ -180,6 +180,12 @@ addr      説明
 01Eh-01Fh FLASH608K: DOUT high 16 bits
 020h-021h SPI シフトレジスタ（書き込みで送信開始）
 022h-023h SPI ステータスレジスタ（1: CS, 0: TX_READY）
+024h-025h KBC データキュー
+026h-027h KBC ステータス
+028h-029h I2C シフトレジスタ
+02Ah-02Bh I2C ステータスレジスタ
+02Ch-02Dh UART2 入出力（下位 1 バイトのみ有効）
+02Eh-02Fh UART2 設定
 080h      ドットマトリクス LED
 081h      キャラクタ LCD
 082h      GPIO

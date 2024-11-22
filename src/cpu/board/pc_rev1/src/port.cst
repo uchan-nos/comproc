@@ -17,9 +17,14 @@ IO_PORT "onboard_led[4]" IO_TYPE=LVCMOS18;
 IO_PORT "onboard_led[5]" IO_TYPE=LVCMOS18;
 
 IO_LOC "uart_rx" 54;
-IO_PORT "uart_rx" IO_TYPE=LVCMOS33;
+IO_PORT "uart_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 IO_LOC "uart_tx" 53;
-IO_PORT "uart_tx" IO_TYPE=LVCMOS33;
+IO_PORT "uart_tx" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
+
+IO_LOC "uart2_rx" 42;
+IO_PORT "uart2_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+IO_LOC "uart2_tx" 41;
+IO_PORT "uart2_tx" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
 
 IO_LOC "key_col_n[0]" 79;
 IO_LOC "key_col_n[1]" 80;
