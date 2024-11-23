@@ -91,8 +91,10 @@ void _ISR() {
   if (msmp_recv_index == 2) { // len
     msmp_recv_len = buf[msmp_recv_index] + 2;
   }
-  if (msmp_recv_index == msmp_recv_len || dat == 0) {
-    if (dat == 0) { // 強制フレーム復帰信号
+
+  int recv_all = msmp_recv_index == msmp_recv_len;
+  if (recv_all || dat == 0) {
+    if (!recv_all) { // 強制フレーム復帰信号による受信中止だった
       msmp_recv_index |= 0x80;
     }
     *buf = msmp_recv_index;
