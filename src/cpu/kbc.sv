@@ -153,7 +153,7 @@ function [6:0] keypos_to_scancode(input [2:0] row, input [2:0] col);
     6'b111_010: return 7'h2E; // .
     6'b111_011: return 7'h2F; // /
     6'b111_100: return 7'h5F; // \ SW40 _
-    6'b111_101: return 7'h1C; // Left   US
+    6'b111_101: return 7'h1F; // Left   US
     6'b111_110: return 7'h1D; // Down   GS
     6'b111_111: return 7'h1E; // Right  RS
   endcase

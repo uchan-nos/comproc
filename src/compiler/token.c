@@ -139,8 +139,9 @@ static struct Token *NextToken(char *src) {
     ++p;
     while (*p != '\'') {
       if (p[0] == '\\') {
-        value = (value << 8) + DecodeEscape(p[1]);
-        p += 2;
+        int i = 0;
+        value = (value << 8) + DecodeEscape(p, &i);
+        p += i;
       } else {
         value = (value << 8) + *p;
         ++p;
@@ -236,18 +237,43 @@ struct Token *Expect(int kind) {
   return tk;
 }
 
-char DecodeEscape(char c) {
-  switch (c) {
-  case '0': return '\0';
-  case 'a': return '\a';
-  case 'b': return '\b';
-  case 't': return '\t';
-  case 'n': return '\n';
-  case 'v': return '\v';
-  case 'f': return '\f';
-  case 'r': return '\r';
-  default: return c;
+int DecodeHex(char *hex_digit) {
+  char c = *hex_digit;
+  if ('0' <= c && c <= '9') {
+    return c - '0';
   }
+  if (c >= 'a') {
+    c -= 0x20;
+  }
+  if ('A' <= c && c <= 'F') {
+    return c - 'A' + 10;
+  }
+
+  fprintf(stderr, "Invalid hex digit\n");
+  Locate(hex_digit);
+  exit(1);
+}
+
+char DecodeEscape(char *s, int *i) {
+  int n = 2;
+  int v = 0;
+  switch (s[*i + 1]) {
+  case '0': v = '\0'; break;
+  case 'a': v = '\a'; break;
+  case 'b': v = '\b'; break;
+  case 't': v = '\t'; break;
+  case 'n': v = '\n'; break;
+  case 'v': v = '\v'; break;
+  case 'f': v = '\f'; break;
+  case 'r': v = '\r'; break;
+  case 'x':
+    v = (DecodeHex(s + *i + 2) << 4) | DecodeHex(s + *i + 3);
+    n = 4;
+    break;
+  default:  v = s[*i + 1];
+  }
+  *i += n;
+  return v;
 }
 
 int DecodeStringLiteral(char *buf, int size, struct Token *tok) {
@@ -256,12 +282,12 @@ int DecodeStringLiteral(char *buf, int size, struct Token *tok) {
   }
 
   int bufi = 0;
-  for (int i = 1; i < tok->len - 1 && bufi < size; i++, bufi++) {
+  for (int i = 1; i < tok->len - 1 && bufi < size; bufi++) {
     if (tok->raw[i] == '\\') {
-      i++;
-      buf[bufi] = DecodeEscape(tok->raw[i]);
+      buf[bufi] = DecodeEscape(tok->raw, &i);
     } else {
       buf[bufi] = tok->raw[i];
+      i++;
     }
   }
   return bufi;

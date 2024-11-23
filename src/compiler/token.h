@@ -53,5 +53,5 @@ struct Token *NewToken(int kind, char *raw, size_t len);
 void Tokenize(char *src);
 struct Token *Consume(int kind);
 struct Token *Expect(int kind);
-char DecodeEscape(char c);
+char DecodeEscape(char *s, int *i);
 int DecodeStringLiteral(char *buf, int size, struct Token *tok);

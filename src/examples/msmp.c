@@ -211,7 +211,7 @@ void proc_cmd(char *cmd) {
     }
   } else if (strncmp(cmd, "set greet ", 10) == 0) {
     strcpy(greet_body, cmd + 10);
-  } else if (strncmp(cmd, "show greet", 10) == 0) {
+  } else if (strncmp(cmd, "show greet", 11) == 0) {
     lcd_cmd(0x94);
     for (i = 0; greet_body[i] && i < 20; ++i) {
       lcd_putc(greet_body[i]);
@@ -220,6 +220,21 @@ void proc_cmd(char *cmd) {
     for (i; greet_body[i] && i < 40; ++i) {
       lcd_putc(greet_body[i]);
     }
+  } else if (strncmp(cmd, "help", 5) == 0) {
+    lcd_cmd(0x94);
+    lcd_puts("greet DST           ");
+    lcd_cmd(0xd4);
+    lcd_puts("send DST MSG       \x7e");
+    while (get_key() != '\x1e'); // ‰E–îˆó‚ð‘Ò‚Â
+    lcd_cmd(0x94);
+    lcd_puts("set greet MSG       ");
+    lcd_cmd(0xd4);
+    lcd_puts("show greet         \x7e");
+    while (get_key() != '\x1e'); // ‰E–îˆó‚ð‘Ò‚Â
+    lcd_cmd(0x94);
+    lcd_puts("help                ");
+    lcd_cmd(0xd4);
+    lcd_puts("                    ");
   } else {
     lcd_cmd(0x94);
     lcd_puts("Unknown cmd");
@@ -227,6 +242,17 @@ void proc_cmd(char *cmd) {
     for (i = 0; cmd[i] && i < 20; ++i) {
       lcd_putc(cmd[i]);
     }
+  }
+}
+
+void play_sound(int pulse_width, int pulse_count) {
+  int i;
+  int j;
+  for (i = 0; i < pulse_count; i++) {
+    gpio |= 0x40;
+    for (j = 0; j < pulse_width; j++);
+    gpio &= 0xbf;
+    for (j = 0; j < pulse_width; j++);
   }
 }
 
@@ -259,6 +285,7 @@ int main() {
     }
 
     if (msmp_buf) {
+      play_sound(1000, 20);
       lcd_cmd(0x80);
 
       unsigned int addr_byte = msmp_buf[1];
@@ -273,10 +300,8 @@ int main() {
       lcd_putc(buf[0]);
       lcd_putc(0x7e); // ‰E–îˆó
       lcd_putc(buf[1]);
-      lcd_puts(" t=");
+      lcd_puts(" L=");
 
-      lcd_putc('0' + (len_byte >> 6));
-      lcd_puts(" l=");
       int2hex(len_byte, buf, 2);
       lcd_putc(buf[0]);
       lcd_putc(buf[1]);
@@ -285,14 +310,13 @@ int main() {
       unsigned int dst = addr_byte >> 4;
       unsigned int src = addr_byte & 0xF;
       if (src == my_addr) {
-        lcd_puts("LAP");
+        lcd_puts("ÓÄÞ¯Ã·À");
       } else if (dst == my_addr) {
-        lcd_putc(0x7e);
-        lcd_puts("ME");
+        lcd_putc("ÜÀ¼ ±Ã ");
       } else if (dst == 15) {
-        lcd_puts("BC ");
+        lcd_puts("ÐÝÅ ±Ã ");
       } else {
-        lcd_puts("FW ");
+        lcd_puts("ÃÝ¿³ ½Ù");
       }
       lcd_cmd(0xC0);
 
@@ -339,6 +363,7 @@ int main() {
       }
 
       if (key == '\n') { // Enter
+        play_sound(200, 100);
         if (cmd_i > 0) {
           cmd[cmd_i] = '\0';
           proc_cmd(cmd);
