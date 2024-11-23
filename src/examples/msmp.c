@@ -53,11 +53,6 @@ void lcd_puts(char *s) {
   }
 }
 
-unsigned int recv_byte() {
-  while ((uart2_flag & 0x01) == 0);
-  return uart2_data;
-}
-
 void send_byte(int data) {
   while ((uart2_flag & 0x04) == 0);
   uart2_data = data;
@@ -67,6 +62,42 @@ void send_str(char *s) {
   while (*s) {
     delay_ms(20);
     send_byte(*s++);
+  }
+}
+
+// MSMP 受信バッファ
+// 先頭 1 バイトは管理フラグ
+//   0000 0000: バッファは空か、受信中
+//   0  len7  : バッファには有効なメッセージがある
+//   1  len7  : 強制フレーム復帰信号で受信が中止された
+unsigned char msmp_buf1[66];
+unsigned char msmp_buf2[66];
+int msmp_recv_index;
+int msmp_recv_len = 65;
+
+void _ISR() {
+  unsigned char *buf;
+  if (*msmp_buf1 == 0) {
+    buf = msmp_buf1;
+  } else if (*msmp_buf2 == 0) {
+    buf = msmp_buf2;
+  } else {
+    return;
+  }
+
+  unsigned char dat = uart2_data;
+  ++msmp_recv_index;
+  buf[msmp_recv_index] = dat;
+  if (msmp_recv_index == 2) { // len
+    msmp_recv_len = buf[msmp_recv_index] + 2;
+  }
+  if (msmp_recv_index == msmp_recv_len || dat == 0) {
+    if (dat == 0) { // 強制フレーム復帰信号
+      msmp_recv_index |= 0x80;
+    }
+    *buf = msmp_recv_index;
+    msmp_recv_index = 0;
+    msmp_recv_len = 65;
   }
 }
 
@@ -144,14 +175,66 @@ void strcpy(char *dst, char *src) {
   *dst = 0;
 }
 
+char greet_body[64];
+int my_addr = 5;
+char *node_names[16]; // node_names[ADDR] = NAME
+
+void proc_cmd(char *cmd) {
+  int i;
+  if (strncmp(cmd, "greet ", 6) == 0) {
+    char *msg = greet_body;
+    char *endptr;
+    int dst_addr = strtoi(cmd + 6, &endptr, 10);
+    char *dst_name = node_names[dst_addr];
+
+    send_byte((dst_addr << 4) | my_addr);
+    delay_ms(20);
+    if (*endptr == ' ') {
+      msg = endptr + 1;
+    }
+    send_byte(6 + strlen(dst_name) + 2 + strlen(msg));
+    send_str("Hello ");
+    send_str(dst_name);
+    send_str("! ");
+    send_str(msg);
+  } else if (strncmp(cmd, "send ", 5) == 0) {
+    char *endptr;
+    int dst_addr = strtoi(cmd + 5, &endptr, 10);
+    if (*endptr == ' ') {
+      char *msg = endptr + 1;
+      send_byte((dst_addr << 4) | my_addr);
+      delay_ms(20);
+      send_byte(strlen(msg));
+      send_str(msg);
+    }
+  } else if (strncmp(cmd, "set greet ", 10) == 0) {
+    strcpy(greet_body, cmd + 10);
+  } else if (strncmp(cmd, "show greet", 10) == 0) {
+    lcd_cmd(0x94);
+    for (i = 0; greet_body[i] && i < 20; ++i) {
+      lcd_putc(greet_body[i]);
+    }
+    lcd_cmd(0xd4);
+    for (i; greet_body[i] && i < 40; ++i) {
+      lcd_putc(greet_body[i]);
+    }
+  } else {
+    lcd_cmd(0x94);
+    lcd_puts("Unknown cmd");
+    lcd_cmd(0xd4);
+    for (i = 0; cmd[i] && i < 20; ++i) {
+      lcd_putc(cmd[i]);
+    }
+  }
+}
+
 int main() {
   int i;
-  int my_addr = 5;
   int to_addr = 8;
   char buf[5];
-  char greet_body[64];
 
-  char *node_names[16]; // node_names[ADDR] = NAME
+  asm("push _ISR\n\tpop isr");
+  uart2_flag = 2; // enable interrupt
 
   strcpy(greet_body, "This is ComProc");
 
@@ -163,152 +246,128 @@ int main() {
   led_port = 0;
   int caps = 0;
   int shift = 0;
+  char cmd[80];
+  int cmd_i = 0;
   while (1) {
-    if (uart2_flag & 0x01) { // rx full
-      lcd_cmd(0x01); // clear
+    unsigned char *msmp_buf = 0;
+    if (*msmp_buf1) {
+      msmp_buf = msmp_buf1;
+    } else if (*msmp_buf2) {
+      msmp_buf = msmp_buf2;
+    }
 
-      unsigned int addr_byte = recv_byte();
+    if (msmp_buf) {
+      lcd_cmd(0x80);
+
+      unsigned int addr_byte = msmp_buf[1];
+      unsigned int len_byte = msmp_buf[2];
       int2hex(addr_byte, buf, 2);
-      lcd_puts("MSG:d=");
+      lcd_puts("MSG");
+      if (*msmp_buf & 0x80) {
+        lcd_putc('!');
+      } else {
+        lcd_putc(':');
+      }
       lcd_putc(buf[0]);
-      lcd_puts(" s=");
+      lcd_putc(0x7e); // 右矢印
       lcd_putc(buf[1]);
       lcd_puts(" t=");
 
-      unsigned int len_byte = recv_byte();
       lcd_putc('0' + (len_byte >> 6));
       lcd_puts(" l=");
       int2hex(len_byte, buf, 2);
       lcd_putc(buf[0]);
       lcd_putc(buf[1]);
-      lcd_cmd(0xC0);
+      lcd_putc(' ');
 
       unsigned int dst = addr_byte >> 4;
       unsigned int src = addr_byte & 0xF;
-      if (src == my_addr) { // 自分が送ったメッセージが 1 周した
-        lcd_puts("CIRCLED");
-        // 読み捨てる
-        for (i = 0; i < len_byte; ++i) {
-          recv_byte();
-        }
+      if (src == my_addr) {
+        lcd_puts("LAP");
+      } else if (dst == my_addr) {
+        lcd_putc(0x7e);
+        lcd_puts("ME");
+      } else if (dst == 15) {
+        lcd_puts("BC ");
       } else {
-        if (dst == 15 | dst == my_addr) { // 自分宛てメッセージを受け取った
-          for (i = 0; i < len_byte; ++i) {
-            lcd_putc(recv_byte());
-          }
-        }
-        if (dst == my_addr) { // 返信する
-          char *to_name = node_names[src];
-          char *msg = "Reply from ComProc!";
-          send_byte((src << 4) | my_addr);
-          send_byte(6 + strlen(to_name) + 2 + strlen(msg));
-          send_str("Hello ");
-          send_str(to_name);
-          send_str("! ");
-          send_str(msg);
-        } else { // 次ノードへ転送
-          lcd_puts("FORWARDING");
-          send_byte(addr_byte);
-          send_byte(len_byte);
-          for (i = 0; i < len_byte; ++i) {
-            send_byte(recv_byte());
-          }
-        }
+        lcd_puts("FW ");
       }
-    } else if (kbc_status & 0xff) {
-      lcd_cmd(0x01); // クリア
+      lcd_cmd(0xC0);
 
-      char cmd[80];
-      int key;
-      i = 0;
-      while ((key = get_key()) != '\n') {
-        if (key == '\b') {
-          if (i > 0) {
-            i--;
-            lcd_cmd(0x80 + i);
-            lcd_putc(' ');
-            lcd_cmd(0x80 + i);
-          }
-        } else if (key == 0x0E) { // Shift
-          shift = 1;
-          led_port |= 0x02;
-        } else if (key == 0x8E) { // Shift (break)
-          shift = 0;
-          led_port &= 0xfd;
-        } else if (key == 0x0F) { // Caps
-          caps = !caps;
-          led_port = (led_port & 0xfe) | caps;
-        } else if (0x20 <= key & key < 0x80) {
-          if ('A' <= key && key <= 'Z' && (caps ^ shift) == 0) {
-            key += 0x20;
-          }
-          cmd[i++] = key;
-          lcd_putc(key);
-        }
+      int body_len = len_byte & 0x3f;
+      if (*msmp_buf & 0x80) {
+        body_len = (*msmp_buf & 0x7f) - 2;
       }
-      cmd[i] = 0;
+      for (i = 0; i < body_len && i < 20; ++i) {
+        lcd_putc(msmp_buf[3 + i]);
+      }
+      for (; i < 20; ++i) {
+        lcd_putc(' ');
+      }
 
-      if (strncmp(cmd, "greet ", 6) == 0) {
-        char *msg = greet_body;
-        char *endptr;
-        int dst_addr = strtoi(cmd + 6, &endptr, 10);
-        char *dst_name = node_names[dst_addr];
-
-        send_byte((dst_addr << 4) | my_addr);
-        delay_ms(20);
-        if (*endptr == ' ') {
-          msg = endptr + 1;
-        }
-        send_byte(6 + strlen(dst_name) + 2 + strlen(msg));
+      if (dst == my_addr) { // 自分宛てメッセージに返信
+        char *to_name = node_names[src];
+        char *msg = "Reply from ComProc!";
+        send_byte((src << 4) | my_addr);
+        send_byte(6 + strlen(to_name) + 2 + strlen(msg));
         send_str("Hello ");
-        send_str(dst_name);
+        send_str(to_name);
         send_str("! ");
         send_str(msg);
-      } else if (strncmp(cmd, "send ", 5) == 0) {
-        char *endptr;
-        int dst_addr = strtoi(cmd + 5, &endptr, 10);
-        if (*endptr == ' ') {
-          char *msg = endptr + 1;
-          send_byte((dst_addr << 4) | my_addr);
-          delay_ms(20);
-          send_byte(strlen(msg));
-          send_str(msg);
+      } else { // 自分宛てではないので次ノードへ転送
+        send_byte(addr_byte);
+        send_byte(len_byte);
+        for (i = 0; i < len_byte; ++i) {
+          send_byte(msmp_buf[i + 3]);
         }
-      } else if (strncmp(cmd, "set greet ", 10) == 0) {
-        strcpy(greet_body, cmd + 10);
-      } else if (strncmp(cmd, "show greet", 10) == 0) {
-        lcd_cmd(0xc0);
-        for (i = 0; greet_body[i] && i < 20; ++i) {
-          lcd_putc(greet_body[i]);
-        }
+      }
+      *msmp_buf = 0;
+    } else if (kbc_status & 0xff) {
+      int key = kbc_queue;
+      if (cmd_i == 0 && key < 0x80) {
+        int i;
         lcd_cmd(0x94);
-        for (i; greet_body[i] && i < 40; ++i) {
-          lcd_putc(greet_body[i]);
+        for (i = 0; i < 20; ++i) {
+          lcd_putc(' ');
         }
         lcd_cmd(0xd4);
-        for (i; greet_body[i] && i < 60; ++i) {
-          lcd_putc(greet_body[i]);
+        for (i = 0; i < 20; ++i) {
+          lcd_putc(' ');
         }
-      } else {
-        lcd_cmd(0xc0);
-        lcd_puts("Unknown cmd");
       }
 
-      get_key(); // Enter リリースを読み飛ばす
+      if (key == '\n') { // Enter
+        if (cmd_i > 0) {
+          cmd[cmd_i] = '\0';
+          proc_cmd(cmd);
+        }
+        cmd_i = 0;
+      } else if (key == '\b') {
+        if (cmd_i > 0) {
+          cmd_i--;
+          lcd_cmd(0x94 + cmd_i);
+          lcd_putc(' ');
+          lcd_cmd(0x94 + cmd_i);
+        }
+      } else if (key == 0x0E) { // Shift
+        shift = 1;
+        led_port |= 0x02;
+      } else if (key == 0x8E) { // Shift (break)
+        shift = 0;
+        led_port &= 0xfd;
+      } else if (key == 0x0F) { // Caps
+        caps = !caps;
+        led_port = (led_port & 0xfe) | caps;
+      } else if (0x20 <= key & key < 0x80) {
+        if ('A' <= key && key <= 'Z' && (caps ^ shift) == 0) {
+          key += 0x20;
+        }
+        lcd_cmd(0x94 + cmd_i);
+        lcd_putc(key);
+        cmd[cmd_i++] = key;
+      }
     }
   }
-
-  /*
-  send_byte((to_addr << 4) | my_addr);
-  delay_ms(20);
-  send_byte(7);
-  int i;
-  for (i = 0; i < 7; ++i) {
-    delay_ms(20);
-    send_byte("ComProc"[i]);
-  }
-  delay_ms(2000);
-  */
 
   return 0;
 }
