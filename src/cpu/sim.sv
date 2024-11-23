@@ -48,7 +48,7 @@ assign cur_uart_in = uart_in[uart_index];
 logic rst, clk;
 mcu#(.CLOCK_HZ(CLOCK_HZ), .UART_BAUD(UART_BAUD)) mcu(
   .*,
-  .uart_rx(mcu_uart_rx), .uart_tx(mcu_uart_tx),
+  .uart_rx(mcu_uart_rx), .uart2_rx(1'b1), .uart_tx(mcu_uart_tx), .uart2_tx(),
   .uart_recv_data(), .img_pmem_size(),
   .clk125(1'b0), .adc_cmp(1'b0), .adc_sh_ctl(), .adc_dac_pwm(),
   .uf_xadr(), .uf_yadr(),
