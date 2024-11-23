@@ -34,13 +34,13 @@ void lcd_init() {
   lcd_out4(0, 3);
   lcd_out4(0, 2);
 
-  // ã“ã“ã‹ã‚‰ 4 ãƒ“ãƒƒãƒˆãƒ¢ãƒ¼ãƒ‰
+  // ‚±‚±‚©‚ç 4 ƒrƒbƒgƒ‚[ƒh
   lcd_cmd(0x28);
   lcd_cmd(0x0f);
   lcd_cmd(0x06);
   lcd_cmd(0x01);
 
-  gpio = 0x80; // ãƒãƒƒã‚¯ãƒ©ã‚¤ãƒˆç‚¹ç¯
+  gpio = 0x80; // ƒoƒbƒNƒ‰ƒCƒg“_“”
 }
 
 void lcd_putc(int ch) {
@@ -65,11 +65,11 @@ void send_str(char *s) {
   }
 }
 
-// MSMP å—ä¿¡ãƒãƒƒãƒ•ã‚¡
-// å…ˆé ­ 1 ãƒã‚¤ãƒˆã¯ç®¡ç†ãƒ•ãƒ©ã‚°
-//   0000 0000: ãƒãƒƒãƒ•ã‚¡ã¯ç©ºã‹ã€å—ä¿¡ä¸­
-//   0  len7  : ãƒãƒƒãƒ•ã‚¡ã«ã¯æœ‰åŠ¹ãªãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ãŒã‚ã‚‹
-//   1  len7  : å¼·åˆ¶ãƒ•ãƒ¬ãƒ¼ãƒ å¾©å¸°ä¿¡å·ã§å—ä¿¡ãŒä¸­æ­¢ã•ã‚ŒãŸ
+// MSMP óMƒoƒbƒtƒ@
+// æ“ª 1 ƒoƒCƒg‚ÍŠÇ—ƒtƒ‰ƒO
+//   0000 0000: ƒoƒbƒtƒ@‚Í‹ó‚©AóM’†
+//   0  len7  : ƒoƒbƒtƒ@‚É‚Í—LŒø‚ÈƒƒbƒZ[ƒW‚ª‚ ‚é
+//   1  len7  : ‹­§ƒtƒŒ[ƒ€•œ‹AM†‚ÅóM‚ª’†~‚³‚ê‚½
 unsigned char msmp_buf1[66];
 unsigned char msmp_buf2[66];
 int msmp_recv_index;
@@ -94,7 +94,7 @@ void _ISR() {
 
   int recv_all = msmp_recv_index == msmp_recv_len;
   if (recv_all || dat == 0) {
-    if (!recv_all) { // å¼·åˆ¶ãƒ•ãƒ¬ãƒ¼ãƒ å¾©å¸°ä¿¡å·ã«ã‚ˆã‚‹å—ä¿¡ä¸­æ­¢ã ã£ãŸ
+    if (!recv_all) { // ‹­§ƒtƒŒ[ƒ€•œ‹AM†‚É‚æ‚éóM’†~‚¾‚Á‚½
       msmp_recv_index |= 0x80;
     }
     *buf = msmp_recv_index;
@@ -271,7 +271,7 @@ int main() {
         lcd_putc(':');
       }
       lcd_putc(buf[0]);
-      lcd_putc(0x7e); // å³çŸ¢å°
+      lcd_putc(0x7e); // ‰E–îˆó
       lcd_putc(buf[1]);
       lcd_puts(" t=");
 
@@ -307,7 +307,7 @@ int main() {
         lcd_putc(' ');
       }
 
-      if (dst == my_addr) { // è‡ªåˆ†å®›ã¦ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã«è¿”ä¿¡
+      if (dst == my_addr) { // ©•ªˆ¶‚ÄƒƒbƒZ[ƒW‚É•ÔM
         char *to_name = node_names[src];
         char *msg = "Reply from ComProc!";
         send_byte((src << 4) | my_addr);
@@ -316,7 +316,7 @@ int main() {
         send_str(to_name);
         send_str("! ");
         send_str(msg);
-      } else { // è‡ªåˆ†å®›ã¦ã§ã¯ãªã„ã®ã§æ¬¡ãƒãƒ¼ãƒ‰ã¸è»¢é€
+      } else { // ©•ªˆ¶‚Ä‚Å‚Í‚È‚¢‚Ì‚ÅŸƒm[ƒh‚Ö“]‘—
         send_byte(addr_byte);
         send_byte(len_byte);
         for (i = 0; i < len_byte; ++i) {
