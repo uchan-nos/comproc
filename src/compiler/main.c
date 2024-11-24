@@ -1019,7 +1019,7 @@ int main(int argc, char **argv) {
     while (tk_str->kind == kTokenString) {
       int len = DecodeStringLiteral(buf, sizeof(buf), tk_str);
       for (int i = 0; i < len; i++) {
-        fprintf(output_file, "0x%02x,", buf[i]);
+        fprintf(output_file, "0x%02x,", buf[i] & 0xff);
       }
       tk_str = tk_str->next;
     }

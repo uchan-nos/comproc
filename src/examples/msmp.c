@@ -1,5 +1,6 @@
 // MSMP: Make-cpu Simple Messaging Protocol
 unsigned int tim_cnt __attribute__((at(0x02)));
+unsigned int adc_result __attribute__((at(0x0A)));
 unsigned int kbc_queue __attribute__((at(0x24)));
 unsigned int kbc_status __attribute__((at(0x26)));
 unsigned int uart2_data __attribute__((at(0x2C)));
@@ -63,6 +64,12 @@ void send_str(char *s) {
     delay_ms(20);
     send_byte(*s++);
   }
+}
+
+void send_head(unsigned char addr, unsigned char len) {
+  send_byte(addr);
+  delay_ms(20);
+  send_byte(len);
 }
 
 // MSMP 受信バッファ
@@ -189,12 +196,10 @@ void proc_cmd(char *cmd) {
     int dst_addr = strtoi(cmd + 6, &endptr, 10);
     char *dst_name = node_names[dst_addr];
 
-    send_byte((dst_addr << 4) | my_addr);
-    delay_ms(20);
     if (*endptr == ' ') {
       msg = endptr + 1;
     }
-    send_byte(6 + strlen(dst_name) + 2 + strlen(msg));
+    send_head((dst_addr << 4) | my_addr, 6 + strlen(dst_name) + 2 + strlen(msg));
     send_str("Hello ");
     send_str(dst_name);
     send_str("! ");
@@ -204,9 +209,7 @@ void proc_cmd(char *cmd) {
     int dst_addr = strtoi(cmd + 5, &endptr, 10);
     if (*endptr == ' ') {
       char *msg = endptr + 1;
-      send_byte((dst_addr << 4) | my_addr);
-      delay_ms(20);
-      send_byte(strlen(msg));
+      send_head((dst_addr << 4) | my_addr, strlen(msg));
       send_str(msg);
     }
   } else if (strncmp(cmd, "set greet ", 10) == 0) {
@@ -260,16 +263,36 @@ int main() {
   int i;
   int to_addr = 8;
   char buf[5];
+  char default_node_name[32];
 
   asm("push _ISR\n\tpop isr");
   uart2_flag = 2; // enable interrupt
 
   strcpy(greet_body, "This is ComProc");
 
+  for (i = 0; i < 16; ++i) {
+    char *p = default_node_name + 2*i;
+    int2hex(i, p, 1);
+    p[1] = 0;
+    node_names[i] = p;
+  }
   node_names[my_addr] = "ComProc";
   node_names[8] = "NLP-16A";
 
   lcd_init();
+  // NUL文字のフォントを転送
+  // 0  * _ _ * _
+  // 1  * * _ * _
+  // 2  * _ * * _
+  // 3  * _ _ * _
+  // 4  _ * _ _ _
+  // 5  _ * _ _ _
+  // 6  _ * _ _ _
+  // 7  _ * * * _
+  lcd_cmd(0x40);
+  for (i = 0; i < 8; ++i) {
+    lcd_putc("\x12\x1a\x16\x12\x08\x08\x08\x0e"[i]);
+  }
 
   led_port = 0;
   int caps = 0;
@@ -312,7 +335,7 @@ int main() {
       if (src == my_addr) {
         lcd_puts("ﾓﾄﾞｯﾃｷﾀ");
       } else if (dst == my_addr) {
-        lcd_putc("ﾜﾀｼ ｱﾃ ");
+        lcd_puts("ﾜﾀｼ ｱﾃ ");
       } else if (dst == 15) {
         lcd_puts("ﾐﾝﾅ ｱﾃ ");
       } else {
@@ -332,18 +355,28 @@ int main() {
       }
 
       if (dst == my_addr) { // 自分宛てメッセージに返信
-        char *to_name = node_names[src];
-        char *msg = "Reply from ComProc!";
-        send_byte((src << 4) | my_addr);
-        send_byte(6 + strlen(to_name) + 2 + strlen(msg));
-        send_str("Hello ");
-        send_str(to_name);
-        send_str("! ");
-        send_str(msg);
+        if (body_len == 3 && strncmp(msmp_buf + 3, "ADC", 3) == 0) {
+          send_head((src << 4) | my_addr, 2);
+          int2hex(adc_result, buf, 2);
+          buf[2] = '\0';
+          send_str(buf);
+
+          lcd_cmd(0xc3);
+          lcd_putc(0x7e);
+          lcd_puts(buf);
+        } else {
+          char *to_name = node_names[src];
+          char *msg = "Reply from ComProc!";
+          send_head((src << 4) | my_addr, 6 + strlen(to_name) + 2 + strlen(msg));
+          send_str("Hello ");
+          send_str(to_name);
+          send_str("! ");
+          send_str(msg);
+        }
       } else { // 自分宛てではないので次ノードへ転送
-        send_byte(addr_byte);
-        send_byte(len_byte);
+        send_head(addr_byte, len_byte);
         for (i = 0; i < len_byte; ++i) {
+          delay_ms(20);
           send_byte(msmp_buf[i + 3]);
         }
       }
