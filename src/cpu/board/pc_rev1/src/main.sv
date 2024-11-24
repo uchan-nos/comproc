@@ -126,7 +126,7 @@ mcu mcu(
   .uart_recv_data(cpu_uart_recv_data),
   .img_pmem_size(img_pmem_size),
   .clk125(clk125),
-  .adc_cmp(adc_cmp),
+  .adc_cmp(~adc_cmp),
   .adc_sh_ctl(adc_sh_ctl),
   .adc_dac_pwm(adc_dac_pwm),
   .uf_xadr(uf_xadr),
