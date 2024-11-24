@@ -321,9 +321,21 @@ int main() {
       } else {
         lcd_putc(':');
       }
-      lcd_putc(buf[0]);
-      lcd_putc(0x7e); // ‰E–îˆó
-      lcd_putc(buf[1]);
+      lcd_putc(buf[1]); // src
+      lcd_putc(0x7e);   // ‰E–îˆó
+      lcd_putc(buf[0]); // dst
+
+      unsigned int dst = addr_byte >> 4;
+      unsigned int src = addr_byte & 0xF;
+      if (src == my_addr) {
+        lcd_puts("[²¯¼­³ ]");
+      } else if (dst == my_addr) {
+        lcd_puts("[ÜÀ¼ ±Ã]");
+      } else if (dst == 15) {
+        lcd_puts("[ÐÝÅ ±Ã]");
+      } else {
+        lcd_puts("[ ÃÝ¿³ ]");
+      }
       lcd_puts(" L=");
 
       int2hex(len_byte, buf, 2);
@@ -331,17 +343,6 @@ int main() {
       lcd_putc(buf[1]);
       lcd_putc(' ');
 
-      unsigned int dst = addr_byte >> 4;
-      unsigned int src = addr_byte & 0xF;
-      if (src == my_addr) {
-        lcd_puts("ÓÄÞ¯Ã·À");
-      } else if (dst == my_addr) {
-        lcd_puts("ÜÀ¼ ±Ã ");
-      } else if (dst == 15) {
-        lcd_puts("ÐÝÅ ±Ã ");
-      } else {
-        lcd_puts("ÃÝ¿³ ½Ù");
-      }
       lcd_cmd(0xC0);
 
       int body_len = len_byte & 0x3f;
