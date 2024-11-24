@@ -276,6 +276,7 @@ int main() {
     p[1] = 0;
     node_names[i] = p;
   }
+  node_names[4] = "MNP004";
   node_names[my_addr] = "ComProc";
   node_names[8] = "NLP-16A";
 
@@ -364,7 +365,7 @@ int main() {
           lcd_cmd(0xc3);
           lcd_putc(0x7e);
           lcd_puts(buf);
-        } else {
+        } else if (body_len >= 1 && msmp_buf[3] == 'H') {
           char *to_name = node_names[src];
           char *msg = "Reply from ComProc!";
           send_head((src << 4) | my_addr, 6 + strlen(to_name) + 2 + strlen(msg));
