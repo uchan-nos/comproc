@@ -1,4 +1,7 @@
 // MSMP: Make-cpu Simple Messaging Protocol
+unsigned int pmem_len;
+unsigned int dmem_len;
+
 unsigned int tim_cnt __attribute__((at(0x02)));
 unsigned int adc_result __attribute__((at(0x0A)));
 unsigned int kbc_queue __attribute__((at(0x24)));
@@ -265,7 +268,7 @@ int main() {
   char buf[5];
   char default_node_name[32];
 
-  asm("push _ISR\n\tpop isr");
+  asm("push _ISR\n\tpush 0x2000\n\tadd\n\tpop isr");
   uart2_flag = 2; // enable interrupt
 
   strcpy(greet_body, "This is ComProc");
@@ -281,6 +284,7 @@ int main() {
   node_names[8] = "NLP-16A";
 
   lcd_init();
+  lcd_puts("MSMP sample program");
   // NUL•¶Žš‚ÌƒtƒHƒ“ƒg‚ð“]‘—
   // 0  * _ _ * _
   // 1  * * _ * _

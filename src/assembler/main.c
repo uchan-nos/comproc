@@ -712,6 +712,33 @@ int main(int argc, char **argv) {
   }
 
   if (exe_file) {
+    // 先頭に pmem_len と dmem_len があることを確かめる
+    for (int i = 0; i < 4; ++i) {
+      if (dmem[i] != 0) {
+        fprintf(stderr, "first 4 bytes of dmem must be zero\n");
+        exit(1);
+      }
+    }
+    int has_pl = 0, has_dl = 0;
+    for (int i = 0; i < num_labels; ++i) {
+      if (strcmp(labels[i].label, "pmem_len") == 0) {
+        if (labels[i].addr != 0x00) {
+          fprintf(stderr, "pmem_len must be placed at 0x0000\n");
+          exit(1);
+        }
+        has_pl = 1;
+      } else if (strcmp(labels[i].label, "dmem_len") == 0) {
+        if (labels[i].addr != 0x02) {
+          fprintf(stderr, "dmem_len must be placed at 0x0002\n");
+          exit(1);
+        }
+        has_dl = 1;
+      }
+    }
+    if (!has_pl | !has_dl) {
+      fprintf(stderr, "app mode needs pmem_len & dmem_len at the beginning of .data\n");
+      exit(1);
+    }
     dmem[0] = num_insn & 0xff;
     dmem[1] = (num_insn >> 8) & 0xff;
     dmem[2] = dmem_size & 0xff;

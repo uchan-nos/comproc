@@ -28,7 +28,18 @@ then
 fi
 
 ../compiler/ucc $ucc_opts -o $asm $src
+if [ $? -ne 0 ]
+then
+  echo $0: compilation failed
+  exit 1
+fi
+
 ../assembler/uasm --pmem $pmem_hex --dmem $dmem_hex --map $map -o $exe $asm
+if [ $? -ne 0 ]
+then
+  echo $0: assembly failed
+  exit 1
+fi
 
 echo build mode: $mode
 echo src: $src
