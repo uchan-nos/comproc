@@ -13,6 +13,7 @@
 #define INDENT "\t"
 #define MAX_STRING 256
 #define MAX_LINE (32*1024/2)
+#define MAX_SRC_LEN (128*1024)
 #define GVAR_OFFSET 0x100
 
 char *src;
@@ -928,8 +929,8 @@ int main(int argc, char **argv) {
     output_file = fopen(output_filename, "w");
   }
 
-  src = malloc(MAX_LINE);
-  size_t src_len = fread(src, 1, MAX_LINE - 1, input_file);
+  src = malloc(MAX_SRC_LEN);
+  size_t src_len = fread(src, 1, MAX_SRC_LEN - 1, input_file);
   src[src_len] = '\0';
   if (input_file != stdin) {
     fclose(input_file);

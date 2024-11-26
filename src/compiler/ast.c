@@ -78,20 +78,12 @@ struct Node *ExternalDeclaration(struct ParseContext *ctx) {
     return NULL;
   }
 
-  if (Consume('(')) { // 関数ポインタ
-    Expect('*');
-    struct Token *id = Expect(kTokenId);
-    Expect(')');
-    Expect('(');
-    Expect(')');
-
-    struct Type *type_fp = NewType(kTypePtr);
-    type_fp->base = tspec->type;
-    tspec->type = type_fp;
-    return VariableDefinition(ctx, tspec, id);
+  struct Token *id;
+  if (tspec->type->kind == kTypePtr && tspec->type->id) {
+    id = tspec->type->id;
+  } else {
+    id = Expect(kTokenId);
   }
-
-  struct Token *id = Expect(kTokenId);
   if (Consume('(')) {
     return FunctionDefinition(ctx, tspec, id);
   } else {
@@ -613,7 +605,20 @@ struct Node *Postfix(struct ParseContext *ctx) {
       exit(1);
     }
     node = NewNodeBinOp(kNodeCall, op, node, NULL);
-    node->type = func->def->lhs->type; // 関数の戻り値型を取得
+
+    // 関数の戻り値型を取得
+    if (func->kind == kSymFunc || func->kind == kSymBif) {
+      node->type = func->def->lhs->type;
+    } else if (func->kind == kSymLVar || func->kind == kSymGVar) {
+      if (func->type->kind == kTypePtr) {
+        node->type = func->type->base;
+      } else {
+        fprintf(stderr, "failed to determine the return type\n");
+        Locate(node->token->raw);
+        exit(1);
+      }
+    }
+
     if (!Consume(')')) {
       node->rhs = Expression(ctx);
       struct Node *arg = node->rhs;
@@ -703,6 +708,18 @@ struct Node *TypeSpec() {
     type = t;
   }
 
+  if (Consume('(')) { // 関数ポインタ
+    struct Type *t = NewType(kTypePtr);
+    Expect('*');
+    t->id = Consume(kTokenId);
+    Expect(')');
+    Expect('(');
+    Expect(')');
+
+    t->base = type;
+    type = t;
+  }
+
   struct Node *tspec = NewNode(kNodeTypeSpec, token);
   tspec->type = type;
   return tspec;
@@ -723,7 +740,13 @@ struct Node *ParameterList() {
     tspec = TypeSpec();
     struct Node *p = NewNode(kNodePList, tspec->token);
     p->type = tspec->type;
-    p->lhs = NewNode(kNodeId, Expect(kTokenId));
+    struct Token *id;
+    if (tspec->type->kind == kTypePtr && tspec->type->id) {
+      id = tspec->type->id;
+    } else {
+      id = Expect(kTokenId);
+    }
+    p->lhs = NewNode(kNodeId, id);
     param->next = p;
     param = param->next;
   }

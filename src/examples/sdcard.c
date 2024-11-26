@@ -1,8 +1,15 @@
-int spi_dat __attribute__((at(0x020)));
-int spi_ctl __attribute__((at(0x022)));
+unsigned int pmem_len;
+unsigned int dmem_len;
 
-int tim_cnt __attribute__((at(0x02)));
+unsigned int tim_cnt __attribute__((at(0x02)));
+unsigned int spi_dat __attribute__((at(0x020)));
+unsigned int spi_ctl __attribute__((at(0x022)));
+unsigned int kbc_queue __attribute__((at(0x24)));
+unsigned int kbc_status __attribute__((at(0x26)));
+
+char led_port __attribute__((at(0x80)));
 char lcd_port __attribute__((at(0x81)));
+char gpio __attribute__((at(0x82)));
 
 void delay_ms(int ms) {
   tim_cnt = ms;
@@ -39,10 +46,18 @@ void lcd_init() {
   lcd_cmd(0x0f);
   lcd_cmd(0x06);
   lcd_cmd(0x01);
+
+  gpio = 0x80; // バックライト点灯
 }
 
 void lcd_puts(char *s) {
   while (*s) {
+    lcd_putc(*s++);
+  }
+}
+
+void lcd_putsn(char *s, int n) {
+  while (n-- > 0) {
     lcd_putc(*s++);
   }
 }
@@ -527,6 +542,217 @@ int strncmp(char *a, char *b, int n) {
   return 0;
 }
 
+int get_key() {
+  while ((kbc_status & 0xff) == 0);
+  return kbc_queue;
+}
+
+int strncmp(char *a, char *b, int n) {
+  int i;
+  for (i = 0; i < n; i++) {
+    int v = a[i] - b[i];
+    if (v != 0 | a[i] == 0) {
+      return v;
+    }
+  }
+  return 0;
+}
+
+int chartoi(char c) {
+  if ('0' <= c & c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'a') {
+    c -= 0x20;
+  }
+  if ('A' <= c & c <= 'F') {
+    return c - 'A' + 10;
+  }
+  return -1;
+}
+
+int strtoi(char *s, char **endptr, int base) {
+  int v = 0;
+  int i;
+  while (1) {
+    i = chartoi(*s);
+    if (i < 0 | i >= base) {
+      break;
+    }
+    ++s;
+    v = base*v + i;
+  }
+  *endptr = s;
+  return v;
+}
+
+void strcpy(char *dst, char *src) {
+  while (*src) {
+    *dst++ = *src++;
+  }
+  *dst = 0;
+}
+
+int toupper(int c) {
+  if ('a' <= c & c <= 'z') {
+    return c - 0x20;
+  } else {
+    return c;
+  }
+}
+
+unsigned int rootdir_sec;
+
+int foreach_dir_entry(char *block_buf, int ccs, int (*proc_entry)(), void *arg) {
+  int find_loop;
+  for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
+    if (sd_read_block(block_buf, rootdir_sec + find_loop, ccs) < 0) {
+      lcd_puts("failed to read block");
+      return 1;
+    }
+    for (int i = 0; i < 16; ++i) {
+      char *dir_entry = block_buf + (i << 5);
+      if (*dir_entry == 0x00) { // これ以降、有効なエントリは無い
+        return 0;
+      }
+      int res = proc_entry(dir_entry, arg);
+      if (res != 0) {
+        return res;
+      }
+    }
+  }
+  return 0;
+}
+
+void print_filename_trimspace(char *name, char *end) {
+  while (*end == ' ') {
+    --end;
+  }
+  for (; name <= end; ++name) {
+    if (*name == 0x7e) { // チルダ
+      lcd_putc(0x01);
+    } else {
+      lcd_putc(*name);
+    }
+  }
+}
+
+int print_file_name(char *dir_entry, int *i) {
+  if (*dir_entry == 0xe5 || *dir_entry == 0x00 || (dir_entry[11] & 0x0e) != 0) {
+    return 0;
+  }
+  int is_dir = dir_entry[11] & 0x10;
+
+  if (*i == 0) {
+    lcd_cmd(0x01);
+  } else if (*i == 1) {
+    lcd_cmd(0xc0);
+  } else if (*i == 2) {
+    lcd_cmd(0x94);
+  } else if (*i == 3) {
+    lcd_cmd(0xd4);
+  }
+
+  print_filename_trimspace(dir_entry, dir_entry + 7);
+  if (strncmp(dir_entry + 8, "   ", 3) != 0) { // 拡張子あり
+    lcd_putc('.');
+    print_filename_trimspace(dir_entry + 8, dir_entry + 10);
+  }
+  if (is_dir) {
+    lcd_putc('/');
+  }
+
+  if (*i == 3) {
+    lcd_cmd(0xd4 + 19);
+    lcd_putc(0x02);
+    while (get_key() != 0x1e);
+  }
+  *i = (*i + 1) & 3;
+
+  return 0;
+}
+
+char *find_file(char *dir_entry, char *fn83) {
+  if (*dir_entry == 0xe5 || *dir_entry == 0x00) {
+    return 0;
+  }
+
+  if (strncmp(fn83, dir_entry, 11) == 0) {
+    return dir_entry;
+  }
+  return 0;
+}
+
+void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
+  int i;
+  char buf[5];
+  lcd_cmd(0xc0);
+  if (strncmp(cmd, "ls", 3) == 0) {
+    i = 0;
+    foreach_dir_entry(block_buf, ccs, print_file_name, &i);
+  } else if (strncmp(cmd, "ld ", 3) == 0) {
+    char fn83[11];
+    for (i = 0; i < 11; ++i) {
+      fn83[i] = ' ';
+    }
+
+    char *p = cmd + 3;
+    char *q = fn83;
+    for (i = 0; i < 8 & *p != 0; ++i) {
+      char c = *p++;
+      if (c == '.') {
+        break;
+      } else {
+        *q++ = toupper(c);
+      }
+    }
+    if (i == 8) {
+      while (*p != 0) {
+        if (*p++ == '.') {
+          break;
+        }
+      }
+    }
+    q = fn83 + 8;
+    for (i = 0; i < 3 & *p != 0; ++i) {
+      *q++ = toupper(*p++);
+    }
+
+    char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
+    if (file_entry == 0 && fn83[8] == ' ') {
+      fn83[8]  = 'E';
+      fn83[9]  = 'X';
+      fn83[10] = 'E';
+      file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
+    }
+
+    if (file_entry == 0) {
+      lcd_puts("No such file");
+    } else {
+      unsigned int exe_clus = file_entry[26] | (file_entry[27] << 8);
+      unsigned int exe_lba = clus_to_sec(exe_clus);
+      if (load_exe(app_main, block_buf, exe_lba, ccs) < 0) {
+        lcd_puts("failed to load app");
+        return 1;
+      }
+
+      lcd_puts("File loaded");
+    }
+  } else if (strncmp(cmd, "run", 4) == 0) {
+    __builtin_set_gp(block_buf);
+    int ret_code = app_main();
+    __builtin_set_gp(0x100);
+
+    lcd_cmd(0xd4);
+    int2hex(ret_code, buf, 4);
+    buf[4] = 0;
+    lcd_putc(0x7e);
+    lcd_puts(buf);
+  } else {
+    lcd_puts("Unknown cmd");
+  }
+}
+
 int main() {
   int i;
   int sdinfo;
@@ -538,6 +764,31 @@ int main() {
   unsigned char *block_buf = 0x2000;
 
   lcd_init();
+  // チルダ
+  // 0  _ * _ _ _
+  // 1  * _ * _ *
+  // 2  _ _ _ * _
+  // 3  _ _ _ _ _
+  // 4  _ _ _ _ _
+  // 5  _ _ _ _ _
+  // 6  _ _ _ _ _
+  // 7  _ _ _ _ _
+  lcd_cmd(0x48);
+  lcd_puts("\x08\x15\x02");
+  for (i = 0; i < 5; ++i) {
+    lcd_putc(0);
+  }
+  // 行が続くことを表す記号
+  // 0  _ _ _ _ _
+  // 1  _ _ _ _ _
+  // 2  _ _ _ * _
+  // 3  _ _ _ * _
+  // 4  _ _ _ * _
+  // 5  _ * _ * _
+  // 6  * * * * _
+  // 7  _ * _ _ _
+  lcd_cmd(0x50);
+  lcd_putsn("\0\0\x02\x02\x02\x0a\x1e\x08", 8);
 
   sdinfo = sd_init();
   if (sdinfo < 0) {
@@ -578,7 +829,8 @@ int main() {
   }
 
   // sdinfo bit1 が CCS
-  if (sd_read_block(block_buf, 0, (sdinfo & 2) != 0) < 0) {
+  int ccs = (sdinfo & 2) != 0;
+  if (sd_read_block(block_buf, 0, ccs) < 0) {
     return 1;
   }
   lcd_cmd(0xc0);
@@ -604,7 +856,7 @@ int main() {
       // LBA Start は 4 バイトだが、上位 16 ビットは無視
       // （32MiB までにあるパーティションのみ正常に読める）
 
-      if (sd_read_block(block_buf, PartitionSector, (sdinfo & 2) != 0) < 0) {
+      if (sd_read_block(block_buf, PartitionSector, ccs) < 0) {
         return 1;
       }
       break;
@@ -629,51 +881,48 @@ int main() {
     return 1;
   }
 
-  unsigned int rootdir_sec = PartitionSector + BPB_ResvdSecCnt + BPB_NumFATs * BPB_FATSz16;
-  unsigned int exe_clus = 0;
-  int find_loop;
-  for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
-    if (sd_read_block(block_buf, rootdir_sec + find_loop, (sdinfo & 2) != 0) < 0) {
-      lcd_puts("failed to read block");
-      return 1;
+  rootdir_sec = PartitionSector + BPB_ResvdSecCnt + BPB_NumFATs * BPB_FATSz16;
+  char cmd[21];
+  int cmd_i = 0;
+  int caps = 0;
+  int shift = 0;
+
+  while (1) {
+    int key = get_key();
+    if (cmd_i == 0 && key < 0x80) {
+      lcd_cmd(0x01);
     }
-    for (i = 0; i < 16; ++i) {
-      if (strncmp("APP     EXE", block_buf + 32*i, 11) == 0) {
-        exe_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
-        break;
+
+    if (key == '\n') { // Enter
+      if (cmd_i > 0) {
+        cmd[cmd_i] = '\0';
+        proc_cmd(cmd, app_main, block_buf, ccs);
       }
+      cmd_i = 0;
+    } else if (key == '\b') {
+      if (cmd_i > 0) {
+        cmd_i--;
+        lcd_cmd(0x80 + cmd_i);
+        lcd_putc(' ');
+        lcd_cmd(0x80 + cmd_i);
+      }
+    } else if (key == 0x0E) { // Shift
+      shift = 1;
+      led_port |= 0x02;
+    } else if (key == 0x8E) { // Shift (break)
+      shift = 0;
+      led_port &= 0xfd;
+    } else if (key == 0x0F) { // Caps
+      caps = !caps;
+      led_port = (led_port & 0xfe) | caps;
+    } else if (0x20 <= key & key < 0x80 && cmd_i < 20) {
+      if ('A' <= key && key <= 'Z' && (caps ^ shift) == 0) {
+        key += 0x20;
+      }
+      lcd_putc(key);
+      cmd[cmd_i++] = key;
     }
-
-    if (exe_clus > 0) {
-      break;
-    }
   }
-  if (exe_clus == 0) {
-    lcd_puts("APP.EXE not found");
-    return 1;
-  }
-
-  unsigned int exe_lba = clus_to_sec(exe_clus);
-  if (load_exe(app_main, block_buf, exe_lba, (sdinfo & 2) != 0) < 0) {
-    lcd_puts("failed to load app");
-    return 1;
-  }
-
-  lcd_puts("executing app 3sec");
-  for (i = 0; i < 3; ++i) {
-    delay_ms(1000);
-    lcd_cmd(0xce);
-    lcd_putc('0' + (2 - i));
-  }
-  __builtin_set_gp(block_buf);
-  int ret_code = app_main();
-  __builtin_set_gp(0x100);
-
-  lcd_cmd(0x94);
-  int2hex(ret_code, buf, 4);
-  buf[4] = 0;
-  lcd_puts("app_main()=");
-  lcd_puts(buf);
 
   return 0;
 }

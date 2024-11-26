@@ -20,7 +20,10 @@ enum TypeKind {
 struct Type {
   enum TypeKind kind;
   struct Type *base;
-  int len;
+  union {
+    int len; // for kTypeArray
+    struct Token *id; // for function pointer
+  };
   unsigned int attr;
 };
 
