@@ -69,7 +69,7 @@ module pmem(
   output logic [17:0] data_out
 );
 
-logic [17:0] mem[0:`ADDR_WIDTH'h1fff];
+logic [17:0] mem[0:`ADDR_WIDTH'h3fff];
 
 always @(posedge rst, posedge clk) begin
   if (rst) begin

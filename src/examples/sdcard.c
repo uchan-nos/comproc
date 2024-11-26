@@ -462,44 +462,55 @@ unsigned int clus_to_sec(unsigned int clus) {
   return FirstDataSector + (clus - 2)*BPB_SecPerClus;
 }
 
-int load_pmem(unsigned int pmem_addr, unsigned int pmem_lba, unsigned char *block_buf, int ccs) {
+int load_exe(unsigned int pmem_addr, unsigned int dmem_addr, unsigned int exe_lba, int ccs) {
   int i;
   char buf[5];
+  int *head = dmem_addr;
+  char *block_buf = dmem_addr + 512;
 
-  if (sd_read_block(block_buf, pmem_lba, ccs) < 0) {
+  if (sd_read_block(head, exe_lba, ccs) < 0) {
     return -1;
   }
+  int pmem_len = head[0]; // # of words
+  int dmem_len = head[1]; // # of bytes
 
-  for (i = 0; i < 170; ++i) { // insn[0]=0~2, insn[169]=507~509
-    if (i < 3) {
-      //buf[0] = ' ';
-      //int2hex(block_buf[3*i], buf + 1, 1);
-      //buf[2] = 0;
-      //lcd_puts(buf);
-      //int2hex((block_buf[3*i+1] << 8) | block_buf[3*i+2], buf, 4);
-      //buf[4] = 0;
-      //lcd_puts(buf);
-      //int2hex(pmem_addr, buf, 4);
-      //buf[4] = 0;
-      //lcd_puts(buf);
+  int num_dmem_block = (dmem_len + 511) >> 9;
+  int pmem_lba = exe_lba + num_dmem_block;
+
+  int byte_index = 512;
+  for (i = 0; i < pmem_len; ++i) { // insn[0]=0~2, insn[169]=507~509
+    if (byte_index >= 510) { // のこり 3 バイト未満なので、次のクラスタを読む
+      char insn_buf0 = block_buf[510];
+      char insn_buf1 = block_buf[511];
+      if (sd_read_block(block_buf, pmem_lba++, ccs) < 0) {
+        return -1;
+      }
+      if (byte_index == 512) {
+        byte_index = 0;
+      } else {
+        if (byte_index == 510) {
+          __builtin_write_pmem(pmem_addr, block_buf[0], insn_buf0 | (insn_buf1 << 8));
+          byte_index = 1;
+        } else { // byte_index == 511
+          __builtin_write_pmem(pmem_addr, block_buf[1], insn_buf1 | (block_buf[0] << 8));
+          byte_index = 2;
+        }
+        ++pmem_addr;
+        //++i;
+        continue;
+      }
     }
-    __builtin_write_pmem(pmem_addr, block_buf[3*i+2], (block_buf[3*i+1] << 8) | block_buf[3*i]);
+    __builtin_write_pmem(pmem_addr, block_buf[byte_index+2],
+                         (block_buf[byte_index+1] << 8) | block_buf[byte_index]);
     ++pmem_addr;
+    byte_index += 3;
   }
 
-  // insn[170]=510~512
-  unsigned int insn_buf;
-  insn_buf = (block_buf[511] << 8) | block_buf[510];
-
-  if (sd_read_block(block_buf, pmem_lba + 1, ccs) < 0) {
-    return -1;
-  }
-  __builtin_write_pmem(pmem_addr, block_buf[0], insn_buf);
-  ++pmem_addr;
-
-  for (i = 0; i < 170; ++i) { // insn[171]=1~3, insn[171+169]=508~510
-    __builtin_write_pmem(pmem_addr, block_buf[3*i+3], (block_buf[3*i+2] << 8) | block_buf[3*i+1]);
-    ++pmem_addr;
+  for (i = 1; i < num_dmem_block; ++i) {
+    if (sd_read_block(block_buf, exe_lba + i, ccs) < 0) {
+      return -1;
+    }
+    block_buf += 512;
   }
 
   return 0;
@@ -523,7 +534,8 @@ int main() {
   int cap_mib;
   char buf[5];
   unsigned int csd[9]; // 末尾は 16 ビットの CRC
-  unsigned char block_buf[512];
+  int (*app_main)() = 0x2000;
+  unsigned char *block_buf = 0x2000;
 
   lcd_init();
 
@@ -618,8 +630,7 @@ int main() {
   }
 
   unsigned int rootdir_sec = PartitionSector + BPB_ResvdSecCnt + BPB_NumFATs * BPB_FATSz16;
-  unsigned int dmembin_clus = 0;
-  unsigned int pmembin_clus = 0;
+  unsigned int exe_clus = 0;
   int find_loop;
   for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
     if (sd_read_block(block_buf, rootdir_sec + find_loop, (sdinfo & 2) != 0) < 0) {
@@ -627,50 +638,41 @@ int main() {
       return 1;
     }
     for (i = 0; i < 16; ++i) {
-      if (strncmp("DMEM    BIN", block_buf + 32*i, 11) == 0) {
-        dmembin_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
-      } else if (strncmp("PMEM    BIN", block_buf + 32*i, 11) == 0) {
-        pmembin_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
+      if (strncmp("APP     EXE", block_buf + 32*i, 11) == 0) {
+        exe_clus = block_buf[32*i + 26] | (block_buf[32*i + 27]);
+        break;
       }
     }
 
-    if (dmembin_clus > 0 & pmembin_clus > 0) {
+    if (exe_clus > 0) {
       break;
     }
   }
-  if (dmembin_clus == 0 | pmembin_clus == 0) {
-    lcd_puts("no dmem or pmem bin");
+  if (exe_clus == 0) {
+    lcd_puts("APP.EXE not found");
     return 1;
   }
 
-  unsigned int dmem_lba = clus_to_sec(dmembin_clus);
-  unsigned int pmem_lba = clus_to_sec(pmembin_clus);
-
-  if (load_pmem(0x1000, pmem_lba, block_buf, (sdinfo & 2) != 0) < 0) {
-    lcd_puts("failed to load pmem");
+  unsigned int exe_lba = clus_to_sec(exe_clus);
+  if (load_exe(app_main, block_buf, exe_lba, (sdinfo & 2) != 0) < 0) {
+    lcd_puts("failed to load app");
     return 1;
   }
 
-  if (sd_read_block(block_buf, dmem_lba, (sdinfo & 2) != 0) < 0) {
-    lcd_puts("failed to load dmem");
-    return 1;
-  }
-
-  lcd_puts("executing pmem 3sec");
+  lcd_puts("executing app 3sec");
   for (i = 0; i < 3; ++i) {
     delay_ms(1000);
-    lcd_cmd(0xcf);
+    lcd_cmd(0xce);
     lcd_putc('0' + (2 - i));
   }
-  int (*f)() = 0x1000;
   __builtin_set_gp(block_buf);
-  int ret_code = f();
+  int ret_code = app_main();
   __builtin_set_gp(0x100);
 
   lcd_cmd(0x94);
   int2hex(ret_code, buf, 4);
   buf[4] = 0;
-  lcd_puts("f()=");
+  lcd_puts("app_main()=");
   lcd_puts(buf);
 
   return 0;

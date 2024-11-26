@@ -636,6 +636,7 @@ int main(int argc, char **argv) {
   const char *dmem_filename = NULL;
   const char *pmem_filename = NULL;
   const char *map_filename = NULL;
+  const char *exe_filename = NULL;
 
   for (int i = 1; i < argc; i++) {
     if (input_filename) {
@@ -648,8 +649,7 @@ int main(int argc, char **argv) {
     } else if (strcmp(argv[i], "--map") == 0) {
       ARG_FILE(map);
     } else if (strcmp(argv[i], "-o") == 0) {
-      fprintf(stderr, "-o is deprecated\n");
-      exit(1);
+      ARG_FILE(exe);
     } else {
       input_filename = argv[i];
     }
@@ -657,6 +657,7 @@ int main(int argc, char **argv) {
 
   FILE *input_file = stdin;
   FILE *pmem_file = stdout, *dmem_file = NULL, *map_file = NULL;
+  FILE *exe_file = NULL;
   if (input_filename && strcmp(input_filename, "-") != 0) {
     input_file = fopen(input_filename, "r");
   }
@@ -668,6 +669,9 @@ int main(int argc, char **argv) {
   }
   if (map_filename) {
     map_file = fopen(map_filename, "w");
+  }
+  if (exe_filename) {
+    exe_file = fopen(exe_filename, "w");
   }
 
   char line[MAX_LINE];
@@ -705,6 +709,22 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < num_insn; i++) {
     fprintf(pmem_file, "%05X\n", pmem[i]);
+  }
+
+  if (exe_file) {
+    dmem[0] = num_insn & 0xff;
+    dmem[1] = (num_insn >> 8) & 0xff;
+    dmem[2] = dmem_size & 0xff;
+    dmem[3] = (dmem_size >> 8) & 0xff;
+    fwrite(dmem, 1, (dmem_size + 511) & 0xfe00, exe_file);
+    for (int i = 0; i < num_insn; i++) {
+      uint8_t buf[3] = {
+        pmem[i] & 0xff,
+        (pmem[i] >> 8) & 0xff,
+        (pmem[i] >> 16) & 0xff
+      };
+      fwrite(buf, 1, 3, exe_file);
+    }
   }
   return 0;
 }
