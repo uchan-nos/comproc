@@ -405,6 +405,9 @@ int main() {
         play_sound(200, 100);
         if (cmd_i > 0) {
           cmd[cmd_i] = '\0';
+          if (strncmp(cmd, "exit", 5) == 0) {
+            return 0;
+          }
           proc_cmd(cmd);
         }
         cmd_i = 0;
