@@ -237,13 +237,6 @@ int IsAddFp(struct AsmLine *al) {
   return 0;
 }
 
-// ISR の内側でのみ pop を行う
-void PopInsideIsr(struct GenContext *ctx) {
-  if (ctx->is_isr) {
-    Insn(ctx, "pop");
-  }
-}
-
 // 生成された値が boolean value なら true、それ以外は false を返す。
 // req_onstack: 演算スタック上に値が必要（インタプリタ上ではダメ）であれば 1
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack) {
@@ -398,7 +391,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
       if (value_class == VC_NO_NEED) {
         node->type = NewType(kTypeVoid);
-        PopInsideIsr(ctx);
+        Insn(ctx, "pop");
       }
     }
     break;
@@ -429,11 +422,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->lhs, VC_LVAL, 1);
       Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta1" : "sta");
-      if (value_class == VC_NO_NEED) {
-        PopInsideIsr(ctx);
-      } else {
-        Insn(ctx, "pop");
-      }
+      Insn(ctx, "pop");
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
       Generate(ctx, node->rhs, VC_RVAL, 1);
@@ -443,7 +432,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std1" : "std");
       if (value_class == VC_NO_NEED) {
         node->type = NewType(kTypeVoid);
-        PopInsideIsr(ctx);
+        Insn(ctx, "pop");
       }
     }
     break;
@@ -457,7 +446,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     } else if (value_class == VC_NO_NEED) {
       Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
       node->type = NewType(kTypeVoid);
-      PopInsideIsr(ctx);
+      Insn(ctx, "pop");
     }
     break;
   case kNodeNot:
@@ -513,7 +502,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
       }
       if (value_class == VC_NO_NEED) {
-        PopInsideIsr(ctx);
+        Insn(ctx, "pop");
       }
     }
     break;
@@ -589,7 +578,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     }
     if (value_class == VC_NO_NEED) {
       node->type = NewType(kTypeVoid);
-      PopInsideIsr(ctx);
+      Insn(ctx, "pop");
     }
     break;
 
@@ -710,6 +699,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       struct AsmLine *add_fp = &ctx->asm_lines[line_add_fp];
       if (ctx->frame_size > 0) {
         add_fp->insn.operands[1].val_int = -ctx->frame_size;
+        for (int line = line_add_fp + 1; line < line_body_last; ++line) {
+          if (IsAddFp(ctx->asm_lines + line)) {
+            ctx->asm_lines[line].insn.operands[1].val_int = ctx->frame_size;
+          }
+        }
       } else {
         add_fp->kind = kAsmLineDeleted;
         for (int line = line_add_fp + 1; line < line_body_last; ++line) {
@@ -735,7 +729,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       Generate(ctx, node->lhs, VC_RVAL, 1);
     }
     if (ctx->frame_size > 0) {
-      InsnRegInt(ctx, "add", "fp", ctx->frame_size);
+      InsnRegInt(ctx, "add", "fp", 0 /* ダミーの値 */);
     }
     Insn(ctx, ctx->is_isr ? "iret" : "ret");
     break;
