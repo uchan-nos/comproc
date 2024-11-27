@@ -725,7 +725,7 @@ struct Node *TypeSpec() {
   return tspec;
 }
 
-struct Node *ParameterList() {
+struct Node *OneParameter() {
   struct Node *tspec = TypeSpec();
   if (!tspec) {
     return NULL;
@@ -733,21 +733,26 @@ struct Node *ParameterList() {
 
   struct Node *param = NewNode(kNodePList, tspec->token);
   param->type = tspec->type;
-  param->lhs = NewNode(kNodeId, Expect(kTokenId));
+  struct Token *id;
+  if (tspec->type->kind == kTypePtr && tspec->type->id) {
+    id = tspec->type->id;
+  } else {
+    id = Expect(kTokenId);
+  }
+  param->lhs = NewNode(kNodeId, id);
+  return param;
+}
+
+struct Node *ParameterList() {
+  struct Node *param = OneParameter();
+  if (!param) {
+    return NULL;
+  }
+
   struct Node *plist = param;
 
   while (Consume(',')) {
-    tspec = TypeSpec();
-    struct Node *p = NewNode(kNodePList, tspec->token);
-    p->type = tspec->type;
-    struct Token *id;
-    if (tspec->type->kind == kTypePtr && tspec->type->id) {
-      id = tspec->type->id;
-    } else {
-      id = Expect(kTokenId);
-    }
-    p->lhs = NewNode(kNodeId, id);
-    param->next = p;
+    param->next = OneParameter();
     param = param->next;
   }
   return plist;

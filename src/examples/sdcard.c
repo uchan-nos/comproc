@@ -608,7 +608,7 @@ int foreach_dir_entry(char *block_buf, int ccs, int (*proc_entry)(), void *arg) 
   for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
     if (sd_read_block(block_buf, rootdir_sec + find_loop, ccs) < 0) {
       lcd_puts("failed to read block");
-      return 1;
+      return 0;
     }
     for (int i = 0; i < 16; ++i) {
       char *dir_entry = block_buf + (i << 5);
@@ -683,6 +683,72 @@ char *find_file(char *dir_entry, char *fn83) {
   return 0;
 }
 
+int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int ccs) {
+  char fn83[11];
+  int i;
+  for (i = 0; i < 11; ++i) {
+    fn83[i] = ' ';
+  }
+
+  char *p = filename;
+  char *q = fn83;
+  for (i = 0; i < 8 & *p != 0; ++i) {
+    char c = *p++;
+    if (c == '.') {
+      break;
+    } else {
+      *q++ = toupper(c);
+    }
+  }
+  if (i == 8) {
+    while (*p != 0) {
+      if (*p++ == '.') {
+        break;
+      }
+    }
+  }
+  q = fn83 + 8;
+  for (i = 0; i < 3 & *p != 0; ++i) {
+    *q++ = toupper(*p++);
+  }
+
+  char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
+  if (file_entry == 0 && fn83[8] == ' ') {
+    fn83[8]  = 'E';
+    fn83[9]  = 'X';
+    fn83[10] = 'E';
+    file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
+  }
+
+  if (file_entry == 0) {
+    lcd_puts("No such file");
+    return -1;
+  } else {
+    unsigned int exe_clus = file_entry[26] | (file_entry[27] << 8);
+    unsigned int exe_lba = clus_to_sec(exe_clus);
+    if (load_exe(app_main, block_buf, exe_lba, ccs) < 0) {
+      lcd_puts("failed to load app");
+      return -1;
+    }
+
+    lcd_puts("File loaded");
+  }
+  return 0;
+}
+
+void run_app(int (*app_main)(), char *block_buf) {
+  char buf[5];
+  __builtin_set_gp(block_buf);
+  int ret_code = app_main();
+  __builtin_set_gp(0x100);
+
+  lcd_cmd(0xd4);
+  int2hex(ret_code, buf, 4);
+  buf[4] = 0;
+  lcd_putc(0x7e);
+  lcd_puts(buf);
+}
+
 void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
   int i;
   char buf[5];
@@ -691,66 +757,19 @@ void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
     i = 0;
     foreach_dir_entry(block_buf, ccs, print_file_name, &i);
   } else if (strncmp(cmd, "ld ", 3) == 0) {
-    char fn83[11];
-    for (i = 0; i < 11; ++i) {
-      fn83[i] = ' ';
-    }
-
-    char *p = cmd + 3;
-    char *q = fn83;
-    for (i = 0; i < 8 & *p != 0; ++i) {
-      char c = *p++;
-      if (c == '.') {
-        break;
-      } else {
-        *q++ = toupper(c);
-      }
-    }
-    if (i == 8) {
-      while (*p != 0) {
-        if (*p++ == '.') {
-          break;
-        }
-      }
-    }
-    q = fn83 + 8;
-    for (i = 0; i < 3 & *p != 0; ++i) {
-      *q++ = toupper(*p++);
-    }
-
-    char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
-    if (file_entry == 0 && fn83[8] == ' ') {
-      fn83[8]  = 'E';
-      fn83[9]  = 'X';
-      fn83[10] = 'E';
-      file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
-    }
-
-    if (file_entry == 0) {
-      lcd_puts("No such file");
-    } else {
-      unsigned int exe_clus = file_entry[26] | (file_entry[27] << 8);
-      unsigned int exe_lba = clus_to_sec(exe_clus);
-      if (load_exe(app_main, block_buf, exe_lba, ccs) < 0) {
-        lcd_puts("failed to load app");
-        return 1;
-      }
-
-      lcd_puts("File loaded");
-    }
+    load_exe_by_filename(app_main, block_buf, cmd + 3, ccs);
   } else if (strncmp(cmd, "run", 4) == 0) {
-    __builtin_set_gp(block_buf);
-    int ret_code = app_main();
-    __builtin_set_gp(0x100);
-
-    lcd_cmd(0xd4);
-    int2hex(ret_code, buf, 4);
-    buf[4] = 0;
-    lcd_putc(0x7e);
-    lcd_puts(buf);
+    run_app(app_main, block_buf);
   } else {
-    lcd_puts("Unknown cmd");
+    if (load_exe_by_filename(app_main, block_buf, cmd, ccs) >= 0) {
+      run_app(app_main, block_buf);
+    }
   }
+}
+
+unsigned int get_fp() {
+  asm("push fp+0");
+  return;
 }
 
 int main() {
@@ -915,7 +934,7 @@ int main() {
     } else if (key == 0x0F) { // Caps
       caps = !caps;
       led_port = (led_port & 0xfe) | caps;
-    } else if (0x20 <= key & key < 0x80 && cmd_i < 20) {
+    } else if (0x20 <= key & key < 0x80 & cmd_i < 20) {
       if ('A' <= key && key <= 'Z' && (caps ^ shift) == 0) {
         key += 0x20;
       }

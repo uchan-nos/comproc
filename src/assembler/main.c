@@ -736,7 +736,7 @@ int main(int argc, char **argv) {
       }
     }
     if (!has_pl | !has_dl) {
-      fprintf(stderr, "app mode needs pmem_len & dmem_len at the beginning of .data\n");
+      fprintf(stderr, "exe mode needs pmem_len & dmem_len at the beginning of .data\n");
       exit(1);
     }
     dmem[0] = num_insn & 0xff;
