@@ -749,6 +749,30 @@ void run_app(int (*app_main)(), char *block_buf) {
   lcd_puts(buf);
 }
 
+unsigned int sdinfo;
+unsigned int cap_mib;
+
+void print_sdinfo() {
+  char buf[5];
+  lcd_puts("SDv");
+  if (sdinfo & 0x0001) {
+    lcd_puts("2+");
+  } else {
+    lcd_puts("1 ");
+  }
+  if (sdinfo & 0x0002) {
+    lcd_puts("HC");
+  } else {
+    lcd_puts("SC");
+  }
+
+  lcd_puts(" ");
+  int2dec(cap_mib, buf, 4);
+  buf[4] = 0;
+  lcd_puts(buf);
+  lcd_puts("MB");
+}
+
 void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
   int i;
   char buf[5];
@@ -760,6 +784,8 @@ void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
     load_exe_by_filename(app_main, block_buf, cmd + 3, ccs);
   } else if (strncmp(cmd, "run", 4) == 0) {
     run_app(app_main, block_buf);
+  } else if (strncmp(cmd, "sdinfo", 4) == 0) {
+    print_sdinfo();
   } else {
     if (load_exe_by_filename(app_main, block_buf, cmd, ccs) >= 0) {
       run_app(app_main, block_buf);
@@ -767,16 +793,9 @@ void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
   }
 }
 
-unsigned int get_fp() {
-  asm("push fp+0");
-  return;
-}
-
 int main() {
   int i;
-  int sdinfo;
-  int block_len;
-  int cap_mib;
+  unsigned int block_len;
   char buf[5];
   unsigned int csd[9]; // 末尾は 16 ビットの CRC
   int (*app_main)() = 0x2000;
@@ -813,33 +832,13 @@ int main() {
   if (sdinfo < 0) {
     return 1;
   }
-
-  lcd_puts("SDv");
-  if (sdinfo & 0x0001) {
-    lcd_puts("2+");
-  } else {
-    lcd_puts("1 ");
-  }
-  if (sdinfo & 0x0002) {
-    lcd_puts("HC");
-  } else {
-    lcd_puts("SC");
-  }
-
   if (sd_read_csd(csd) < 0) {
     return 1;
   }
-
   cap_mib = sd_get_capacity_mib(csd);
-  //lcd_puts(" 0x");
-  //int2hex(cap_mib, buf, 4);
-  lcd_puts(" ");
-  int2dec(cap_mib, buf, 4);
-  buf[4] = 0;
-  lcd_puts(buf);
-  lcd_puts("MB");
-
   block_len = sd_get_read_bl_len(csd);
+
+  print_sdinfo(sdinfo, cap_mib);
 
   if (block_len != 9) {
     if (sd_set_block_len_512() < 0) {
