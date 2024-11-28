@@ -18,11 +18,13 @@ module main(
   output tf_cs, tf_mosi, tf_sclk,
   input  tf_miso,
   inout  scl, sda,    // I2C Clock & Data
-  output [7:0] gpio
+  output [7:0] gpio,
+  input  stop_n_raw
 );
 
 // logic 定義
 logic rst_n;
+logic stop_n;
 
 // ********
 // 継続代入
@@ -35,6 +37,7 @@ assign onboard_led = ~io_led[5:0];
 
 always @(posedge sys_clk) begin
   rst_n <= rst_n_raw;
+  stop_n <= stop_n_raw;
 end
 
 logic dmem_wen, dmem_byt;
@@ -56,7 +59,7 @@ assign lcd_rw = io_lcd[1];
 assign lcd_rs = io_lcd[2];
 assign lcd_db = io_lcd[7:4];
 
-assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd, io_gpio);
+assign dmem_rdata_io = io_mux(dmem_addr_d, io_led, io_lcd, io_gpio, ~stop_n);
 
 assign gpio = io_gpio;
 
@@ -151,12 +154,13 @@ mcu mcu(
 
 function [15:0] io_mux(
   input [`ADDR_WIDTH-1:0] addr,
-  [7:0] io_led, io_lcd, io_gpio
+  [7:0] io_led, io_lcd, io_gpio,
+  input io_stop
 );
 begin
   casex (addr)
     `ADDR_WIDTH'b1000_000x: return {io_lcd, io_led};
-    `ADDR_WIDTH'b1000_001x: return {8'd0, io_gpio};
+    `ADDR_WIDTH'b1000_001x: return {{7'd0, io_stop}, io_gpio};
     default:                return 16'd0;
   endcase
 end

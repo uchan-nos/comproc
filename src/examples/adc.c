@@ -2,6 +2,7 @@ int tim_count __attribute__((at(0x02)));
 int adc_result __attribute__((at(0x0A)));
 char led_port __attribute__((at(0x80)));
 char lcd_port __attribute__((at(0x81)));
+char stop_btn __attribute__((at(0x83)));
 
 void delay_ms(int ms) {
   tim_count = ms;
@@ -64,7 +65,7 @@ int main() {
   lcd_out8(0, 0xc0);
   lcd_puts("value=");
 
-  while (1) {
+  while (!stop_btn) {
     v = adc_result;
     led_port = v;
 
