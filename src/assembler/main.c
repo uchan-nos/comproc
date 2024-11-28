@@ -293,11 +293,22 @@ int SetLabel(struct LabelAddr *la, const char *label, int addr, FILE *map_file) 
 // labels: 発見したラベルとそのときのデータメモリアドレスの組を記録
 int ProcessDataSection(FILE *input_file, FILE *map_file,
                        uint8_t *dmem, char *line, struct AsmLine *al,
-                       struct LabelAddr *labels, int *num_labels) {
+                       struct LabelAddr *labels, int *num_labels, int exe_mode) {
   int size = 0;
-
+  int first_label = 1;
   while (fgets(line, MAX_LINE, input_file) != NULL) {
     SplitOpcode(line, al);
+    if (first_label && al->label) {
+      if (exe_mode && strcmp(al->label, "pmem_len") != 0) {
+        // exe_mode の場合、先頭 4 バイトを pmem_len & dmem_len に強制する
+        SetLabel(labels + 0, "pmem_len", 0x0000, map_file);
+        SetLabel(labels + 1, "dmem_len", 0x0002, map_file);
+        *num_labels = 2;
+        size = 4;
+      }
+      first_label = 0;
+    }
+
     *num_labels += SetLabel(labels + *num_labels, al->label,
                             size, map_file);
     if (al->mnemonic == NULL) {
@@ -691,7 +702,7 @@ int main(int argc, char **argv) {
       exit(1);
     }
     dmem_size = ProcessDataSection(input_file, map_file, dmem, line, &al,
-                                   labels, &num_labels);
+                                   labels, &num_labels, exe_file != NULL);
 
     if (strcmp(al.mnemonic, "section") != 0 ||
         strcmp(al.operands[0], ".text") != 0) {
