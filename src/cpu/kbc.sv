@@ -109,31 +109,31 @@ function [6:0] keypos_to_scancode(input [2:0] row, input [2:0] col);
     6'b001_110: return 7'h08; // BS     BS
     6'b001_111: return 7'h15; // Kana   NAK
     6'b010_000: return 7'h09; // Tab    HT
-    6'b010_001: return 7'h51; // Q
-    6'b010_010: return 7'h57; // W
-    6'b010_011: return 7'h45; // E
-    6'b010_100: return 7'h52; // R
-    6'b010_101: return 7'h54; // T
-    6'b010_110: return 7'h59; // Y
-    6'b010_111: return 7'h55; // U
-    6'b011_000: return 7'h49; // I
-    6'b011_001: return 7'h4F; // O
-    6'b011_010: return 7'h50; // P
+    6'b010_001: return 7'h71; // q
+    6'b010_010: return 7'h77; // w
+    6'b010_011: return 7'h65; // e
+    6'b010_100: return 7'h72; // r
+    6'b010_101: return 7'h74; // t
+    6'b010_110: return 7'h79; // y
+    6'b010_111: return 7'h75; // u
+    6'b011_000: return 7'h69; // i
+    6'b011_001: return 7'h6F; // o
+    6'b011_010: return 7'h70; // p
     6'b011_011: return 7'h40; // @
     6'b011_100: return 7'h5B; // [
     6'b011_101: return 7'h20; // Space
     6'b011_110: return 7'h0A; // Enter  LF
     6'b011_111: return 7'h13; // 変換   DC3
     6'b100_000: return 7'h0F; // Caps   SI
-    6'b100_001: return 7'h41; // A
-    6'b100_010: return 7'h53; // S
-    6'b100_011: return 7'h44; // D
-    6'b100_100: return 7'h46; // F
-    6'b100_101: return 7'h47; // G
-    6'b100_110: return 7'h48; // H
-    6'b100_111: return 7'h4A; // J
-    6'b101_000: return 7'h4B; // K
-    6'b101_001: return 7'h4C; // L
+    6'b100_001: return 7'h61; // a
+    6'b100_010: return 7'h73; // s
+    6'b100_011: return 7'h64; // d
+    6'b100_100: return 7'h66; // f
+    6'b100_101: return 7'h67; // g
+    6'b100_110: return 7'h68; // h
+    6'b100_111: return 7'h6A; // j
+    6'b101_000: return 7'h6B; // k
+    6'b101_001: return 7'h6C; // l
     6'b101_010: return 7'h3B; // ;
     6'b101_011: return 7'h3A; // :
     6'b101_100: return 7'h5D; // ]
@@ -142,13 +142,13 @@ function [6:0] keypos_to_scancode(input [2:0] row, input [2:0] col);
     6'b101_111: return 7'h1C; // Up     FS
     6'b110_000: return 7'h0E; // Shift  SO
     6'b110_001: return 7'h11; // Ctrl   DC1
-    6'b110_010: return 7'h5A; // Z
-    6'b110_011: return 7'h58; // X
-    6'b110_100: return 7'h43; // C
-    6'b110_101: return 7'h56; // V
-    6'b110_110: return 7'h42; // B
-    6'b110_111: return 7'h4E; // N
-    6'b111_000: return 7'h4D; // M
+    6'b110_010: return 7'h7A; // z
+    6'b110_011: return 7'h78; // x
+    6'b110_100: return 7'h63; // c
+    6'b110_101: return 7'h76; // v
+    6'b110_110: return 7'h62; // b
+    6'b110_111: return 7'h6E; // n
+    6'b111_000: return 7'h6D; // m
     6'b111_001: return 7'h2C; // ,
     6'b111_010: return 7'h2E; // .
     6'b111_011: return 7'h2F; // /

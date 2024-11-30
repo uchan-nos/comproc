@@ -11,6 +11,13 @@ char led_port __attribute__((at(0x80)));
 char lcd_port __attribute__((at(0x81)));
 char gpio __attribute__((at(0x82)));
 
+char *shift_map = " !\x22#$%&'()*+<=>?" // 0x20: !"#$%&'()*+,-./
+                  "0!\x22#$%&'()*+<=>?" // 0x30:0123456789:;<=>?
+                  "`ABCDEFGHIJKLMNO"    // 0x40:@ABCDEFGHIJKLMNO
+                  "PQRSTUVWXYZ{|}~_"    // 0x50:PQRSTUVWXYZ[¥]^_
+                  "`ABCDEFGHIJKLMNO"    // 0x60:`abcdefghijklmno
+                  "PQRSTUVWXYZ{|}~\x7f";// 0x70:pqrstuvwxyz{|}~
+
 void delay_ms(int ms) {
   tim_cnt = ms;
   while (tim_cnt > 0) {}
@@ -1005,8 +1012,8 @@ int main() {
       caps = !caps;
       led_port = (led_port & 0xfe) | caps;
     } else if (0x20 <= key & key < 0x80 & cmd_i < 20) {
-      if ('A' <= key && key <= 'Z' && (caps ^ shift) == 0) {
-        key += 0x20;
+      if (caps ^ shift) {
+        key = shift_map[key - 0x20];
       }
       lcd_putc(key);
       cmd[cmd_i++] = key;
