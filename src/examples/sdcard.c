@@ -143,7 +143,8 @@ void int2hex(int val, char *s, int n) {
   }
 }
 
-void int2dec(int val, char *s, int n) {
+// 先頭 0 の数を返す
+int int2dec(int val, char *s, int n) {
   int i;
   int dec_arr[6];
   int digit;
@@ -161,6 +162,10 @@ void int2dec(int val, char *s, int n) {
     }
     s[i] = digit + '0';
   }
+  for (i = 0; s[i] == '0'; ++i) {
+    s[i] = ' ';
+  }
+  return i;
 }
 
 void send_sd_cmd(char cmd, int arg_high, int arg_low, char crc) {
@@ -637,20 +642,27 @@ void print_filename_trimspace(char *name, char *end) {
   }
 }
 
+unsigned int read16(char *buf) {
+  return *buf | (buf[1] << 8);
+}
+
 int print_file_name(char *dir_entry, int *i) {
   if (*dir_entry == 0xe5 || *dir_entry == 0x00 || (dir_entry[11] & 0x0e) != 0) {
     return 0;
   }
   int is_dir = dir_entry[11] & 0x10;
+  int rownum = *i;
+  int lcdaddr = 0x80 | ((rownum & 1) << 6) | (rownum >> 1) * 20;
 
-  if (*i == 0) {
+  // i addr          i_bin expr
+  // 0 0x80=0x80+0   0 0   0*64 + 0*20
+  // 1 0xc0=0x80+64  0 1   1*64 + 0*20
+  // 2 0x94=0x80+20  1 0   0*64 + 1*20
+  // 3 0xd4=0x80+84  1 1   1*64 + 1*20
+  if (rownum == 0) {
     lcd_cmd(0x01);
-  } else if (*i == 1) {
-    lcd_cmd(0xc0);
-  } else if (*i == 2) {
-    lcd_cmd(0x94);
-  } else if (*i == 3) {
-    lcd_cmd(0xd4);
+  } else {
+    lcd_cmd(lcdaddr);
   }
 
   print_filename_trimspace(dir_entry, dir_entry + 7);
@@ -662,12 +674,26 @@ int print_file_name(char *dir_entry, int *i) {
     lcd_putc('/');
   }
 
-  if (*i == 3) {
+  // ファイルサイズ表示
+  lcd_cmd(lcdaddr + 13);
+  unsigned int siz_lo = read16(dir_entry + 28);
+  unsigned int siz_hi = read16(dir_entry + 30);
+  char buf[6];
+  if (siz_hi == 0) {
+    int2dec(siz_lo, buf, 5);
+    buf[5] = 0;
+    lcd_puts(buf);
+    lcd_putc('B');
+  } else {
+    lcd_puts("TOOBIG");
+  }
+
+  if (rownum == 3) {
     lcd_cmd(0xd4 + 19);
     lcd_putc(0x02);
     while (get_key() != 0x1e);
   }
-  *i = (*i + 1) & 3;
+  *i = (rownum + 1) & 3;
 
   return 0;
 }
@@ -683,8 +709,7 @@ char *find_file(char *dir_entry, char *fn83) {
   return 0;
 }
 
-int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int ccs) {
-  char fn83[11];
+void filename_to_fn83(char *filename, char *fn83) {
   int i;
   for (i = 0; i < 11; ++i) {
     fn83[i] = ' ';
@@ -711,6 +736,11 @@ int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int
   for (i = 0; i < 3 & *p != 0; ++i) {
     *q++ = toupper(*p++);
   }
+}
+
+int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int ccs) {
+  char fn83[11];
+  filename_to_fn83(filename, fn83);
 
   char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
   if (file_entry == 0 && fn83[8] == ' ') {
@@ -724,7 +754,7 @@ int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int
     lcd_puts("No such file");
     return -1;
   } else {
-    unsigned int exe_clus = file_entry[26] | (file_entry[27] << 8);
+    unsigned int exe_clus = read16(file_entry + 26);
     unsigned int exe_lba = clus_to_sec(exe_clus);
     if (load_exe(app_main, block_buf, exe_lba, ccs) < 0) {
       lcd_puts("failed to load app");
@@ -773,6 +803,45 @@ void print_sdinfo() {
   lcd_puts("MB");
 }
 
+void cat_file(char *filename, char *block_buf, int ccs) {
+  char fn83[11];
+  filename_to_fn83(filename, fn83);
+  char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
+
+  lcd_cmd(0xc0);
+  if (file_entry == 0) {
+    lcd_puts("no such file");
+    return;
+  }
+  unsigned int siz_lo = read16(file_entry + 28);
+  unsigned int siz_hi = read16(file_entry + 30);
+
+  unsigned int clus = read16(file_entry + 26);
+  unsigned int lba = clus_to_sec(clus);
+  if (sd_read_block(block_buf, lba, ccs) < 0) {
+    lcd_puts("failed to load file");
+    return;
+  }
+
+  if (siz_hi > 0) {
+    siz_lo = 0xffff;
+  }
+
+  int row;
+  int len;
+  for (row = 1; siz_lo > 0 & row < 4; ++row) {
+    lcd_cmd(0x80 | ((row & 1) << 6) | (row >> 1) * 20);
+    if (siz_lo >= 20) {
+      len = 20;
+    } else {
+      len = siz_lo;
+    }
+    lcd_putsn(block_buf, len);
+    block_buf += len;
+    siz_lo -= len;
+  }
+}
+
 void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
   int i;
   char buf[5];
@@ -786,6 +855,8 @@ void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
     run_app(app_main, block_buf);
   } else if (strncmp(cmd, "sdinfo", 4) == 0) {
     print_sdinfo();
+  } else if (strncmp(cmd, "cat ", 4) == 0) {
+    cat_file(cmd + 4, block_buf, ccs);
   } else {
     if (load_exe_by_filename(app_main, block_buf, cmd, ccs) >= 0) {
       run_app(app_main, block_buf);
