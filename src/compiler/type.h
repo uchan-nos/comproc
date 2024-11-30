@@ -28,5 +28,6 @@ struct Type {
 };
 
 struct Type *NewType(enum TypeKind kind);
+struct Type *NewFuncType(struct Type *ret_type, struct Token *id);
 size_t SizeofType(struct Type *type);
 void PrintType(FILE *out, struct Type *type);

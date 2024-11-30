@@ -11,6 +11,13 @@ struct Type *NewType(enum TypeKind kind) {
   return type;
 }
 
+struct Type *NewFuncType(struct Type *ret_type, struct Token *id) {
+  struct Type *t = NewType(kTypePtr);
+  t->id = id;
+  t->base = ret_type;
+  return t;
+}
+
 size_t SizeofType(struct Type *type) {
   switch (type->kind) {
   case kTypeChar: return 1;

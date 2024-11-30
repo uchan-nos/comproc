@@ -269,13 +269,13 @@ void play_sound(int pulse_width, int pulse_count) {
   }
 }
 
-int main() {
+int main(int *info) {
   int i;
   int to_addr = 8;
   char buf[5];
   char default_node_name[32];
 
-  asm("push _ISR\n\tpush 0x2000\n\tadd\n\tpop isr");
+  __builtin_set_isr(info[0] + _ISR);
   uart2_flag = 2; // enable interrupt
 
   strcpy(greet_body, "This is ComProc");

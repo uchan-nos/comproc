@@ -98,6 +98,7 @@ struct Node *FunctionDefinition(struct ParseContext *ctx,
 
   struct Symbol *func_sym = NewSymbol(kSymFunc, id);
   func_sym->def = func_def;
+  func_sym->type = NewFuncType(tspec->type, id);
   AppendSymbol(ctx->scope->syms, func_sym);
 
   ctx->scope = EnterScope(ctx->scope);
@@ -709,15 +710,13 @@ struct Node *TypeSpec() {
   }
 
   if (Consume('(')) { // 関数ポインタ
-    struct Type *t = NewType(kTypePtr);
     Expect('*');
-    t->id = Consume(kTokenId);
+    struct Token *id = Consume(kTokenId);
     Expect(')');
     Expect('(');
     Expect(')');
 
-    t->base = type;
-    type = t;
+    type = NewFuncType(type, id);
   }
 
   struct Node *tspec = NewNode(kNodeTypeSpec, token);

@@ -61,7 +61,22 @@ void play_bootsound() {
   }
 }
 
-int main() {
+void int2hex(int val, char *s, int n) {
+  int i;
+  for (i = 0; i < n; i++) {
+    int v = val & 0xf;
+    val = val >> 4;
+    if (v >= 10) {
+      v += 'A' - 10;
+    } else {
+      v += '0';
+    }
+    s[n - 1 - i] = v;
+  }
+}
+
+int main(int *info) {
+  char buf[5];
   led_port = 0;
 
   lcd_out4(0, 3);
@@ -78,6 +93,12 @@ int main() {
   play_bootsound();
 
   gpio = 0x80;
+
+  int2hex(info[0], buf, 4);
+  buf[4] = 0;
+  lcd_out8(0, 0x94 + 8);
+  lcd_puts("info[0]=");
+  lcd_puts(buf);
 
   lcd_out8(0, 0x80);
   lcd_puts("waiting enter...");

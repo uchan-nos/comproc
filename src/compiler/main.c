@@ -490,6 +490,8 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         } else if (is_bif && strcmp(sym->name->raw, "__builtin_write_pmem") == 0) {
           Insn(ctx, "spha");
           Insn(ctx, "spla");
+        } else if (is_bif && strcmp(sym->name->raw, "__builtin_set_isr") == 0) {
+          InsnReg(ctx, "pop", "isr");
         } else if (sym && (sym->kind == kSymGVar || sym->kind == kSymLVar) && sym->type->kind == kTypePtr) {
           Generate(ctx, node->lhs, VC_RVAL, 1);
           Insn(ctx, "call");
@@ -879,6 +881,7 @@ struct Symbol *make_builtin_syms() {
 
   sym = AppendBifSymbol(sym, "__builtin_set_gp", NewType(kTypeVoid));
   sym = AppendBifSymbol(sym, "__builtin_write_pmem", type_uint);
+  sym = AppendBifSymbol(sym, "__builtin_set_isr", NewType(kTypeVoid));
 
   return builtin_syms;
 }
