@@ -69,16 +69,18 @@ void send_byte(int data) {
   uart2_data = data;
 }
 
+int send_delay = 20;
+
 void send_str(char *s) {
   while (*s) {
-    delay_ms(20);
+    delay_ms(send_delay);
     send_byte(*s++);
   }
 }
 
 void send_head(unsigned char addr, unsigned char len) {
   send_byte(addr);
-  delay_ms(20);
+  delay_ms(send_delay);
   send_byte(len);
 }
 
@@ -183,7 +185,9 @@ int strtoi(char *s, char **endptr, int base) {
     ++s;
     v = base*v + i;
   }
-  *endptr = s;
+  if (endptr) {
+    *endptr = s;
+  }
   return v;
 }
 
@@ -233,6 +237,16 @@ void proc_cmd(char *cmd) {
     for (i; greet_body[i] && i < 40; ++i) {
       lcd_putc(greet_body[i]);
     }
+  } else if (strncmp(cmd, "set delay ", 10) == 0) {
+    char buf[5];
+    buf[4] = 0;
+    lcd_cmd(0xd4);
+    int2hex(send_delay, buf, 4);
+    lcd_puts(buf);
+    lcd_puts(" -> ");
+    send_delay = strtoi(cmd + 10, 0, 10);
+    int2hex(send_delay, buf, 4);
+    lcd_puts(buf);
   } else if (strncmp(cmd, "help", 5) == 0) {
     lcd_cmd(0x94);
     lcd_puts("greet DST           ");
@@ -245,9 +259,9 @@ void proc_cmd(char *cmd) {
     lcd_puts("show greet         \x7e");
     while (get_key() != '\x1e'); // ‰E–îˆó‚ğ‘Ò‚Â
     lcd_cmd(0x94);
-    lcd_puts("help                ");
+    lcd_puts("set delay DELAY_MS  ");
     lcd_cmd(0xd4);
-    lcd_puts("                    ");
+    lcd_puts("help                ");
   } else {
     lcd_cmd(0x94);
     lcd_puts("Unknown cmd");
@@ -389,7 +403,7 @@ int main(int *info) {
       } else { // ©•ªˆ¶‚Ä‚Å‚Í‚È‚¢‚Ì‚ÅŸƒm[ƒh‚Ö“]‘—
         send_head(addr_byte, len_byte);
         for (i = 0; i < len_byte; ++i) {
-          delay_ms(20);
+          delay_ms(send_delay);
           send_byte(msmp_buf[i + 3]);
         }
       }
