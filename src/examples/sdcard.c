@@ -1,6 +1,3 @@
-unsigned int pmem_len;
-unsigned int dmem_len;
-
 unsigned int tim_cnt __attribute__((at(0x02)));
 unsigned int spi_dat __attribute__((at(0x020)));
 unsigned int spi_ctl __attribute__((at(0x022)));

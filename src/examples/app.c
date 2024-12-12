@@ -1,6 +1,3 @@
-unsigned int pmem_len;
-unsigned int dmem_len;
-
 int tim_cnt __attribute__((at(0x02)));
 unsigned int kbc_queue __attribute__((at(0x24)));
 unsigned int kbc_status __attribute__((at(0x26)));

@@ -318,6 +318,12 @@ int ProcessDataSection(FILE *input_file, FILE *map_file,
     if (strcmp(al->mnemonic, "section") == 0) {
       if (strcmp(al->operands[0], ".data") != 0) {
         // .data セクションの終了
+        if (first_label && exe_mode) {
+          // exe_mode の場合、先頭 4 バイトを pmem_len & dmem_len に強制する
+          SetLabel(labels + 0, "pmem_len", 0x0000, map_file);
+          SetLabel(labels + 1, "dmem_len", 0x0002, map_file);
+          *num_labels = 2;
+        }
         break;
       }
     } else if (strcmp(al->mnemonic, "db") == 0) {

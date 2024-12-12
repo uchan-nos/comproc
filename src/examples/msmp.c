@@ -1,7 +1,4 @@
 // MSMP: Make-cpu Simple Messaging Protocol
-unsigned int pmem_len;
-unsigned int dmem_len;
-
 unsigned int tim_cnt __attribute__((at(0x02)));
 unsigned int adc_result __attribute__((at(0x0A)));
 unsigned int kbc_queue __attribute__((at(0x24)));
