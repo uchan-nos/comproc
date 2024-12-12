@@ -35,6 +35,7 @@ def receive_stdout(filename, ser):
         while b != b'\x04':
             num += 1
             f.write(b)
+            f.flush()
             b = ser.read(1)
     return (num, b)
 

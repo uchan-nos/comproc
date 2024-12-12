@@ -6,4 +6,4 @@ then
   exit 1
 fi
 
-../../tool/uart.py --pmem "$1" --dmem "$2"
+../../tool/uart.py --pmem "$1" --dmem "$2" ${UART_OPTS:-}
