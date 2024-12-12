@@ -1,12 +1,6 @@
-unsigned int tim_cnt __attribute__((at(0x02)));
-unsigned int spi_dat __attribute__((at(0x020)));
-unsigned int spi_ctl __attribute__((at(0x022)));
-unsigned int kbc_queue __attribute__((at(0x24)));
-unsigned int kbc_status __attribute__((at(0x26)));
-
-char led_port __attribute__((at(0x80)));
-char lcd_port __attribute__((at(0x81)));
-char gpio __attribute__((at(0x82)));
+#include "mmio.h"
+#include "delay.h"
+#include "lcd.h"
 
 char *shift_map = " !\x22#$%&'()*+<=>?" // 0x20: !"#$%&'()*+,-./
                   "0!\x22#$%&'()*+<=>?" // 0x30:0123456789:;<=>?
@@ -14,51 +8,6 @@ char *shift_map = " !\x22#$%&'()*+<=>?" // 0x20: !"#$%&'()*+,-./
                   "PQRSTUVWXYZ{|}~_"    // 0x50:PQRSTUVWXYZ[¥]^_
                   "`ABCDEFGHIJKLMNO"    // 0x60:`abcdefghijklmno
                   "PQRSTUVWXYZ{|}~\x7f";// 0x70:pqrstuvwxyz{|}~
-
-void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0) {}
-}
-
-void lcd_out4(int rs, int val) {
-  lcd_port = (val << 4) | rs | 1;
-  delay_ms(2);
-  lcd_port = lcd_port & 0xfe;
-}
-
-void lcd_out8(int rs, int val) {
-  lcd_out4(rs, val >> 4);
-  lcd_out4(rs, val & 0x0f);
-}
-
-void lcd_cmd(int cmd) {
-  lcd_out8(0, cmd);
-}
-
-void lcd_putc(int ch) {
-  lcd_out8(4, ch);
-}
-
-void lcd_init() {
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 2);
-
-  // ここから 4 ビットモード
-  lcd_cmd(0x28);
-  lcd_cmd(0x0f);
-  lcd_cmd(0x06);
-  lcd_cmd(0x01);
-
-  gpio = 0x80; // バックライト点灯
-}
-
-void lcd_puts(char *s) {
-  while (*s) {
-    lcd_putc(*s++);
-  }
-}
 
 void lcd_putsn(char *s, int n) {
   while (n-- > 0) {

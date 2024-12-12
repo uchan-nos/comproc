@@ -1,13 +1,5 @@
-int tim_count __attribute__((at(0x02)));
-int adc_result __attribute__((at(0x0A)));
-char led_port __attribute__((at(0x80)));
-int uart_data __attribute__((at(6)));
-int uart_flag __attribute__((at(8)));
-
-void delay_ms(int ms) {
-  tim_count = ms;
-  while (tim_count > 0) {}
-}
+#include "mmio.h"
+#include "delay.h"
 
 void int2hex(int val, char *s, int n) {
   int i;

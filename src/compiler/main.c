@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <ctype.h>
+#include <libgen.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +17,7 @@
 #define MAX_LINE (32*1024/2)
 #define MAX_SRC_LEN (128*1024)
 #define GVAR_OFFSET 0x100
+#define MAX_PATHLEN 256
 
 char *src;
 void Locate(char *p) {
@@ -886,10 +889,78 @@ struct Symbol *make_builtin_syms() {
   return builtin_syms;
 }
 
+char *PreProc(FILE *input_file, const char *input_dirname) {
+  char *src = malloc(MAX_SRC_LEN);
+  size_t src_len = 0, src_free_len = MAX_SRC_LEN;
+  long input_prev_pos = 0;
+
+  while (fgets(src + src_len, src_free_len, input_file) != NULL) {
+    if (src[src_len] == '#') { // pre-process
+      char *p = src + src_len + 1;
+      while (*p && isspace(*p)) {
+        ++p;
+      }
+      if (strncmp(p, "include", 7) == 0) {
+        p += 7;
+        while (*p && isspace(*p)) {
+          ++p;
+        }
+        if (*p == '<') {
+          fprintf(stderr, "not implemented #include <...>\n");
+          Locate(p);
+          exit(1);
+        } else if (*p == '"') {
+          char *q = p + 1;
+          while (*q && *q != '"') {
+            ++q;
+          }
+          if (*q == '\0') {
+            fprintf(stderr, "no closing '\"'\n");
+            Locate(p);
+            exit(1);
+          } else { // *q == '"'
+            *q = '\0';
+            size_t dirname_len = strlen(input_dirname);
+            char hpath[MAX_PATHLEN];
+            strcpy(hpath, input_dirname);
+            strcat(hpath, "/");
+            strncat(hpath, p + 1, MAX_PATHLEN - dirname_len - 2);
+            FILE *hfile = fopen(hpath, "r");
+            if (hfile == NULL) {
+              fprintf(stderr, "no such file: '%s'\n", p + 1);
+              Locate(p + 1);
+              exit(1);
+            }
+            size_t hlen = fread(src + src_len, 1, src_free_len - 1, hfile);
+            src_len += hlen;
+          }
+        } else {
+          fprintf(stderr, "'\"' is expected after #include\n");
+          Locate(p);
+          exit(1);
+        }
+      } else {
+        fprintf(stderr, "not implemented pre-process directive\n");
+        Locate(p);
+        exit(1);
+      }
+    } else { // normal line
+      long read_len = ftell(input_file) - input_prev_pos;
+      src_len += read_len;
+      src_free_len -= read_len;
+    }
+
+    input_prev_pos = ftell(input_file);
+  }
+  src[src_len] = '\0';
+  return src;
+}
+
 int main(int argc, char **argv) {
   int print_ast = 0;
   const char *input_filename = NULL;
   const char *output_filename = "a.s";
+  char input_dirname[MAX_PATHLEN] = ".";
 
   int ret_from_start = 0; // 真なら start 関数は return する
   for (int i = 1; i < argc; i++) {
@@ -921,14 +992,19 @@ int main(int argc, char **argv) {
   FILE *output_file = stdout;
   if (strcmp(input_filename, "-") != 0) {
     input_file = fopen(input_filename, "r");
+    if (input_file == NULL) {
+      fprintf(stderr, "no such file: '%s'\n", input_filename);
+      exit(1);
+    }
+    strncpy(input_dirname, input_filename, MAX_PATHLEN - 1);
+    input_dirname[MAX_PATHLEN - 1] = '\0';
+    strcpy(input_dirname, dirname(input_dirname));
   }
   if (strcmp(output_filename, "-") != 0) {
     output_file = fopen(output_filename, "w");
   }
 
-  src = malloc(MAX_SRC_LEN);
-  size_t src_len = fread(src, 1, MAX_SRC_LEN - 1, input_file);
-  src[src_len] = '\0';
+  src = PreProc(input_file, input_dirname);
   if (input_file != stdin) {
     fclose(input_file);
   }

@@ -1,6 +1,4 @@
-int tim_count __attribute__((at(0x02)));
-int uart_data __attribute__((at(0x06)));
-int uart_flag __attribute__((at(0x08)));
+#include "mmio.h"
 
 int recv_cnt;
 int recv_last;
@@ -14,8 +12,7 @@ void _ISR() {
 
 int main() {
   recv_cnt = 0;
-  asm("push _ISR\n\t"
-      "isr");
+  __builtin_set_isr(_ISR);
   uart_flag = 2; // 受信割り込みを有効化
   while (recv_cnt < 8);
   return recv_cnt;

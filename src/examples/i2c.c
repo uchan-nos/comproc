@@ -1,13 +1,5 @@
-int tim_cnt __attribute__((at(0x02)));
-int i2c_data __attribute__((at(0x28)));
-int i2c_status __attribute__((at(0x2A)));
-char led_port __attribute__((at(0x80)));
-char gpio __attribute__((at(0x82)));
-
-void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0) {}
-}
+#include "mmio.h"
+#include "delay.h"
 
 int wait_ready() {
   while ((i2c_status & 0x2) == 0);

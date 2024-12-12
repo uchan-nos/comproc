@@ -1,32 +1,6 @@
-int tim_cnt __attribute__((at(0x02)));
-unsigned int kbc_queue __attribute__((at(0x24)));
-unsigned int kbc_status __attribute__((at(0x26)));
-char led_port __attribute__((at(0x80)));
-char lcd_port __attribute__((at(0x81)));
-char gpio __attribute__((at(0x82)));
-
-void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0);
-}
-
-void lcd_out4(int rs, int val) {
-  lcd_port = (val << 4) | 8 | rs | 1;
-  delay_ms(2);
-  lcd_port = lcd_port & 0xfe;
-}
-
-void lcd_out8(int rs, int val) {
-  lcd_out4(rs, val >> 4);
-  lcd_out4(rs, val & 0x0f);
-}
-
-void lcd_puts(char *s) {
-  int i;
-  for (i = 0; s[i]; i++) {
-    lcd_out8(4, s[i]);
-  }
-}
+#include "mmio.h"
+#include "delay.h"
+#include "lcd.h"
 
 int get_key() {
   while ((kbc_status & 0xff) == 0);
@@ -76,20 +50,9 @@ int main(int *info) {
   char buf[5];
   led_port = 0;
 
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 2);
-
-  // ここから 4 ビットモード
-  lcd_out8(0, 0x28);
-  lcd_out8(0, 0x0f);
-  lcd_out8(0, 0x06);
-  lcd_out8(0, 0x01);
+  lcd_init();
 
   play_bootsound();
-
-  gpio = 0x80;
 
   int2hex(info[0], buf, 4);
   buf[4] = 0;

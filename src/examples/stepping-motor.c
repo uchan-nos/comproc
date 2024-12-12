@@ -1,23 +1,18 @@
-int tim_cnt __attribute__((at(0x02)));
-char led __attribute__((at(0x80)));
-char gpio __attribute__((at(0x82)));
-
-void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0) {}
-}
+#include "mmio.h"
+#include "delay.h"
+#include "lcd.h"
 
 void out(char val, int ms) {
   if (ms <= 4) {
-    gpio = led = val;
+    gpio = led_port = val;
     delay_ms(ms);
     return;
   }
 
   for (; ms > 0; ms -= 4) {
-    gpio = led = val;
+    gpio = led_port = val;
     delay_ms(2);
-    gpio = led = 0;
+    gpio = led_port = 0;
     delay_ms(2);
   }
 }

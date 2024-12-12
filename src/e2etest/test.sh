@@ -198,3 +198,5 @@ test_value 12 'int main() {__builtin_write_pmem(512,3,0x12); __builtin_write_pme
 test_value 01 'int main() {return !0 + !3;}'
 test_value 03 'void f(){int i;for(i=0;i<1;++i){int a=7;}} int main(){int i=3; f(); return i;}'
 test_value 04 "int main() {return \"A\x03B\"[1] + '\x01';}"
+test_value 03 '#include "head_add.h"
+int main() { return add(1, 2); }'

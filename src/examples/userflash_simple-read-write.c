@@ -1,49 +1,6 @@
-int tim_count __attribute__((at(0x02)));
-
-int uf_xadr    __attribute__((at(0x10)));
-int uf_yadr    __attribute__((at(0x12)));
-int uf_flags   __attribute__((at(0x14)));
-int uf_din_lo  __attribute__((at(0x18)));
-int uf_din_hi  __attribute__((at(0x1A)));
-int uf_dout_lo __attribute__((at(0x1C)));
-int uf_dout_hi __attribute__((at(0x1E)));
-
-char lcd_port __attribute__((at(0x81)));
-
-void delay_ms(int ms) {
-  tim_count = ms;
-  while (tim_count > 0) {}
-}
-
-void lcd_out4(int rs, int val) {
-  lcd_port = (val << 4) | rs | 1;
-  delay_ms(2);
-  lcd_port = lcd_port & 0xfe;
-}
-
-void lcd_out8(int rs, int val) {
-  lcd_out4(rs, val >> 4);
-  lcd_out4(rs, val & 0x0f);
-}
-
-void lcd_init() {
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 3);
-  lcd_out4(0, 2);
-
-  // ここから 4 ビットモード
-  lcd_out8(0, 0x28);
-  lcd_out8(0, 0x0f);
-  lcd_out8(0, 0x06);
-  lcd_out8(0, 0x01);
-}
-
-void lcd_puts(char *s) {
-  while (*s) {
-    lcd_out8(4, *s++);
-  }
-}
+#include "mmio.h"
+#include "delay.h"
+#include "lcd.h"
 
 void int2hex(int val, char *s, int n) {
   int i;

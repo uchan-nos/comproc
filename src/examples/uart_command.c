@@ -1,9 +1,6 @@
-unsigned int timer_cnt __attribute__((at(0x02)));
-unsigned int uart_data __attribute__((at(0x06)));
-unsigned int uart_flag __attribute__((at(0x08)));
-char led __attribute__((at(0x80)));
-char lcd_port __attribute__((at(0x81)));
-char gpio __attribute__((at(0x82)));
+#include "mmio.h"
+#include "delay.h"
+#include "lcd.h"
 
 char cmd;
 int cmd_received = 0;
@@ -13,37 +10,6 @@ void _ISR() {
     cmd = uart_data;
     cmd_received = 1;
   }
-}
-
-void delay_ms(int ms) {
-  timer_cnt = ms;
-  while (timer_cnt > 0);
-}
-
-void lcd_out4(int rs, int val) {
-  lcd_port = val | rs | 1;
-  delay_ms(2);
-  lcd_port = lcd_port & 0xfe;
-}
-
-void lcd_out8(int rs, int val) {
-  lcd_out4(rs, val & 0xf0);
-  lcd_out4(rs, val << 4);
-}
-
-void lcd_init() {
-  lcd_out4(0, 0x30);
-  lcd_out4(0, 0x30);
-  lcd_out4(0, 0x30);
-  lcd_out4(0, 0x20);
-
-  // ここから 4 ビットモード
-  lcd_out8(0, 0x28);
-  lcd_out8(0, 0x0f);
-  lcd_out8(0, 0x06);
-  lcd_out8(0, 0x01);
-
-  gpio = 0x80; // バックライト点灯
 }
 
 void lcd_outs(int pos, char *s) {
@@ -87,22 +53,22 @@ int main(int *info) {
 
       for (i = 0; i < 2; i++) {
         if (cmd < 16) {
-          led = 0x10 + cmd;
+          led_port = 0x10 + cmd;
         } else {
-          led = 0xa5;
+          led_port = 0xa5;
         }
         timer_cnt = 500;
         while (timer_cnt > 0);
         if (cmd < 16) {
-          led = 0;
+          led_port = 0;
         } else {
-          led = 0x5a;
+          led_port = 0x5a;
         }
         timer_cnt = 500;
         while (timer_cnt > 0);
       }
     } else {
-      led = pattern;
+      led_port = pattern;
       pattern = (pattern << 1) | (pattern >> 7);
       timer_cnt = 500;
       while (timer_cnt > 0);

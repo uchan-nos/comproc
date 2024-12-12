@@ -1,10 +1,5 @@
-int tim_cnt __attribute__((at(0x02)));
-char lcd_port __attribute__((at(0x81)));
-
-void delay_ms(int ms) {
-  tim_cnt = ms;
-  while (tim_cnt > 0) {}
-}
+#include "mmio.h"
+#include "delay.h"
 
 void lcd_out4(int rs, int val) {
   lcd_port = (val << 4) | rs | 1;
