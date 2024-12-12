@@ -1,8 +1,9 @@
-int timer_cnt __attribute__((at(2)));
-int uart_data __attribute__((at(6)));
-int uart_flag __attribute__((at(8)));
+unsigned int timer_cnt __attribute__((at(0x02)));
+unsigned int uart_data __attribute__((at(0x06)));
+unsigned int uart_flag __attribute__((at(0x08)));
 char led __attribute__((at(0x80)));
 char lcd_port __attribute__((at(0x81)));
+char gpio __attribute__((at(0x82)));
 
 char cmd;
 int cmd_received = 0;
@@ -41,6 +42,8 @@ void lcd_init() {
   lcd_out8(0, 0x0f);
   lcd_out8(0, 0x06);
   lcd_out8(0, 0x01);
+
+  gpio = 0x80; // バックライト点灯
 }
 
 void lcd_outs(int pos, char *s) {
@@ -65,13 +68,12 @@ void char_to_hex(char *s, char v) {
   }
 }
 
-int main() {
+int main(int *info) {
   int i;
   char pattern = 0x13;
   char *msg = "cmd=__";
 
-  asm("push _ISR\n\t"
-      "isr");
+  __builtin_set_isr(info[0] + _ISR);
   uart_flag = 2; // 受信割り込みを有効化
 
   lcd_init();
