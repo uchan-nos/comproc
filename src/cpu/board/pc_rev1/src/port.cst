@@ -26,6 +26,11 @@ IO_PORT "uart2_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 IO_LOC "uart2_tx" 41;
 IO_PORT "uart2_tx" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
 
+IO_LOC "uart3_rx" 18;
+IO_PORT "uart3_rx" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
+IO_LOC "uart3_tx" 17;
+IO_PORT "uart3_tx" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
+
 IO_LOC "key_col_n[0]" 79;
 IO_LOC "key_col_n[1]" 80;
 IO_LOC "key_col_n[2]" 81;

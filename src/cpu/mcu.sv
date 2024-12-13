@@ -4,8 +4,8 @@ module mcu#(
   parameter CLOCK_HZ = 27_000_000,
   parameter UART_BAUD = 115200
 ) (
-  input rst, clk, uart_rx, uart2_rx,
-  output uart_tx, uart2_tx,
+  input rst, clk, uart_rx, uart2_rx, uart3_rx,
+  output uart_tx, uart2_tx, uart3_tx,
   output [`ADDR_WIDTH-1:0] dmem_addr,
   output dmem_wen, dmem_byt,
   input  [15:0] dmem_rdata_io, // メモリ読み込みデータ（IO 領域）
@@ -224,6 +224,34 @@ always @(posedge clk, posedge rst) begin
     uart2_ie <= dmem_wdata[1];
 end
 
+// MCU 内蔵周辺機能：UART3
+logic [7:0] uart3_rx_byte, uart3_tx_byte;
+logic uart3_rd, uart3_rx_full, uart3_wr, uart3_tx_ready, uart3_ie;
+
+uart#(.CLOCK_HZ(CLOCK_HZ), .BAUD(9600), .TIM_WIDTH(12)) uart3(
+  .rst(rst),
+  .clk(clk),
+  .rx(uart3_rx),
+  .tx(uart3_tx),
+  .rx_data(uart3_rx_byte),
+  .tx_data(uart3_tx_byte),
+  .rd(uart3_rd),
+  .rx_full(uart3_rx_full),
+  .wr(uart3_wr),
+  .tx_ready(uart3_tx_ready)
+);
+
+assign uart3_rd = cpu_dmem_ren & dmem_addr_d === `ADDR_WIDTH'h030;
+assign uart3_wr = cpu_dmem_wen & dmem_addr === `ADDR_WIDTH'h030;
+assign uart3_tx_byte = cpu_dmem_wdata[7:0];
+
+always @(posedge clk, posedge rst) begin
+  if (rst)
+    uart3_ie <= 1'b0;
+  else if (cpu_dmem_wen && dmem_addr === `ADDR_WIDTH'h02E)
+    uart3_ie <= dmem_wdata[1];
+end
+
 // MCU 内蔵周辺機能：ADC
 logic [7:0] adc_result;
 
@@ -423,6 +451,8 @@ function [15:0] dmem_rdata_mux(
     `ADDR_WIDTH'h02A:       return {12'd0, i2c_rx_ack, i2c_cnd_stop, i2c_tx_ready, i2c_addr_rw};
     `ADDR_WIDTH'h02C:       return {8'd0, uart2_rx_byte};
     `ADDR_WIDTH'h02E:       return {13'd0, uart2_tx_ready, uart2_ie, uart2_rx_full};
+    `ADDR_WIDTH'h030:       return {8'd0, uart3_rx_byte};
+    `ADDR_WIDTH'h032:       return {13'd0, uart3_tx_ready, uart3_ie, uart3_rx_full};
     `ADDR_WIDTH'b1xxx_xxxx: return dmem_rdata_io;
     default:                return CLK_DIV >= 2 ? dmem_rdata_mem_d : dmem_rdata_mem;
   endcase

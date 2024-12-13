@@ -9,6 +9,22 @@ char *shift_map = " !\x22#$%&'()*+<=>?" // 0x20: !"#$%&'()*+,-./
                   "`ABCDEFGHIJKLMNO"    // 0x60:`abcdefghijklmno
                   "PQRSTUVWXYZ{|}~\x7f";// 0x70:pqrstuvwxyz{|}~
 
+int uart_getc() {
+  while ((uart3_flag & 0x01) == 0);
+  return uart3_data;
+}
+
+void uart_putc(char c) {
+  while ((uart3_flag & 0x04) == 0);
+  uart3_data = c;
+}
+
+void uart_puts(char *s) {
+  while (*s) {
+    uart_putc(*s++);
+  }
+}
+
 void lcd_putsn(char *s, int n) {
   while (n-- > 0) {
     lcd_putc(*s++);
@@ -22,6 +38,56 @@ void lcd_clear() {
 void lcd_puts_addr(int addr, char *s) {
   lcd_cmd(0x80 + addr);
   lcd_puts(s);
+}
+
+void putchar(char c) {
+  lcd_putc(c);
+  uart_putc(c);
+}
+
+void puts(char *s) {
+  while (*s) {
+    putchar(*s++);
+  }
+}
+
+void lcd_cursor_at(int row, int col) {
+  lcd_cmd(0x80 | ((((row & 1) << 6) | (row >> 1) * 20) + col));
+}
+
+void uart_cursor_at(int row, int col) {
+  uart_puts("\x1B["); // CSI
+  uart_putc('1' + row);
+  uart_putc(';');
+  if (col < 10) {
+    uart_putc('1' + col);
+  } else {
+    uart_putc('1');
+    uart_putc('0' + (col - 10));
+  }
+  uart_putc('H');
+}
+
+// カーソルを row 行 col 列に移動
+// row, col: 0 始まり
+void cursor_at(int row, int col) {
+  lcd_cursor_at(row, col);
+  uart_cursor_at(row, col);
+}
+
+// カーソルを row 行 col 列に移動し、その位置の文字を消去
+void cursor_at_erace(int row, int col) {
+  lcd_cursor_at(row, col);
+  lcd_putc(' ');
+  lcd_cursor_at(row, col);
+
+  uart_cursor_at(row, col);
+  uart_puts("\x1B[X");
+}
+
+void clear() {
+  lcd_clear();
+  uart_puts("\x1B[H\x1B[J");
 }
 
 void assert_cs() {
@@ -140,17 +206,17 @@ void show_sd_cmd_error(char cmd, int r1, char *msg) {
 
   lcd_puts_addr(0x00, "CMD");
   if (digit10 > 0) {
-    lcd_putc('0' + digit10);
+    putchar('0' + digit10);
   }
-  lcd_putc('0' + cmd);
-  lcd_puts(" -> ");
+  putchar('0' + cmd);
+  puts(" -> ");
 
   if (r1 < 0) {
-    lcd_puts("timeout");
+    puts("timeout");
   } else {
     int2hex(r1, buf, 2);
     buf[2] = '\0';
-    lcd_puts(buf);
+    puts(buf);
   }
 
   lcd_puts_addr(0x40, msg);
@@ -172,7 +238,7 @@ int sd_init() {
   }
 
   //delay_ms(500);
-  lcd_clear();
+  clear();
 
   assert_cs(); // CS = 0
   send_sd_cmd(0, 0, 0, 0x95); // CMD0
@@ -501,8 +567,30 @@ int strncmp(char *a, char *b, int n) {
 }
 
 int get_key() {
-  while ((kbc_status & 0xff) == 0);
-  return kbc_queue;
+  while (1) {
+    if ((kbc_status & 0xff) != 0) {
+      return kbc_queue;
+    }
+    if ((uart3_flag & 0x01) != 0) {
+      break;
+    }
+  }
+
+  char c = uart_getc();
+  if (c != 0x1b) {
+    return c;
+  } else { // escape sequence
+    c = uart_getc();
+    if (c != '[') {
+      return c;
+    } else { // CSI
+      c = uart_getc();
+      if ('A' <= c & c <= 'D') {
+        return 0x1c + c - 'A';
+      }
+      return c;
+    }
+  }
 }
 
 int strncmp(char *a, char *b, int n) {
@@ -565,7 +653,7 @@ int foreach_dir_entry(char *block_buf, int ccs, int (*proc_entry)(), void *arg) 
   int find_loop;
   for (find_loop = 0; find_loop < BPB_RootEntCnt >> 4; ++find_loop) {
     if (sd_read_block(block_buf, rootdir_sec + find_loop, ccs) < 0) {
-      lcd_puts("failed to read block");
+      puts("failed to read block");
       return 0;
     }
     for (int i = 0; i < 16; ++i) {
@@ -588,9 +676,9 @@ void print_filename_trimspace(char *name, char *end) {
   }
   for (; name <= end; ++name) {
     if (*name == 0x7e) { // チルダ
-      lcd_putc(0x01);
+      putchar(0x01);
     } else {
-      lcd_putc(*name);
+      putchar(*name);
     }
   }
 }
@@ -605,7 +693,6 @@ int print_file_name(char *dir_entry, int *i) {
   }
   int is_dir = dir_entry[11] & 0x10;
   int rownum = *i;
-  int lcdaddr = 0x80 | ((rownum & 1) << 6) | (rownum >> 1) * 20;
 
   // i addr          i_bin expr
   // 0 0x80=0x80+0   0 0   0*64 + 0*20
@@ -613,37 +700,38 @@ int print_file_name(char *dir_entry, int *i) {
   // 2 0x94=0x80+20  1 0   0*64 + 1*20
   // 3 0xd4=0x80+84  1 1   1*64 + 1*20
   if (rownum == 0) {
-    lcd_cmd(0x01);
+    clear();
   } else {
-    lcd_cmd(lcdaddr);
+    cursor_at(rownum, 0);
   }
 
   print_filename_trimspace(dir_entry, dir_entry + 7);
   if (strncmp(dir_entry + 8, "   ", 3) != 0) { // 拡張子あり
-    lcd_putc('.');
+    putchar('.');
     print_filename_trimspace(dir_entry + 8, dir_entry + 10);
   }
   if (is_dir) {
-    lcd_putc('/');
+    putchar('/');
   }
 
   // ファイルサイズ表示
-  lcd_cmd(lcdaddr + 13);
+  cursor_at(rownum, 13);
   unsigned int siz_lo = read16(dir_entry + 28);
   unsigned int siz_hi = read16(dir_entry + 30);
   char buf[6];
   if (siz_hi == 0) {
     int2dec(siz_lo, buf, 5);
     buf[5] = 0;
-    lcd_puts(buf);
-    lcd_putc('B');
+    puts(buf);
+    putchar('B');
   } else {
-    lcd_puts("TOOBIG");
+    puts("TOOBIG");
   }
 
   if (rownum == 3) {
-    lcd_cmd(0xd4 + 19);
+    cursor_at(3, 19);
     lcd_putc(0x02);
+    uart_puts("\xe2\xa4\xb6");
     while (get_key() != 0x1e);
   }
   *i = (rownum + 1) & 3;
@@ -704,17 +792,17 @@ int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int
   }
 
   if (file_entry == 0) {
-    lcd_puts("No such file");
+    puts("No such file");
     return -1;
   } else {
     unsigned int exe_clus = read16(file_entry + 26);
     unsigned int exe_lba = clus_to_sec(exe_clus);
     if (load_exe(app_main, block_buf, exe_lba, ccs) < 0) {
-      lcd_puts("failed to load app");
+      puts("failed to load app");
       return -1;
     }
 
-    lcd_puts("File loaded");
+    puts("File loaded");
   }
   return 0;
 }
@@ -728,11 +816,11 @@ void run_app(int (*app_main)(), char *block_buf) {
   int ret_code = app_main(appinfo);
   __builtin_set_gp(0x100);
 
-  lcd_cmd(0xd4);
+  cursor_at(3, 0);
   int2hex(ret_code, buf, 4);
   buf[4] = 0;
-  lcd_putc(0x7e);
-  lcd_puts(buf);
+  putchar(0x7e);
+  puts(buf);
 }
 
 unsigned int sdinfo;
@@ -740,23 +828,23 @@ unsigned int cap_mib;
 
 void print_sdinfo() {
   char buf[5];
-  lcd_puts("SDv");
+  puts("SDv");
   if (sdinfo & 0x0001) {
-    lcd_puts("2+");
+    puts("2+");
   } else {
-    lcd_puts("1 ");
+    puts("1 ");
   }
   if (sdinfo & 0x0002) {
-    lcd_puts("HC");
+    puts("HC");
   } else {
-    lcd_puts("SC");
+    puts("SC");
   }
 
-  lcd_puts(" ");
+  puts(" ");
   int2dec(cap_mib, buf, 4);
   buf[4] = 0;
-  lcd_puts(buf);
-  lcd_puts("MB");
+  puts(buf);
+  puts("MB");
 }
 
 void cat_file(char *filename, char *block_buf, int ccs) {
@@ -764,9 +852,9 @@ void cat_file(char *filename, char *block_buf, int ccs) {
   filename_to_fn83(filename, fn83);
   char *file_entry = foreach_dir_entry(block_buf, ccs, find_file, fn83);
 
-  lcd_cmd(0xc0);
+  cursor_at(1, 0);
   if (file_entry == 0) {
-    lcd_puts("no such file");
+    puts("no such file");
     return;
   }
   unsigned int siz_lo = read16(file_entry + 28);
@@ -775,7 +863,7 @@ void cat_file(char *filename, char *block_buf, int ccs) {
   unsigned int clus = read16(file_entry + 26);
   unsigned int lba = clus_to_sec(clus);
   if (sd_read_block(block_buf, lba, ccs) < 0) {
-    lcd_puts("failed to load file");
+    puts("failed to load file");
     return;
   }
 
@@ -786,7 +874,7 @@ void cat_file(char *filename, char *block_buf, int ccs) {
   int row;
   int len;
   for (row = 1; siz_lo > 0 & row < 4; ++row) {
-    lcd_cmd(0x80 | ((row & 1) << 6) | (row >> 1) * 20);
+    cursor_at(row, 0);
     if (siz_lo >= 20) {
       len = 20;
     } else {
@@ -801,7 +889,7 @@ void cat_file(char *filename, char *block_buf, int ccs) {
 void proc_cmd(char *cmd, int (*app_main)(), char *block_buf, int ccs) {
   int i;
   char buf[5];
-  lcd_cmd(0xc0);
+  cursor_at(1, 0);
   if (strncmp(cmd, "ls", 3) == 0) {
     i = 0;
     foreach_dir_entry(block_buf, ccs, print_file_name, &i);
@@ -841,7 +929,7 @@ int main() {
   lcd_cmd(0x48);
   lcd_puts("\x08\x15\x02");
   for (i = 0; i < 5; ++i) {
-    lcd_putc(0);
+    putchar(0);
   }
   // 行が続くことを表す記号
   // 0  _ _ _ _ _
@@ -878,11 +966,11 @@ int main() {
   if (sd_read_block(block_buf, 0, ccs) < 0) {
     return 1;
   }
-  lcd_cmd(0xc0);
+  cursor_at(1, 0);
 
   // MBR か PBR の判定
   if (!has_signature_55AA(block_buf)) {
-    lcd_puts("not found 55 AA");
+    puts("not found 55 AA");
     return 1;
   }
   if (!is_valid_PBR(block_buf)) {
@@ -907,22 +995,22 @@ int main() {
       break;
     }
     if (i == 4) {
-      lcd_puts("MBR with no FAT16 pt");
+      puts("MBR with no FAT16 pt");
       return 1;
     }
   } else {
-    lcd_puts("Unknown BS");
+    puts("Unknown BS");
     return 1;
   }
 
   if (!is_valid_PBR(block_buf)) {
-    lcd_puts("no valid PBR");
+    puts("no valid PBR");
     return 1;
   }
 
   set_bpb_values(block_buf);
   if (BPB_BytsPerSec != 512) {
-    lcd_puts("BPB_BytsPerSec!=512");
+    puts("BPB_BytsPerSec!=512");
     return 1;
   }
 
@@ -935,7 +1023,7 @@ int main() {
   while (1) {
     int key = get_key();
     if (cmd_i == 0 && key < 0x80) {
-      lcd_cmd(0x01);
+      clear();
     }
 
     if (key == '\n') { // Enter
@@ -947,9 +1035,7 @@ int main() {
     } else if (key == '\b') {
       if (cmd_i > 0) {
         cmd_i--;
-        lcd_cmd(0x80 + cmd_i);
-        lcd_putc(' ');
-        lcd_cmd(0x80 + cmd_i);
+        cursor_at_erace(0, cmd_i);
       }
     } else if (key == 0x0E) { // Shift
       shift = 1;
@@ -964,7 +1050,7 @@ int main() {
       if (caps ^ shift) {
         key = shift_map[key - 0x20];
       }
-      lcd_putc(key);
+      putchar(key);
       cmd[cmd_i++] = key;
     }
   }
