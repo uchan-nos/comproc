@@ -39,6 +39,10 @@ struct Node *NewNodeBinOp(enum NodeKind kind, struct Token *op,
 }
 
 struct Type *DecideBinOpType(struct Type *lhs, struct Type *rhs) {
+  if (lhs == NULL || rhs == NULL) {
+    return NULL;
+  }
+
   struct Type *t = NULL;
   if (lhs->kind == kTypeChar && rhs->kind == kTypeChar) {
     t = TYPE_INT;
@@ -59,6 +63,13 @@ struct Type *DecideBinOpType(struct Type *lhs, struct Type *rhs) {
 }
 
 struct Node *Program(struct ParseContext *ctx) {
+  struct Token *token_list = cur_token;
+  ctx->pass = kPPInit;
+  while (ExternalDeclaration(ctx));
+
+  cur_token = token_list;
+  ctx->pass = kPPMain;
+
   TYPE_INT = NewType(kTypeInt);
   TYPE_INT->attr = TYPE_ATTR_SIGNED;
 
@@ -93,13 +104,24 @@ struct Node *ExternalDeclaration(struct ParseContext *ctx) {
 
 struct Node *FunctionDefinition(struct ParseContext *ctx,
                                 struct Node *tspec, struct Token *id) {
-  struct Node *func_def = NewNode(kNodeDefFunc, id);
-  func_def->lhs = tspec;
-
-  struct Symbol *func_sym = NewSymbol(kSymFunc, id);
-  func_sym->def = func_def;
-  func_sym->type = NewFuncType(tspec->type, id);
-  AppendSymbol(ctx->scope->syms, func_sym);
+  struct Node *func_def;
+  if (ctx->pass == kPPMain) {
+    struct Symbol *func_sym = FindSymbol(ctx->scope, id);
+    assert(func_sym != NULL);
+    func_def = func_sym->def;
+  } else {
+    if (FindSymbol(ctx->scope, id)) {
+      fprintf(stderr, "symbol redefined\n");
+      Locate(id->raw);
+      exit(1);
+    }
+    func_def = NewNode(kNodeDefFunc, id);
+    func_def->lhs = tspec;
+    struct Symbol *func_sym = NewSymbol(kSymFunc, id);
+    func_sym->def = func_def;
+    func_sym->type = NewFuncType(tspec->type, id);
+    AppendSymbol(ctx->scope->syms, func_sym);
+  }
 
   ctx->scope = EnterScope(ctx->scope);
   func_def->scope = ctx->scope;
@@ -139,25 +161,37 @@ struct Node *FunctionDefinition(struct ParseContext *ctx,
 
 struct Node *VariableDefinition(struct ParseContext *ctx,
                                 struct Node *tspec, struct Token *id) {
-  struct Node *def = NewNode(kNodeDefVar, tspec->token);
-  def->type = tspec->type;
-  def->lhs = NewNode(kNodeId, id);
-
   if (Consume('[')) {
     struct Token *len = Expect(kTokenInteger);
     Expect(']');
     struct Type *t = NewType(kTypeArray);
     t->len = len->value.as_int;
-    t->base = def->type;
-    def->type = t;
+    t->base = tspec->type;
+    tspec->type = t;
   }
 
-  assert(ctx->scope->syms);
-  assert(def->type);
-  struct Symbol *sym = NewSymbol(ctx->scope->parent ? kSymLVar : kSymGVar, id);
-  sym->def = def;
-  sym->type = def->type;
-  sym->offset = ctx->scope->var_offset;
+  enum SymbolKind sym_kind = ctx->scope->parent ? kSymLVar : kSymGVar;
+  struct Node *def;
+  struct Symbol *sym;
+  if (ctx->pass == kPPMain && sym_kind == kSymGVar) {
+    sym = FindSymbol(ctx->scope, id);
+    assert(sym != NULL);
+    def = sym->def;
+  } else {
+    if (sym_kind == kSymGVar && FindSymbol(ctx->scope, id)) {
+      fprintf(stderr, "symbol redefined\n");
+      Locate(id->raw);
+      exit(1);
+    }
+    def = NewNode(kNodeDefVar, tspec->token);
+    def->type = tspec->type;
+    def->lhs = NewNode(kNodeId, id);
+    sym = NewSymbol(sym_kind, id);
+    sym->def = def;
+    sym->type = def->type;
+    sym->offset = ctx->scope->var_offset;
+    AppendSymbol(ctx->scope->syms, sym);
+  }
 
   int attr_at = 0;
   if (Consume(kTokenAttr)) {
@@ -192,7 +226,6 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
     size_t mem_size = (SizeofType(def->type) + 1) & ~((size_t)1);
     ctx->scope->var_offset += mem_size;
   }
-  AppendSymbol(ctx->scope->syms, sym);
 
   if (Consume('=')) {
     def->rhs = Expression(ctx);
@@ -484,21 +517,25 @@ struct Node *Additive(struct ParseContext *ctx) {
   while (1) {
     if ((op = Consume('+'))) {
       node = NewNodeBinOp(kNodeAdd, op, node, Multiplicative(ctx));
-      if (node->lhs->type->kind == kTypePtr) {
-        node->type = node->lhs->type;
-      } else {
-        node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
+      if (ctx->pass == kPPMain) {
+        if (node->lhs->type->kind == kTypePtr) {
+          node->type = node->lhs->type;
+        } else {
+          node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
+        }
       }
     } else if ((op = Consume('-'))) {
       node = NewNodeBinOp(kNodeSub, op, node, Multiplicative(ctx));
-      if (node->lhs->type->kind == kTypePtr) {
-        if (node->rhs->type->kind == kTypePtr) {
-          node->type = TYPE_INT;
+      if (ctx->pass == kPPMain) {
+        if (node->lhs->type->kind == kTypePtr) {
+          if (node->rhs->type->kind == kTypePtr) {
+            node->type = TYPE_INT;
+          } else {
+            node->type = node->lhs->type;
+          }
         } else {
-          node->type = node->lhs->type;
+          node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
         }
-      } else {
-        node->type = DecideBinOpType(node->lhs->type, node->rhs->type);
       }
     } else {
       break;
@@ -557,7 +594,9 @@ struct Node *Unary(struct ParseContext *ctx) {
     node->type->base = node->rhs->type;
   } else if ((op = Consume('*'))) {
     node = NewNodeBinOp(kNodeDeref, op, NULL, Cast(ctx));
-    node->type = node->rhs->type->base;
+    if (ctx->pass == kPPMain) {
+      node->type = node->rhs->type->base;
+    }
   } else if ((op = Consume('-'))) {
     struct Token *zero_tk = NewToken(kTokenInteger, NULL, 0);
     zero_tk->value.as_int = 0;
@@ -597,26 +636,31 @@ struct Node *Postfix(struct ParseContext *ctx) {
     Expect(']');
 
     node = NewNodeBinOp(kNodeDeref, op, NULL, ind);
-    node->type = array_type->base;
-  } else if ((op = Consume('('))) {
-    struct Symbol *func = FindSymbol(ctx->scope, node->token);
-    if (!func) {
-      fprintf(stderr, "symbol not found\n");
-      Locate(node->token->raw);
-      exit(1);
+    if (ctx->pass == kPPMain) {
+      node->type = array_type->base;
     }
+  } else if ((op = Consume('('))) {
+    struct Token *id = node->token;
     node = NewNodeBinOp(kNodeCall, op, node, NULL);
-
-    // 関数の戻り値型を取得
-    if (func->kind == kSymFunc || func->kind == kSymBif) {
-      node->type = func->def->lhs->type;
-    } else if (func->kind == kSymLVar || func->kind == kSymGVar) {
-      if (func->type->kind == kTypePtr) {
-        node->type = func->type->base;
-      } else {
-        fprintf(stderr, "failed to determine the return type\n");
-        Locate(node->token->raw);
+    if (ctx->pass == kPPMain) {
+      struct Symbol *func = FindSymbol(ctx->scope, id);
+      if (!func) {
+        fprintf(stderr, "symbol not found\n");
+        Locate(id->raw);
         exit(1);
+      }
+
+      // 関数の戻り値型を取得
+      if (func->kind == kSymFunc || func->kind == kSymBif) {
+        node->type = func->def->lhs->type;
+      } else if (func->kind == kSymLVar || func->kind == kSymGVar) {
+        if (func->type->kind == kTypePtr) {
+          node->type = func->type->base;
+        } else {
+          fprintf(stderr, "failed to determine the return type\n");
+          Locate(node->token->raw);
+          exit(1);
+        }
       }
     }
 
@@ -652,14 +696,16 @@ struct Node *Primary(struct ParseContext *ctx) {
     // 文字列リテラルが連続する区間は 1 つの kNodeString ノードが担当する
     while (Consume(kTokenString));
   } else if ((tk = Consume(kTokenId))) {
-    struct Symbol *sym = FindSymbol(ctx->scope, tk);
-    if (!sym) {
-      fprintf(stderr, "symbol not found\n");
-      Locate(tk->raw);
-      exit(1);
-    }
     node = NewNode(kNodeId, tk);
-    node->type = sym->type;
+    if (ctx->pass == kPPMain) {
+      struct Symbol *sym = FindSymbol(ctx->scope, tk);
+      if (!sym) {
+        fprintf(stderr, "symbol not found\n");
+        Locate(tk->raw);
+        exit(1);
+      }
+      node->type = sym->type;
+    }
   } else {
     node = NewNode(kNodeVoid, cur_token);
   }

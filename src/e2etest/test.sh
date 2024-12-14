@@ -200,3 +200,4 @@ test_value 03 'void f(){int i;for(i=0;i<1;++i){int a=7;}} int main(){int i=3; f(
 test_value 04 "int main() {return \"A\x03B\"[1] + '\x01';}"
 test_value 03 '#include "head_add.h"
 int main() { return add(1, 2); }'
+test_value 02 'int main() {return ((f() >> 15) & 4) | ((g() >> 15) & 2);} unsigned int f(){return -1;} int g(){return -1;}'

@@ -1011,7 +1011,8 @@ int main(int argc, char **argv) {
 
   struct Scope *global_scope = NewGlobalScope(make_builtin_syms());
   struct ParseContext parse_ctx = {
-    global_scope
+    global_scope,
+    kPPInit,
   };
 
   Tokenize(src);

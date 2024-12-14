@@ -76,8 +76,14 @@ struct Node {
 
 struct Scope;
 
+enum ParsePass {
+  kPPInit,
+  kPPMain,
+};
+
 struct ParseContext {
   struct Scope *scope;
+  int pass;
 };
 
 struct Node *NewNode(enum NodeKind kind, struct Token *token);
