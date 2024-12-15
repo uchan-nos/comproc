@@ -673,12 +673,12 @@ int main(int argc, char **argv) {
   }
 
   FILE *input_file = stdin;
-  FILE *pmem_file = stdout, *dmem_file = NULL, *map_file = NULL;
+  FILE *pmem_file = NULL, *dmem_file = NULL, *map_file = NULL;
   FILE *exe_file = NULL;
   if (input_filename && strcmp(input_filename, "-") != 0) {
     input_file = fopen(input_filename, "r");
   }
-  if (pmem_filename && strcmp(pmem_filename, "-") != 0) {
+  if (pmem_filename) {
     pmem_file = fopen(pmem_filename, "w");
   }
   if (dmem_filename) {
@@ -724,8 +724,10 @@ int main(int argc, char **argv) {
       fprintf(dmem_file, "%02X%02X\n", dmem[i + 1], dmem[i]);
     }
   }
-  for (int i = 0; i < num_insn; i++) {
-    fprintf(pmem_file, "%05X\n", pmem[i]);
+  if (pmem_file) {
+    for (int i = 0; i < num_insn; i++) {
+      fprintf(pmem_file, "%05X\n", pmem[i]);
+    }
   }
 
   if (exe_file) {
