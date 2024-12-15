@@ -1000,9 +1000,6 @@ int main(int argc, char **argv) {
     input_dirname[MAX_PATHLEN - 1] = '\0';
     strcpy(input_dirname, dirname(input_dirname));
   }
-  if (strcmp(output_filename, "-") != 0) {
-    output_file = fopen(output_filename, "w");
-  }
 
   src = PreProc(input_file, input_dirname);
   if (input_file != stdin) {
@@ -1038,6 +1035,9 @@ int main(int argc, char **argv) {
     0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
 
+  if (strcmp(output_filename, "-") != 0) {
+    output_file = fopen(output_filename, "w");
+  }
   fprintf(output_file, "section .data\n");
   int gvar_offset = 0;
   for (struct Symbol *sym = global_scope->syms->next; sym; sym = sym->next) {
