@@ -555,17 +555,6 @@ int load_exe(unsigned int pmem_addr, unsigned int dmem_addr, unsigned int exe_lb
   return 0;
 }
 
-int strncmp(char *a, char *b, int n) {
-  int i;
-  for (i = 0; i < n; i++) {
-    int v = a[i] - b[i];
-    if (v != 0 | a[i] == 0) {
-      return v;
-    }
-  }
-  return 0;
-}
-
 int get_key() {
   while (1) {
     if ((kbc_status & 0xff) != 0) {
