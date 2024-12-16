@@ -6,6 +6,7 @@ then
   exit 1
 fi
 
+tool_dir=$(dirname $0)
 num_diff=$(git diff | wc -l)
 
 src="$1"
@@ -16,7 +17,7 @@ then
   exit 1
 fi
 
-commits="7b4f003 bc264c3"
+commits=""
 
 for commit in $commits
 do
@@ -30,7 +31,7 @@ current_commit=$(git rev-parse HEAD)
 
 make -C ../compiler >/dev/null
 make -C ../assembler >/dev/null
-./build.sh $src >/dev/null
+$tool_dir/build.sh $src >/dev/null
 
 # git checkout に備えて diff を無くす
 if [ $num_diff -ne 0 ]
@@ -46,7 +47,7 @@ do
 
   make -C ../compiler >/dev/null
   make -C ../assembler >/dev/null
-  ./build.sh $new_src >/dev/null
+  $tool_dir/build.sh $new_src >/dev/null
 done
 
 # ワークツリーを復元する
@@ -68,10 +69,10 @@ echo "Mode: $mode"
 
 case $mode in
   num_insn)
-    wc -l $(basename $src .c).hex
+    wc -l $(basename $src .c).pmem.hex
     for commit in $commits
     do
-      wc -l $(basename $src .c).$commit.hex
+      wc -l $(basename $src .c).$commit.pmem.hex
     done
     ;;
   diff_asm)

@@ -16,10 +16,8 @@ main:
 	st fp+2
 	push 3
 	st fp+4
-	push fp+1
-	ldd1
-	push fp+4
-	ldd
+	ld1 fp+1
+	ld fp+4
 	sub
 	add fp,8
 	ret

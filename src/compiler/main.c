@@ -240,6 +240,42 @@ int IsAddFp(struct AsmLine *al) {
   return 0;
 }
 
+// 命令が 'push X+imm' であれば真を返す
+int IsPushBaseImm(struct AsmLine *al) {
+  if (al->kind != kAsmLineInsn || strcmp("push", al->insn.opcode) != 0) {
+    return 0;
+  }
+  struct Operand *operands = al->insn.operands;
+  if (operands[0].kind == kOprBaseOff &&
+      operands[1].kind == kOprNone) {
+    return 1;
+  }
+  return 0;
+}
+
+// 最終行が push X+imm なら ld/st X+imm に置き換える。そうでなければ lda/sta を発行する。
+// store: 0=ld, 1=st
+// byt: 0=word, 1=byte
+// pop: 1=スタックにデータを残さない
+void EmitOptimalLdSt(struct GenContext *ctx, int store, int byt, int pop) {
+  struct AsmLine *last_line = &ctx->asm_lines[ctx->num_line - 1];
+  if (IsPushBaseImm(last_line)) {
+    if (store) {
+      last_line->insn.opcode = byt ? "st1" : "st";
+    } else {
+      last_line->insn.opcode = byt ? "ld1" : "ld";
+      if (pop) {
+        Insn(ctx, "pop");
+      }
+    }
+  } else {
+    Insn(ctx, store ? (byt ? "std1" : "std") : (byt ? "ldd1" : "ldd"));
+    if (pop) {
+      Insn(ctx, "pop");
+    }
+  }
+}
+
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack);
 
 void GenVarInit(struct GenContext *ctx, struct Symbol *var) {
@@ -460,18 +496,19 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->lhs, VC_LVAL, 1);
-      Insn(ctx, SizeofType(node->lhs->type) == 1 ? "sta1" : "sta");
-      Insn(ctx, "pop");
+      EmitOptimalLdSt(ctx, 1, SizeofType(node->lhs->type) == 1, 1);
     } else { // 前置インクリメント '++ exp'
       PRINT_NODE_COMMENT(ctx, node, "Inc/Dec (prefix))");
       Generate(ctx, node->rhs, VC_RVAL, 1);
       InsnInt(ctx, "push", 1);
       Insn(ctx, node->kind == kNodeInc ? "add" : "sub");
       Generate(ctx, node->rhs, VC_LVAL, 1);
-      Insn(ctx, SizeofType(node->rhs->type) == 1 ? "std1" : "std");
+      int byt = SizeofType(node->rhs->type) == 1;
       if (value_class == VC_NO_NEED) {
         node->type = NewType(kTypeVoid);
-        Insn(ctx, "pop");
+        EmitOptimalLdSt(ctx, 1, byt, 1);
+      } else {
+        Insn(ctx, byt ? "std1" : "std");
       }
     }
     break;
@@ -479,13 +516,15 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     Generate(ctx, node->rhs, value_class == VC_NO_NEED ? VC_NO_NEED : VC_LVAL, 1);
     break;
   case kNodeDeref:
-    Generate(ctx, node->rhs, VC_RVAL, 1);
-    if (value_class == VC_RVAL) {
-      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
-    } else if (value_class == VC_NO_NEED) {
-      Insn(ctx, SizeofType(node->rhs->type->base) == 1 ? "ldd1" : "ldd");
-      node->type = NewType(kTypeVoid);
-      Insn(ctx, "pop");
+    {
+      Generate(ctx, node->rhs, VC_RVAL, 1);
+      int byt = SizeofType(node->rhs->type->base) == 1;
+      if (value_class == VC_RVAL) {
+        EmitOptimalLdSt(ctx, 0, byt, 0);
+      } else if (value_class == VC_NO_NEED) {
+        node->type = NewType(kTypeVoid);
+        EmitOptimalLdSt(ctx, 0, byt, 1);
+      }
     }
     break;
   case kNodeNot:
@@ -611,15 +650,15 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     PRINT_NODE_COMMENT(ctx, node, "Assign");
     Generate(ctx, node->rhs, VC_RVAL, 1);
     Generate(ctx, node->lhs, VC_LVAL, 1);
-    assert(node->lhs->type);
-    if (SizeofType(node->lhs->type) == 1) {
-      Insn(ctx, value_class == VC_LVAL ? "sta1" : "std1");
-    } else {
-      Insn(ctx, value_class == VC_LVAL ? "sta" : "std");
-    }
-    if (value_class == VC_NO_NEED) {
-      node->type = NewType(kTypeVoid);
-      Insn(ctx, "pop");
+    {
+      int byt = SizeofType(node->lhs->type) == 1;
+      if (value_class == VC_LVAL) {
+        Insn(ctx, byt ? "sta1" : "sta");
+      } else if (value_class == VC_RVAL) {
+        Insn(ctx, byt ? "std1" : "std");
+      } else { // VC_NO_NEED
+        EmitOptimalLdSt(ctx, 1, byt, 1);
+      }
     }
     break;
 
