@@ -278,13 +278,19 @@ void EmitOptimalLdSt(struct GenContext *ctx, int store, int byt, int pop) {
 
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack);
 
+const char *GetBaseReg(struct Symbol *sym) {
+  return sym->kind == kSymLVar ? "fp"
+       : (sym->attr & SYM_ATTR_FIXED_ADDR) ? NULL
+       : "gp";
+}
+
 void GenVarInit(struct GenContext *ctx, struct Symbol *var) {
   struct Node *init = var->def->rhs;
   if (init == NULL) {
     return;
   }
 
-  const char *base = var->kind == kSymGVar ? "gp" : "fp";
+  const char *base = GetBaseReg(var);
   const char *insn = "st";
   if ((var->type->kind == kTypeArray && SizeofType(var->type->base) == 1) ||
       (SizeofType(var->type) == 1)) {
@@ -310,9 +316,7 @@ void GenVarInit(struct GenContext *ctx, struct Symbol *var) {
 
 void GenNodeId(struct GenContext *ctx, struct Symbol *sym, enum ValueClass value_class) {
   assert(sym->type);
-  const char *base = sym->kind == kSymLVar ? "fp"
-                   : (sym->attr & SYM_ATTR_FIXED_ADDR) ? NULL
-                   : "gp";
+  const char *base = GetBaseReg(sym);
 
   if (sym->type->kind == kTypeArray) {
     if (value_class == VC_LVAL) {
@@ -349,9 +353,11 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   int lhs_is_uint = node->lhs && node->lhs->type && IS_UNSIGNED_INT(node->lhs->type);
   int rhs_is_uint = node->rhs && node->rhs->type && IS_UNSIGNED_INT(node->rhs->type);
 
-  // arr[imm] の最適化
+  // arr[imm] または ptr[imm] の最適化
   if (node->kind == kNodeAdd &&
-      node->lhs->kind == kNodeId && node->lhs->type->kind == kTypeArray &&
+      node->lhs->kind == kNodeId && (
+        node->lhs->type->kind == kTypeArray ||
+        node->lhs->type->kind == kTypePtr) &&
       node->rhs->kind == kNodeInteger) {
     struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
     if (!sym) {
@@ -362,14 +368,19 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
 
     size_t element_size = SizeofType(node->lhs->type->base);
     int index = node->rhs->token->value.as_int;
-    const char *base = sym->kind == kSymGVar ? "gp" : "fp";
-
-    uint16_t offset = sym->offset + element_size * index;
-    if ((offset & 0xf000) == 0) {
-      InsnBaseOff(ctx, "push", base, offset);
+    if (node->lhs->type->kind == kTypeArray) {
+      uint16_t offset = sym->offset + element_size * index;
+      if ((offset & 0xf000) == 0) {
+        InsnBaseOff(ctx, "push", GetBaseReg(sym), offset);
+        return gen_result;
+      }
+      // オフセットが 12 ビットに収まらない場合は最適化を諦める
+    } else { // kTypePtr
+      Generate(ctx, node->lhs, VC_RVAL, 1);
+      InsnInt(ctx, "push", element_size * index);
+      Insn(ctx, "add");
       return gen_result;
     }
-    // オフセットが 12 ビットに収まらない場合は最適化を諦める
   }
 
   if (100 <= node->kind && node->kind < 200) { // standard binary expression

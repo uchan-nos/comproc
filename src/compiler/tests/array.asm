@@ -7,7 +7,7 @@ start:
 fin:
 	jmp fin
 main:
-	add fp,-8
+	add fp,-10
 	push 3
 	st1 fp+0
 	push 5
@@ -16,8 +16,13 @@ main:
 	st fp+2
 	push 3
 	st fp+4
+	push fp+2
+	st fp+8
 	ld1 fp+1
-	ld fp+4
+	ld fp+8
+	push 2
+	add
+	ldd
 	sub
-	add fp,8
+	add fp,10
 	ret
