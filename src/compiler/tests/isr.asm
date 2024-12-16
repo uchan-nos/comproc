@@ -1,6 +1,8 @@
-	add fp,256
-	push main
-	call
+section .data
+
+section .text
+start:
+	call main
 	st 6
 fin:
 	jmp fin

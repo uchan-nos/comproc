@@ -1,17 +1,17 @@
-	add fp,256
-	push main
-	call
+section .data
+
+section .text
+start:
+	call main
 	st 6
 fin:
 	jmp fin
 main:
-	cpush fp
-	add fp,2
-	push 24237
-	sign
-	st cstack+0
-	ld cstack+0
+	add fp,-2
+	push 57005
+	st fp+0
+	ld fp+0
 	push 15
 	sar
-	cpop fp
+	add fp,2
 	ret
