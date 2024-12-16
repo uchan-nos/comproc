@@ -285,6 +285,29 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
   int lhs_is_uint = node->lhs && node->lhs->type && IS_UNSIGNED_INT(node->lhs->type);
   int rhs_is_uint = node->rhs && node->rhs->type && IS_UNSIGNED_INT(node->rhs->type);
 
+  // arr[imm] の最適化
+  if (node->kind == kNodeAdd &&
+      node->lhs->kind == kNodeId && node->lhs->type->kind == kTypeArray &&
+      node->rhs->kind == kNodeInteger) {
+    struct Symbol *sym = FindSymbol(ctx->scope, node->lhs->token);
+    if (!sym) {
+      fprintf(stderr, "unknown symbol\n");
+      Locate(node->token->raw);
+      exit(1);
+    }
+
+    size_t element_size = SizeofType(node->lhs->type->base);
+    int index = node->rhs->token->value.as_int;
+    const char *base = sym->kind == kSymGVar ? "gp" : "fp";
+
+    uint16_t offset = sym->offset + element_size * index;
+    if ((offset & 0xf000) == 0) {
+      InsnBaseOff(ctx, "push", base, offset);
+      return gen_result;
+    }
+    // オフセットが 12 ビットに収まらない場合は最適化を諦める
+  }
+
   if (100 <= node->kind && node->kind < 200) { // standard binary expression
     struct Instruction *lhs_insn, *rhs_insn;
 
