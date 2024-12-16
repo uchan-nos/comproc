@@ -240,6 +240,38 @@ int IsAddFp(struct AsmLine *al) {
   return 0;
 }
 
+unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack);
+
+void GenVarInit(struct GenContext *ctx, struct Symbol *var) {
+  struct Node *init = var->def->rhs;
+  if (init == NULL) {
+    return;
+  }
+
+  const char *base = var->kind == kSymGVar ? "gp" : "fp";
+  const char *insn = "st";
+  if ((var->type->kind == kTypeArray && SizeofType(var->type->base) == 1) ||
+      (SizeofType(var->type) == 1)) {
+    insn = "st1";
+  }
+
+  if (init->kind != kNodeIList) {
+    Generate(ctx, init, VC_RVAL, 1);
+    InsnBaseOff(ctx, insn, base, var->offset);
+  } else {
+    assert(var->type->kind == kTypeArray);
+    struct Node *n = init->rhs;
+    uint16_t offset = var->offset;
+    int inc = SizeofType(var->type->base);
+    while (n) {
+      Generate(ctx, n, VC_RVAL, 1);
+      InsnBaseOff(ctx, insn, base, offset);
+      offset += inc;
+      n = n->next;
+    }
+  }
+}
+
 // 生成された値が boolean value なら true、それ以外は false を返す。
 // req_onstack: 演算スタック上に値が必要（インタプリタ上ではダメ）であれば 1
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack) {
@@ -747,14 +779,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       if (is_global) {
         assert(sym->offset != 0);
       } else {
-        if (node->rhs) {
-          Generate(ctx, node->rhs, VC_RVAL, 1);
-          if (SizeofType(sym->type) == 1) {
-            InsnBaseOff(ctx, "st1", "fp", sym->offset);
-          } else {
-            InsnBaseOff(ctx, "st", "fp", sym->offset);
-          }
-        }
+        GenVarInit(ctx, sym);
       }
     }
     break;
@@ -838,6 +863,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     break;
   case kNodeTypeSpec:
   case kNodePList:
+  case kNodeIList:
     break;
   case kNodeAsm:
     {
@@ -1034,6 +1060,7 @@ int main(int argc, char **argv) {
     parse_ctx.scope,
     0, 0, 0, {}, {-1, -1}, 0, {}, print_ast, 0
   };
+  AddLabelStr(&gen_ctx, "start");
 
   if (strcmp(output_filename, "-") != 0) {
     output_file = fopen(output_filename, "w");
@@ -1056,10 +1083,7 @@ int main(int argc, char **argv) {
             fprintf(output_file, ",0");
           }
         }
-        if (sym->def->rhs) {
-          Generate(&gen_ctx, sym->def->rhs, VC_RVAL, 1);
-          InsnBaseOff(&gen_ctx, "st", "gp", sym->offset);
-        }
+        GenVarInit(&gen_ctx, sym);
       } else { // kind == kNodeInteger
         int val = sym->def->rhs->token->value.as_int;
         fprintf(output_file, "\n" INDENT "db %d,%d", val & 0xff, (val >> 8) & 0xff);
@@ -1068,7 +1092,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  AddLabelStr(&gen_ctx, "start");
   if (ret_from_start) {
     InsnLabelStr(&gen_ctx, "call", "main");
     Insn(&gen_ctx, "ret");

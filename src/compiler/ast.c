@@ -159,6 +159,45 @@ struct Node *FunctionDefinition(struct ParseContext *ctx,
   return func_def;
 }
 
+struct Node *VariableInitializer(struct ParseContext *ctx, struct Symbol *sym) {
+  struct Token *br = Consume('{');
+  if (!br) {
+    return Expression(ctx);
+  }
+
+  if (sym->type->kind != kTypeArray) {
+    fprintf(stderr, "initializer list is allowed only for arrays\n");
+    Locate(br->raw);
+    exit(1);
+  }
+
+  struct Node *init = NewNode(kNodeIList, br);
+  struct Node *n = init;
+  uint16_t i = 0;
+  while (!Consume('}')) {
+    struct Token *n_start = cur_token;
+    if (Consume(',')) {
+      fprintf(stderr, "expression required\n");
+      Locate(n_start->raw);
+      exit(1);
+    }
+    n->next = Expression(ctx);
+    n = n->next;
+    if (++i > sym->type->len) {
+      fprintf(stderr, "too many initializer\n");
+      Locate(n_start->raw);
+      exit(1);
+    }
+    if (!Consume(',')) {
+      Expect('}');
+      break;
+    }
+  }
+  init->rhs = init->next;
+  init->next = NULL;
+  return init;
+}
+
 struct Node *VariableDefinition(struct ParseContext *ctx,
                                 struct Node *tspec, struct Token *id) {
   if (Consume('[')) {
@@ -228,7 +267,7 @@ struct Node *VariableDefinition(struct ParseContext *ctx,
   }
 
   if (Consume('=')) {
-    def->rhs = Expression(ctx);
+    def->rhs = VariableInitializer(ctx, sym);
   }
   Expect(';');
 
