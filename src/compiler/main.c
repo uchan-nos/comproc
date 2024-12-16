@@ -272,6 +272,34 @@ void GenVarInit(struct GenContext *ctx, struct Symbol *var) {
   }
 }
 
+void GenNodeId(struct GenContext *ctx, struct Symbol *sym, enum ValueClass value_class) {
+  assert(sym->type);
+  const char *base = sym->kind == kSymLVar ? "fp"
+                   : (sym->attr & SYM_ATTR_FIXED_ADDR) ? NULL
+                   : "gp";
+
+  if (sym->type->kind == kTypeArray) {
+    if (value_class == VC_LVAL) {
+      fprintf(stderr, "array itself cannot be l-value: %.*s\n",
+              sym->name->len, sym->name->raw);
+      exit(1);
+    }
+    InsnBaseOff(ctx, "push", base, sym->offset);
+  } else {
+    if (value_class == VC_LVAL) {
+      InsnBaseOff(ctx, "push", base, sym->offset);
+    } else {
+      // value_class == VC_NO_NEED だとしても ld 命令は発効する。
+      // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
+      if (SizeofType(sym->type) == 1) {
+        InsnBaseOff(ctx, "ld1", base, sym->offset);
+      } else {
+        InsnBaseOff(ctx, "ld", base, sym->offset);
+      }
+    }
+  }
+}
+
 // 生成された値が boolean value なら true、それ以外は false を返す。
 // req_onstack: 演算スタック上に値が必要（インタプリタ上ではダメ）であれば 1
 unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass value_class, int req_onstack) {
@@ -378,61 +406,14 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         exit(1);
         break;
       case kSymGVar:
-        {
-          const char *base = "gp";
-          if (sym->attr & SYM_ATTR_FIXED_ADDR) {
-            base = NULL;
-          }
-
-          assert(sym->type);
-          if (sym->type->kind == kTypeArray) {
-            if (value_class == VC_LVAL) {
-              fprintf(stderr, "array itself cannot be l-value: %.*s\n",
-                      sym->name->len, sym->name->raw);
-              exit(1);
-            } else {
-              InsnBaseOff(ctx, "push", base, sym->offset);
-            }
-          } else {
-            if (value_class == VC_LVAL) {
-              InsnBaseOff(ctx, "push", base, sym->offset);
-            } else {
-              // value_class == VC_NO_NEED だとしても ld 命令は発効する。
-              // 読み込みの副作用のあるメモリマップトレジスタの可能性がある。
-              if (SizeofType(sym->type) == 1) {
-                InsnBaseOff(ctx, "ld1", base, sym->offset);
-              } else {
-                InsnBaseOff(ctx, "ld", base, sym->offset);
-              }
-            }
-          }
-          break;
-        }
+        GenNodeId(ctx, sym, value_class);
+        break;
       case kSymLVar:
-        assert(sym->type);
         if (value_class == VC_NO_NEED) {
           node->type = NewType(kTypeVoid);
           break;
         }
-        if (sym->type->kind == kTypeArray) {
-          if (value_class == VC_LVAL) {
-            fprintf(stderr, "array itself cannot be l-value: %.*s\n",
-                    sym->name->len, sym->name->raw);
-            exit(1);
-          } else {
-            InsnBaseOff(ctx, "push", "fp", sym->offset);
-          }
-        } else {
-          if (value_class == VC_LVAL) {
-            InsnBaseOff(ctx, "push", "fp", sym->offset);
-          } else {
-            if (SizeofType(sym->type) == 1) {
-              InsnBaseOff(ctx, "ld1", "fp", sym->offset);
-            } else {
-              InsnBaseOff(ctx, "ld", "fp", sym->offset);
-            }
-          }
-        }
+        GenNodeId(ctx, sym, value_class);
         break;
       case kSymFunc:
         if (value_class == VC_NO_NEED) {
