@@ -798,8 +798,9 @@ int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int
 
 void run_app(int (*app_main)(), char *block_buf) {
   char buf[5];
-  int appinfo[1] = { // アプリに渡す構成情報
+  int appinfo[2] = { // アプリに渡す構成情報
     (int)app_main, // 0: .text の開始アドレス
+    (int)syscall,  // 1: システムコールのエントリアドレス
   };
 
   __builtin_set_gp(block_buf);
@@ -1046,4 +1047,11 @@ int main() {
   }
 
   return 0;
+}
+
+int syscall(int funcnum) {
+  if (funcnum == 0) { // get OS version
+    return 1;
+  }
+  return -1;
 }

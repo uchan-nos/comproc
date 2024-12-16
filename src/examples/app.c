@@ -54,10 +54,19 @@ int main(int *info) {
 
   play_bootsound();
 
-  int2hex(info[0], buf, 4);
+  lcd_out8(0, 0x94);
+  lcd_puts("info: ");
   buf[4] = 0;
-  lcd_out8(0, 0x94 + 8);
-  lcd_puts("info[0]=");
+  int2hex(info[0], buf, 4);
+  lcd_puts(buf);
+  lcd_putc(' ');
+  int2hex(info[1], buf, 4);
+  lcd_puts(buf);
+
+  int (*syscall)() = info[1];
+  lcd_out8(0, 0xd4);
+  lcd_puts("os version: ");
+  int2hex(syscall(0), buf, 4);
   lcd_puts(buf);
 
   lcd_out8(0, 0x80);
