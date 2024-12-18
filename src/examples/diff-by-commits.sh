@@ -1,8 +1,8 @@
 #!/bin/sh -u
 
-if [ $# -ne 1 ]
+if [ $# -lt 2 ]
 then
-  echo "Usage: $0 <src file>"
+  echo "Usage: $0 <src file> <commit1> [<commit2> ...]"
   exit 1
 fi
 
@@ -10,14 +10,14 @@ tool_dir=$(dirname $0)
 num_diff=$(git diff | wc -l)
 
 src="$1"
+shift
+commits="$@"
 
 if [ ! -f "$src" ]
 then
   echo "No such file: $src"
   exit 1
 fi
-
-commits=""
 
 for commit in $commits
 do
