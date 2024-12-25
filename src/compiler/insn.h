@@ -10,6 +10,7 @@ enum LabelKind {
   kLabelAutoL, // 自動生成されたジャンプ用ラベル
   kLabelAutoS, // 自動生成された文字列リテラル用ラベル
   kLabelStr,   // 文字列リテラルで表現されるラベル
+  kLabelCase,  // switch-case の case
 };
 
 struct Label {
@@ -18,6 +19,10 @@ struct Label {
     struct Token *token;
     int label_no;
     const char *label_str;
+    struct {
+      int label_no;
+      int case_val;
+    } case_;
   };
 };
 

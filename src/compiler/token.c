@@ -37,6 +37,9 @@ static struct ReservedMapItem reserved_map[] = {
   ITEM(__attribute__, kTokenAttr),
   ITEM(signed,        kTokenSigned),
   ITEM(unsigned,      kTokenUnsigned),
+  ITEM(switch,        kTokenSwitch),
+  ITEM(case,          kTokenCase),
+  ITEM(default,       kTokenDefault),
   {NULL, 0, 0},
 };
 static struct ReservedMapItem operator_map[] = {
@@ -173,7 +176,7 @@ static struct Token *NextToken(char *src) {
     return NewToken(op_kind, src, 2);
   }
 
-  if (strchr("+-*/();=<>{}&[]|^~,!", *p) != NULL) {
+  if (strchr("+-*/();=<>{}&[]|^~,!:", *p) != NULL) {
     return NewToken(*p, p, 1);
   }
 

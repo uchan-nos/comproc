@@ -338,6 +338,31 @@ struct Node *Statement(struct ParseContext *ctx) {
     return if_;
   }
 
+  if ((token = Consume(kTokenSwitch))) {
+    struct Node *switch_ = NewNode(kNodeSwitch, token);
+    Expect('(');
+    switch_->cond = Expression(ctx);
+    Expect(')');
+    if (cur_token->kind != '{') {
+      fprintf(stderr, "switch needs one block\n");
+      Locate(cur_token->raw);
+      exit(1);
+    }
+    switch_->rhs = Statement(ctx);
+
+    return switch_;
+  }
+
+  if ((token = Consume(kTokenCase)) || (token = Consume(kTokenDefault))) {
+    struct Node *case_ = NewNode(kNodeCase, token);
+    // default は case_->cond == NULL
+    if (token->kind == kTokenCase) {
+      case_->cond = Primary(ctx);
+    }
+    Expect(':');
+    return case_;
+  }
+
   if ((token = Consume(kTokenFor))) {
     struct Node *for_ = NewNode(kNodeFor, token);
     Expect('(');

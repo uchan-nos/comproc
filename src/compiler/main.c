@@ -149,6 +149,15 @@ struct Instruction *InsnLabelAutoS(struct GenContext *ctx, const char *opcode, c
   return i;
 }
 
+struct Instruction *InsnLabelCase(struct GenContext *ctx, const char *opcode, int label_no, int case_val) {
+  struct Instruction *i = Insn(ctx, opcode);
+  i->operands[0].kind = kOprLabel;
+  i->operands[0].val_label.kind = kLabelCase;
+  i->operands[0].val_label.case_.label_no = label_no;
+  i->operands[0].val_label.case_.case_val = case_val;
+  return i;
+}
+
 struct Label *AddLabel(struct GenContext *ctx) {
   struct AsmLine *line = GenAsmLine(ctx, kAsmLineLabel);
   return &line->label;
@@ -172,6 +181,14 @@ struct Label *AddLabelStr(struct GenContext *ctx, const char *s) {
   struct Label *l = AddLabel(ctx);
   l->kind = kLabelStr;
   l->label_str = s;
+  return l;
+}
+
+struct Label *AddLabelCase(struct GenContext *ctx, int no, int val) {
+  struct Label *l = AddLabel(ctx);
+  l->kind = kLabelCase;
+  l->case_.label_no = no;
+  l->case_.case_val = val;
   return l;
 }
 
@@ -858,6 +875,51 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       PRINT_NODE_COMMENT(ctx, node, "If (end)");
       AddLabelAutoL(ctx, label_end);
     }
+    break;
+  case kNodeSwitch:
+    {
+      struct Node *stmt = node->rhs->rhs;
+      int label_case = GenLabel(ctx);
+      int label_default = GenLabel(ctx);
+      int label_end = GenLabel(ctx);
+
+      struct JumpLabels old_labels = ctx->jump_labels;
+      ctx->jump_labels.lbreak = label_end;
+
+      while (stmt) {
+        if (stmt->kind == kNodeCase) {
+          if (stmt->cond) {
+            Generate(ctx, node->cond, VC_RVAL, 1);
+            Generate(ctx, stmt->cond, VC_RVAL, 1);
+            Insn(ctx, "neq");
+            InsnLabelCase(ctx, "jz", label_case, stmt->cond->token->value.as_int);
+          } else { // default ラベル
+            InsnLabelAutoL(ctx, "jmp", label_default);
+          }
+        }
+        stmt = stmt->next;
+      }
+      InsnLabelAutoL(ctx, "jmp", label_end);
+
+      stmt = node->rhs->rhs;
+      while (stmt) {
+        if (stmt->kind == kNodeCase) {
+          if (stmt->cond) {
+            AddLabelCase(ctx, label_case, stmt->cond->token->value.as_int);
+          } else { // default ラベル
+            AddLabelAutoL(ctx, label_default);
+          }
+        } else {
+          Generate(ctx, stmt, VC_NO_NEED, 1);
+        }
+        stmt = stmt->next;
+      }
+      AddLabelAutoL(ctx, label_end);
+
+      ctx->jump_labels = old_labels;
+    }
+    break;
+  case kNodeCase:
     break;
   case kNodeFor:
     {

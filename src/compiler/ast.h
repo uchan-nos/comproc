@@ -48,6 +48,8 @@ enum NodeKind {
   kNodePList,
   kNodeIList, // int a[n] = {...}; の右辺
   kNodeAsm, // インラインアセンブラ
+  kNodeSwitch,
+  kNodeCase,
 };
 
 struct Node {
@@ -73,6 +75,7 @@ struct Node {
   // kNodeAsm     文字列    NULL      NULL
   // kNodeCast    型指定子  式        NULL
   // kNodeIList   NULL      式        NULL
+  // kNodeCase    NULL      文        値        値は kNodeInteger
   struct Node *lhs, *rhs, *cond;
 };
 

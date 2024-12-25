@@ -16,6 +16,9 @@ void PrintLabel(FILE *out, struct Label *label) {
   case kLabelStr:
     fprintf(out, "%s", label->label_str);
     break;
+  case kLabelCase:
+    fprintf(out, "CASE_%d_%d", label->case_.label_no, label->case_.case_val);
+    break;
   }
 }
 

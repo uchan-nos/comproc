@@ -202,3 +202,6 @@ test_value 03 '#include "head_add.h"
 int main() { return add(1, 2); }'
 test_value 02 'int main() {return ((f() >> 15) & 4) | ((g() >> 15) & 2);} unsigned int f(){return -1;} int g(){return -1;}'
 test_value 04 'int main() {return gx[2] - gx[0];} int gx[3] = {3, 5, 7};'
+test_value 02 'int main() {int d=0; switch(1){case 0:return 5; case 1:++d; case 2:++d; break; default: return 6;} return d;}'
+test_value 01 'int main() {int d=0; switch(1){case 1:++d;} return d;}'
+test_value 00 'int main() {int d=0; switch(2){case 1:++d;} return d;}'
