@@ -791,7 +791,7 @@ int load_exe_by_filename(int (*app_main)(), char *block_buf, char *filename, int
       return -1;
     }
 
-    puts("File loaded");
+    puts("File loaded\n");
   }
   return 0;
 }
@@ -1049,9 +1049,29 @@ int main() {
   return 0;
 }
 
-int syscall(int funcnum) {
-  if (funcnum == 0) { // get OS version
-    return 1;
+int syscall(int funcnum, int *args) {
+  int ret = -1;
+  switch (funcnum) {
+  case 0: // get OS version
+    ret = 1;
+    break;
+  case 1: // put string to the standard output
+    {
+      char *s = args[0];
+      int len = args[1];
+      ret = 0;
+      if (len < 0) {
+        while (*s) {
+          uart_putc(*s++);
+          ++ret;
+        }
+      } else {
+        while (ret++ < len) {
+          uart_putc(*s++);
+        }
+      }
+    }
+    break;
   }
-  return -1;
+  return ret;
 }

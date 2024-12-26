@@ -46,28 +46,47 @@ void int2hex(int val, char *s, int n) {
   }
 }
 
+int (*syscall)();
+
+int syscall_get_os_version() {
+  return syscall(0, 0);
+}
+
+int syscall_put_string(char *s, int n) {
+  int args[2] = {s, n};
+  return syscall(1, args);
+}
+
 int main(int *info) {
   char buf[5];
   led_port = 0;
 
+  syscall = info[1];
   lcd_init();
 
   play_bootsound();
 
   lcd_out8(0, 0x94);
   lcd_puts("info: ");
+  syscall_put_string("info: ", -1);
   buf[4] = 0;
   int2hex(info[0], buf, 4);
   lcd_puts(buf);
+  syscall_put_string(buf, -1);
   lcd_putc(' ');
+  syscall_put_string(" ", -1);
   int2hex(info[1], buf, 4);
   lcd_puts(buf);
+  syscall_put_string(buf, -1);
+  syscall_put_string("\n", -1);
 
-  int (*syscall)() = info[1];
   lcd_out8(0, 0xd4);
   lcd_puts("os version: ");
-  int2hex(syscall(0), buf, 4);
+  syscall_put_string("os version: ", -1);
+  int2hex(syscall_get_os_version(), buf, 4);
   lcd_puts(buf);
+  syscall_put_string(buf, -1);
+  syscall_put_string("\n", -1);
 
   lcd_out8(0, 0x80);
   lcd_puts("waiting enter...");
