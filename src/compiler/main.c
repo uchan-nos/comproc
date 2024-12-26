@@ -880,12 +880,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
     {
       struct Node *stmt = node->rhs->rhs;
       int label_case = GenLabel(ctx);
-      int label_default = GenLabel(ctx);
       int label_end = GenLabel(ctx);
 
       struct JumpLabels old_labels = ctx->jump_labels;
       ctx->jump_labels.lbreak = label_end;
 
+      int no_default = 1;
       while (stmt) {
         if (stmt->kind == kNodeCase) {
           if (stmt->cond) {
@@ -894,12 +894,15 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
             Insn(ctx, "neq");
             InsnLabelCase(ctx, "jz", label_case, stmt->cond->token->value.as_int);
           } else { // default ラベル
-            InsnLabelAutoL(ctx, "jmp", label_default);
+            InsnLabelAutoL(ctx, "jmp", label_end);
+            no_default = 0;
           }
         }
         stmt = stmt->next;
       }
-      InsnLabelAutoL(ctx, "jmp", label_end);
+      if (no_default) {
+        InsnLabelAutoL(ctx, "jmp", label_end);
+      }
 
       stmt = node->rhs->rhs;
       while (stmt) {
@@ -907,14 +910,16 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
           if (stmt->cond) {
             AddLabelCase(ctx, label_case, stmt->cond->token->value.as_int);
           } else { // default ラベル
-            AddLabelAutoL(ctx, label_default);
+            AddLabelAutoL(ctx, label_end);
           }
         } else {
           Generate(ctx, stmt, VC_NO_NEED, 1);
         }
         stmt = stmt->next;
       }
-      AddLabelAutoL(ctx, label_end);
+      if (no_default) {
+        AddLabelAutoL(ctx, label_end);
+      }
 
       ctx->jump_labels = old_labels;
     }
