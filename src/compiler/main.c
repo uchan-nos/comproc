@@ -784,7 +784,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         ++num_param;
       }
 
-      Generate(ctx, node->rhs, VC_RVAL, 1);
+      Generate(ctx, node->rhs, VC_NO_NEED, 1);
       int line_body_last = ctx->num_line;
 
       // 引数が 1 つしかなく、その引数が 1 回しか評価されない場合の最適化
@@ -865,12 +865,12 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       }
       InsnLabelAutoL(ctx, "jz", node->rhs ? label_else : label_end);
       PRINT_NODE_COMMENT(ctx, node, "If (then)");
-      Generate(ctx, node->lhs, VC_RVAL, 1);
+      Generate(ctx, node->lhs, VC_NO_NEED, 1);
       if (node->rhs) {
         InsnLabelAutoL(ctx, "jmp", label_end);
         PRINT_NODE_COMMENT(ctx, node, "If (else)");
         AddLabelAutoL(ctx, label_else);
-        Generate(ctx, node->rhs, VC_RVAL, 1);
+        Generate(ctx, node->rhs, VC_NO_NEED, 1);
       }
       PRINT_NODE_COMMENT(ctx, node, "If (end)");
       AddLabelAutoL(ctx, label_end);
@@ -937,15 +937,15 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
       ctx->jump_labels.lcontinue = label_next;
 
       PRINT_NODE_COMMENT(ctx, node, "For (eval init)");
-      Generate(ctx, node->lhs, VC_RVAL, 1);
+      Generate(ctx, node->lhs, VC_NO_NEED, 1);
       AddLabelAutoL(ctx, label_cond);
       if (!(Generate(ctx, node->cond, VC_RVAL, 1) & GEN_BOOL)) {
         ConvertToBoolean(ctx);
       }
       InsnLabelAutoL(ctx, "jz", label_end);
-      Generate(ctx, node->rhs, VC_RVAL, 1);
+      Generate(ctx, node->rhs, VC_NO_NEED, 1);
       AddLabelAutoL(ctx, label_next);
-      Generate(ctx, node->lhs->next, VC_RVAL, 1);
+      Generate(ctx, node->lhs->next, VC_NO_NEED, 1);
       InsnLabelAutoL(ctx, "jmp", label_cond);
       PRINT_NODE_COMMENT(ctx, node, "For (end)");
       AddLabelAutoL(ctx, label_end);
@@ -968,7 +968,7 @@ unsigned Generate(struct GenContext *ctx, struct Node *node, enum ValueClass val
         ConvertToBoolean(ctx);
       }
       InsnLabelAutoL(ctx, "jz", label_end);
-      Generate(ctx, node->rhs, VC_RVAL, 1);
+      Generate(ctx, node->rhs, VC_NO_NEED, 1);
       InsnLabelAutoL(ctx, "jmp", label_cond);
       PRINT_NODE_COMMENT(ctx, node, "While (end)");
       AddLabelAutoL(ctx, label_end);
